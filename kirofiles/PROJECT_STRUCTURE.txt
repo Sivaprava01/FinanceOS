@@ -1,0 +1,244 @@
+FINANCEOS BACKEND - PROJECT STRUCTURE
+=====================================
+
+backend/
+│
+├── src/
+│   │
+│   ├── config/                          (Empty - future configuration)
+│   │
+│   ├── constants/
+│   │   └── index.js                     App-wide constants (status codes, messages)
+│   │
+│   ├── controllers/
+│   │   └── healthController.js          Handles health check requests
+│   │
+│   ├── services/
+│   │   └── healthService.js             Business logic for health checks
+│   │
+│   ├── models/                          (Empty - Mongoose schemas for future modules)
+│   │
+│   ├── routes/
+│   │   ├── health.routes.js             Health check endpoint definition
+│   │   └── index.js                     Route aggregator
+│   │
+│   ├── middlewares/
+│   │   ├── logger.js                    HTTP request logging with Morgan
+│   │   └── errorHandler.js              Global error handler middleware
+│   │
+│   ├── utils/
+│   │   ├── ApiResponse.js               Formats successful responses
+│   │   ├── ApiError.js                  Custom error class
+│   │   ├── asyncHandler.js              Wraps async functions for error handling
+│   │   └── index.js                     Utils export file
+│   │
+│   ├── db/
+│   │   └── index.js                     MongoDB connection with Mongoose
+│   │
+│   ├── app.js                           Express app configuration
+│   │
+│   └── index.js                         Server entry point
+│
+├── .env                                 Environment variables (user-created)
+├── .env.example                         Environment variables template
+├── .eslintrc.json                       ESLint configuration
+├── .prettierrc.json                     Prettier configuration
+├── .gitignore                           Git ignore patterns
+│
+├── package.json                         Dependencies and scripts
+├── package-lock.json                    Locked dependency versions
+│
+├── README.md                            Quick start guide
+├── IMPLEMENTATION_GUIDE.md              Detailed architecture explanation
+│
+└── node_modules/                        (Generated - npm dependencies)
+
+
+KEY FILES EXPLAINED
+===================
+
+CORE APPLICATION
+================
+
+src/index.js
+- Server entry point
+- Loads environment variables
+- Connects to MongoDB
+- Starts Express server
+- Handles graceful shutdown
+
+src/app.js
+- Express application configuration
+- Middleware setup (CORS, logging, error handling)
+- Route registration
+- Global prefix configuration (/api/v1)
+- 404 handler
+
+
+UTILITIES (Reusable Functions)
+==============================
+
+src/utils/ApiResponse.js
+- Formats all successful API responses
+- Structure: { success: true, message: "...", data: {...}, statusCode: 200 }
+
+src/utils/ApiError.js
+- Custom error class for application errors
+- Includes statusCode and error messages
+- Used for consistent error throwing
+
+src/utils/asyncHandler.js
+- Higher-order function wrapping async controllers
+- Automatically catches and forwards errors to error handler
+- Eliminates need for try-catch in every controller
+
+
+MIDDLEWARE (Request Processing)
+===============================
+
+src/middlewares/logger.js
+- Morgan HTTP request logger
+- Logs: method, path, status code, response time
+
+src/middlewares/errorHandler.js
+- Global error handler (catches ALL errors)
+- Formats errors consistently
+- Hides stack traces in production
+- Responds with proper HTTP status codes
+
+
+ARCHITECTURE PATTERN
+====================
+
+Request Flow:
+1. Client sends HTTP request
+2. Express receives request
+3. CORS middleware validates origin
+4. Morgan logger logs request
+5. Route matches path
+6. Controller receives request
+7. Controller calls Service
+8. Service performs business logic
+9. Service returns result
+10. Controller formats response with ApiResponse
+11. Response sent to client
+
+Health Check Example:
+GET /api/v1/health
+  ↓ (routes/health.routes.js)
+Controllers: getHealthStatus()
+  ↓ (controllers/healthController.js)
+Service: checkHealth()
+  ↓ (services/healthService.js)
+Response: ApiResponse formatted
+  ↓ (utils/ApiResponse.js)
+Client receives: { success: true, message: "...", data: {...} }
+
+
+FOLDER STRUCTURE RATIONALE
+==========================
+
+Why separate controllers and services?
+- Controllers: Handle request/response
+- Services: Contain business logic
+- Benefit: Services are reusable, testable, and loosely coupled
+
+Why global error handler?
+- All errors thrown as ApiError
+- Caught by global middleware
+- Consistent response format everywhere
+
+Why constants folder?
+- HTTP status codes in one place
+- Messages centralized
+- Easy to maintain and update
+
+Why empty folders for Phase 01?
+- models/: Ready for User, Transaction, Loan schemas (Phase 02+)
+- config/: Ready for configuration modules (Phase 02+)
+- Folder structure prepared for scalability
+
+
+ENVIRONMENT VARIABLES
+=====================
+
+PORT                    - Server port (default: 8000)
+NODE_ENV                - Environment (development/production)
+MONGODB_URI             - MongoDB connection string
+CORS_ORIGINS            - Comma-separated allowed origins
+JWT_SECRET              - JWT signing key
+JWT_REFRESH_SECRET      - Refresh token signing key
+GOOGLE_CLIENT_ID        - Google OAuth client ID
+GOOGLE_CLIENT_SECRET    - Google OAuth client secret
+
+
+NAMING CONVENTIONS APPLIED
+==========================
+
+Folders: lowercase (src/, models/, controllers/)
+Files: camelCase with descriptive names (healthService.js, errorHandler.js)
+Variables: camelCase (req, res, statusCode)
+Classes/Objects: PascalCase (ApiResponse, ApiError)
+Constants: UPPER_SNAKE_CASE (HTTP_STATUS, CORS_ORIGINS)
+Routes: lowercase with dashes (health.routes.js)
+
+
+PATTERNS ESTABLISHED
+====================
+
+1. Service Layer Pattern
+   - Controllers call services
+   - Services contain business logic
+   - Models define database structure
+
+2. Error Handling
+   - Throw ApiError with statusCode
+   - Global handler catches and formats
+   - Consistent { success, message, statusCode } format
+
+3. Response Formatting
+   - All responses use ApiResponse
+   - { success: boolean, message: string, data: any, statusCode: number }
+   - Frontend knows exact structure
+
+4. Async Function Wrapping
+   - Use asyncHandler wrapper
+   - Automatically catches errors
+   - No need for try-catch blocks
+
+5. Middleware Chain
+   - CORS → Logging → Route → Error Handler
+   - Each middleware has specific responsibility
+   - Easy to add new middleware
+
+
+READY FOR PHASE 02
+==================
+
+✅ Authentication folder structure ready
+✅ JWT secret constants in place
+✅ Error handling for auth errors ready
+✅ Middleware system ready for auth middleware
+✅ Route structure ready for /auth endpoints
+✅ Service pattern established
+✅ Response format consistent
+
+
+SCRIPTS AVAILABLE
+=================
+
+npm start           - Run production server
+npm run dev         - Run development server with auto-reload
+npm run lint        - Check code with ESLint
+npm run format      - Auto-format code with Prettier
+
+
+NEXT STEPS
+==========
+
+1. Ensure MongoDB is running locally
+2. Configure .env with your values
+3. Run `npm run dev` to start server
+4. Test health endpoint: curl http://localhost:8000/api/v1/health
+5. Review IMPLEMENTATION_GUIDE.md for detailed explanation
+6. Read Guidelines.md before writing Phase 02 code
