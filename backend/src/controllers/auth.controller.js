@@ -1,0 +1,1 @@
+// Handles authentication controller responsibilities.
