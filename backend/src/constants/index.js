@@ -1,26 +1,60 @@
 /**
  * Application Constants
- * 
- * Centralized constants used across the application
- * Update these values in one place instead of scattered throughout the code
+ *
+ * Only truly immutable values live here — things that never change
+ * regardless of environment (cookie names, provider identifiers, etc.)
+ *
+ * Values that vary by environment (secrets, expiry durations, URLs)
+ * belong in .env, not here.
  */
+
+// ─── HTTP ────────────────────────────────────────────────────────────────────
 
 export const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
+  NO_CONTENT: 204,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
+  CONFLICT: 409,
   INTERNAL_SERVER_ERROR: 500,
 };
 
+// ─── Routing ─────────────────────────────────────────────────────────────────
+
 export const API_PREFIX = "/api/v1";
+
+// ─── CORS ────────────────────────────────────────────────────────────────────
 
 export const CORS_ORIGINS = process.env.CORS_ORIGINS?.split(",") || [
   "http://localhost:3000",
   "http://localhost:3001",
 ];
+
+// ─── Cookies ─────────────────────────────────────────────────────────────────
+
+export const COOKIE_NAMES = {
+  // HTTP-only cookie that carries the refresh token
+  REFRESH_TOKEN: "fos_rt",
+};
+
+export const COOKIE_OPTIONS = {
+  // Shared base options for all auth cookies
+  httpOnly: true,                                  // Never accessible via JS
+  secure: process.env.NODE_ENV === "production",   // HTTPS-only in production
+  sameSite: "strict",                              // CSRF protection
+};
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export const AUTH_PROVIDERS = {
+  LOCAL: "local",
+  GOOGLE: "google",
+};
+
+// ─── Messages ────────────────────────────────────────────────────────────────
 
 export const APP_MESSAGES = {
   SERVER_RUNNING: "FinanceOS Backend is running",
@@ -28,4 +62,21 @@ export const APP_MESSAGES = {
   INTERNAL_ERROR: "An unexpected error occurred. Please try again later.",
   NOT_FOUND: "Resource not found",
   INVALID_REQUEST: "Invalid request parameters",
+};
+
+export const AUTH_MESSAGES = {
+  REGISTER_SUCCESS: "Account created successfully",
+  LOGIN_SUCCESS: "Logged in successfully",
+  LOGOUT_SUCCESS: "Logged out successfully",
+  TOKEN_REFRESHED: "Access token refreshed",
+  PROFILE_FETCHED: "Profile fetched successfully",
+
+  // Error messages
+  INVALID_CREDENTIALS: "Invalid email or password",
+  EMAIL_ALREADY_EXISTS: "An account with this email already exists",
+  USER_NOT_FOUND: "User not found",
+  UNAUTHORIZED: "Authentication required",
+  INVALID_TOKEN: "Invalid or expired token",
+  MISSING_TOKEN: "No token provided",
+  GOOGLE_AUTH_FAILED: "Google authentication failed",
 };
