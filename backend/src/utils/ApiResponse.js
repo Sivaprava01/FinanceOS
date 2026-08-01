@@ -1,20 +1,13 @@
 /**
- * ApiResponse - Standard response format for all successful API responses
- * 
- * Format:
- * {
- *   success: boolean,
- *   message: string,
- *   data: any
- * }
+ * Standardized API success response.
+ * Every successful response in FinanceOS should use this class.
  */
-
 class ApiResponse {
-  constructor(statusCode, data, message = "Success") {
+  constructor(statusCode, message = "Success", data = null) {
+    this.success = statusCode >= 200 && statusCode < 300;
     this.statusCode = statusCode;
-    this.data = data;
     this.message = message;
-    this.success = statusCode < 400;
+    this.data = data;
   }
 }
 

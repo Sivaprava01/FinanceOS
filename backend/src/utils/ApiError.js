@@ -1,18 +1,20 @@
 /**
- * ApiError - Custom error class for consistent error handling
- * 
- * Extends the native Error class to include statusCode
- * All errors in the application should throw ApiError
+ * Custom API Error class.
+ * Used to throw standardized errors throughout the application.
  */
-
 class ApiError extends Error {
-  constructor(statusCode, message = "Something went wrong", errors = []) {
+  constructor(
+    statusCode,
+    message = "Something went wrong",
+    errors = []
+  ) {
     super(message);
-    this.statusCode = statusCode;
-    this.errors = errors;
-    this.success = false;
 
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
+    this.success = false;
+    this.statusCode = statusCode;
+    this.message = message;
+    this.errors = errors;
+
     Error.captureStackTrace(this, this.constructor);
   }
 }

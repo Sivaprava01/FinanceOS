@@ -1,16 +1,9 @@
 /**
  * Global Error Handler Middleware
- * 
- * This middleware should be registered LAST in the Express app
+ *
+ * This middleware should be registered LAST in the Express app.
  * It catches all errors thrown anywhere in the application
- * and returns a consistent error response format
- * 
- * Format:
- * {
- *   success: false,
- *   message: "error message",
- *   statusCode: 500
- * }
+ * and returns a consistent error response format.
  */
 
 import { HTTP_STATUS, APP_MESSAGES } from "../constants/index.js";
@@ -21,16 +14,20 @@ const errorHandler = (err, req, res, next) => {
   const message = err.message || APP_MESSAGES.INTERNAL_ERROR;
 
   // Log error details (in production, use a proper logging service)
-  console.error(
-    `\n❌ Error: ${message}\nStatus: ${statusCode}\nPath: ${req.path}\n`
-  );
+ console.error({
+  message,
+  statusCode,
+  path: req.originalUrl,
+  method: req.method,
+  stack: err.stack,
+});
 
   // Send error response
   res.status(statusCode).json({
     success: false,
-    message: message,
-    statusCode: statusCode,
-    // Exclude stack trace in production
+    message,
+    statusCode,
+    ...(err.errors?.length && { errors: err.errors }),
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
