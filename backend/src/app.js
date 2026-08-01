@@ -17,6 +17,7 @@ import cookieParser from "cookie-parser";
 import httpLogger from "./middlewares/logger.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import setupSwagger from "./config/swagger.js";
+import initPassport from "./config/passport.js";
 import { API_PREFIX, CORS_ORIGINS } from "./constants/index.js";
 import routes from "./routes/index.js";
 
@@ -46,6 +47,11 @@ app.use(
 // ─── HTTP Logger ──────────────────────────────────────────────────────────────
 
 app.use(httpLogger);
+
+// ─── Passport (OAuth) ─────────────────────────────────────────────────────────
+
+// Must be initialized after body/cookie parsers so req is fully populated
+initPassport(app);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 

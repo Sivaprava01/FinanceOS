@@ -11,7 +11,7 @@
  */
 
 import express from "express";
-import passport from "../config/passport.js";
+import passport from "passport";
 import protect from "../middlewares/auth.middleware.js";
 import { validateRegister, validateLogin } from "../validations/auth.validation.js";
 import {
