@@ -16,6 +16,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import httpLogger from "./middlewares/logger.js";
 import errorHandler from "./middlewares/errorHandler.js";
+import setupSwagger from "./config/swagger.js";
 import { API_PREFIX, CORS_ORIGINS } from "./constants/index.js";
 import routes from "./routes/index.js";
 
@@ -49,6 +50,10 @@ app.use(httpLogger);
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.use(API_PREFIX, routes);
+
+// ─── Swagger (non-production only) ────────────────────────────────────────────
+
+setupSwagger(app);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 
