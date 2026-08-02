@@ -11,8 +11,7 @@
 import User from "../models/user.model.js";
 import { tokenUtils } from "../utils/token.js";
 import ApiError from "../utils/ApiError.js";
-import { HTTP_STATUS, AUTH_MESSAGES, AUTH_PROVIDERS, USER_MESSAGES } from "../constants/index.js";
-
+import { HTTP_STATUS, AUTH_MESSAGES, AUTH_PROVIDERS } from "../constants/index.js";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -108,8 +107,11 @@ const login = async ({ email, password }) => {
 
   // Soft-deleted accounts must not receive new tokens under any circumstances
   if (user.isDeleted) {
-    throw new ApiError(HTTP_STATUS.FORBIDDEN, USER_MESSAGES.ACCOUNT_DELETED_ERROR);
-  }
+  throw new ApiError(
+    HTTP_STATUS.FORBIDDEN,
+    AUTH_MESSAGES.ACCOUNT_DELETED
+  );
+}
 
   // Google-only accounts have no password
   if (user.provider !== AUTH_PROVIDERS.LOCAL || !user.password) {

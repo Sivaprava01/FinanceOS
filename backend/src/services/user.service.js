@@ -7,8 +7,7 @@
 
 import User from "../models/user.model.js";
 import ApiError from "../utils/ApiError.js";
-import { HTTP_STATUS, USER_MESSAGES } from "../constants/index.js";
-
+import { HTTP_STATUS, AUTH_MESSAGES } from "../constants/index.js";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
