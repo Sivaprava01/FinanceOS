@@ -12,12 +12,28 @@ import User from "../models/user.model.js";
 import { tokenUtils } from "../utils/token.js";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS, AUTH_MESSAGES, AUTH_PROVIDERS } from "../constants/index.js";
-import { buildPublicUser } from "./user.service.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// buildPublicUser is the canonical user shape — defined in user.service.js
-// and reused here so auth responses match user module responses exactly.
+/**
+ * Builds the auth-scoped public user payload.
+ * Auth responses only need identity and auth-state fields —
+ * profile fields (country, preferences, etc.) are the user module's concern.
+ * Keeping this here avoids a cross-module dependency for a shape that
+ * belongs to the auth context.
+ *
+ * @param {import("../models/user.model.js").default} user
+ * @returns {object}
+ */
+const buildUserPayload = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  avatar: user.avatar,
+  provider: user.provider,
+  isEmailVerified: user.isEmailVerified,
+  createdAt: user.createdAt,
+});
 
 /**
  * Generates a fresh access + refresh token pair for a user
@@ -70,7 +86,7 @@ const register = async ({ name, email, password }) => {
 
   const { accessToken, refreshToken } = await issueTokenPair(user);
 
-  return { user: buildPublicUser(user), accessToken, refreshToken };
+  return { user: buildUserPayload(user), accessToken, refreshToken };
 };
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -103,7 +119,7 @@ const login = async ({ email, password }) => {
 
   const { accessToken, refreshToken } = await issueTokenPair(user);
 
-  return { user: buildPublicUser(user), accessToken, refreshToken };
+  return { user: buildUserPayload(user), accessToken, refreshToken };
 };
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -178,7 +194,7 @@ const getProfile = async (userId) => {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, AUTH_MESSAGES.USER_NOT_FOUND);
   }
 
-  return buildPublicUser(user);
+  return buildUserPayload(user);
 };
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────

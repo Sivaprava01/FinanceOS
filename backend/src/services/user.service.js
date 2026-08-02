@@ -2,10 +2,6 @@
  * User Service
  *
  * All user profile business logic lives here.
- * This service owns the canonical definition of what a "public user"
- * looks like in API responses — auth.service delegates to this shape
- * for consistency.
- *
  * This service never touches req or res.
  */
 
@@ -18,13 +14,12 @@ import { HTTP_STATUS, USER_MESSAGES } from "../constants/index.js";
 /**
  * Builds the full public user payload for API responses.
  * Sensitive fields (password, refreshToken) are never included.
- * This is the single source of truth for what a user looks like
- * in any response across the application.
+ * Private to this module — auth responses use their own leaner serializer.
  *
  * @param {import("../models/user.model.js").default} user
  * @returns {object}
  */
-export const buildPublicUser = (user) => ({
+const buildPublicUser = (user) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
@@ -51,29 +46,6 @@ export const buildPublicUser = (user) => ({
  */
 const getMe = async (userId) => {
   const user = await User.findById(userId);
-
-  if (!user || user.isDeleted) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, USER_MESSAGES.USER_NOT_FOUND);
-  }
-
-  return buildPublicUser(user);
-};
-
-// ─── Get User by ID ───────────────────────────────────────────────────────────
-
-/**
- * Fetches any user by their MongoDB ID.
- * Intended for admin/internal use — the route should add an
- * authorization layer before this phase ships to production.
- *
- * For Phase 03, this is internal-only and requires authentication.
- * Role-based access control (RBAC) will be added in a future phase.
- *
- * @param {string} targetUserId - The user to look up
- * @returns {Promise<object>}
- */
-const getUserById = async (targetUserId) => {
-  const user = await User.findById(targetUserId);
 
   if (!user || user.isDeleted) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, USER_MESSAGES.USER_NOT_FOUND);
@@ -199,7 +171,6 @@ const deleteAccount = async (userId) => {
 
 export const userService = {
   getMe,
-  getUserById,
   updateProfile,
   updatePreferences,
   deleteAccount,

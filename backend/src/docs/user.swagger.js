@@ -253,14 +253,13 @@
  * @swagger
  * /users/{id}:
  *   get:
- *     summary: Get user by ID (admin/internal)
+ *     summary: Get user by ID (admin only — not yet implemented)
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
  *     description: >
- *       Fetches any user's profile by their MongoDB ID.
- *       Currently requires authentication only.
- *       Role-based access control will be added in a future phase.
+ *       Reserved for admin access. RBAC is not yet implemented.
+ *       Returns 501 Not Implemented until admin roles are introduced.
  *     parameters:
  *       - in: path
  *         name: id
@@ -269,28 +268,14 @@
  *           type: string
  *         description: MongoDB user ID
  *     responses:
- *       200:
- *         description: User profile returned
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiSuccess'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         user:
- *                           $ref: '#/components/schemas/FullUserProfile'
- *       401:
- *         description: Not authenticated
+ *       501:
+ *         description: Not implemented
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
- *       404:
- *         description: User not found
+ *       401:
+ *         description: Not authenticated
  *         content:
  *           application/json:
  *             schema:

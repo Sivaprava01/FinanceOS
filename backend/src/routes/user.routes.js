@@ -7,10 +7,7 @@
  * PATCH  /api/v1/users/profile      - Update own profile fields
  * PATCH  /api/v1/users/preferences  - Update own preferences
  * DELETE /api/v1/users/me           - Soft delete own account
- * GET    /api/v1/users/:id          - Get user by ID (admin/internal)
- *
- * Route order matters: /me and /profile must come before /:id
- * to prevent Express matching "me" as a dynamic :id parameter.
+ * GET    /api/v1/users/:id          - Reserved for admin — not yet implemented
  */
 
 import express from "express";
@@ -18,7 +15,6 @@ import protect from "../middlewares/auth.middleware.js";
 import { validateUpdateProfile, validateUpdatePreferences } from "../validations/user.validation.js";
 import {
   getMe,
-  getUserById,
   updateProfile,
   updatePreferences,
   deleteAccount,
@@ -34,9 +30,16 @@ router.patch("/profile", validateUpdateProfile, updateProfile);
 router.patch("/preferences", validateUpdatePreferences, updatePreferences);
 router.delete("/me", deleteAccount);
 
-// ── Admin/Internal ────────────────────────────────────────────────────────────
-// Intentionally placed last — static segments above take precedence over :id
-// RBAC will be added in a future phase; for now, any authenticated user can call this
-router.get("/:id", getUserById);
+// ── Reserved: GET /:id ────────────────────────────────────────────────────────
+// Admin-only endpoint — requires RBAC which is not yet implemented.
+// Returns 501 so consumers know the endpoint is intentionally unavailable,
+// not missing. Will be gated behind an admin role middleware in a future phase.
+router.get("/:id", (req, res) => {
+  res.status(501).json({
+    success: false,
+    statusCode: 501,
+    message: "Not implemented. This endpoint requires admin access which is not yet available.",
+  });
+});
 
 export default router;

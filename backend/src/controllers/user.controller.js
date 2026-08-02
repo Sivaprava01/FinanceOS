@@ -24,16 +24,6 @@ export const getMe = asyncHandler(async (req, res) => {
     .json(new ApiResponse(HTTP_STATUS.OK, USER_MESSAGES.PROFILE_FETCHED, { user }));
 });
 
-// ─── GET /users/:id ───────────────────────────────────────────────────────────
-
-export const getUserById = asyncHandler(async (req, res) => {
-  const user = await userService.getUserById(req.params.id);
-
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, USER_MESSAGES.PROFILE_FETCHED, { user }));
-});
-
 // ─── PATCH /users/profile ─────────────────────────────────────────────────────
 
 export const updateProfile = asyncHandler(async (req, res) => {
