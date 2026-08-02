@@ -29,12 +29,14 @@ export const validateUpdateProfile = [
     .trim()
     .isURL().withMessage("Avatar must be a valid URL"),
 
-  body("country")
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 2 }).withMessage("Country must be a 2-letter ISO 3166-1 alpha-2 code")
-    .isAlpha().withMessage("Country must contain only letters")
-    .toUpperCase(),
+ body("preferredCurrency")
+  .optional()
+  .trim()
+  .isLength({ min: 3, max: 3 })
+  .withMessage("Currency must be a 3-letter ISO 4217 code")
+  .isAlpha()
+  .withMessage("Currency must contain only letters")
+  .toUpperCase(),
 
   body("preferredCurrency")
     .optional()
@@ -44,9 +46,20 @@ export const validateUpdateProfile = [
     .toUpperCase(),
 
   body("timeZone")
-    .optional()
-    .trim()
-    .notEmpty().withMessage("Time zone cannot be empty"),
+  .optional()
+  .trim()
+  .notEmpty()
+  .withMessage("Time zone cannot be empty")
+  .custom((value) => {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: value });
+      return true;
+    } catch {
+      throw new Error(
+        "Time zone must be a valid IANA time zone (e.g. Asia/Kolkata)"
+      );
+    }
+  }),
 
   // Block any attempt to update protected fields through this endpoint
   body("email").not().exists().withMessage("Email cannot be updated through this endpoint"),

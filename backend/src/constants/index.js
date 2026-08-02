@@ -52,6 +52,7 @@ export const COOKIE_OPTIONS = {
 export const AUTH_PROVIDERS = {
   LOCAL: "local",
   GOOGLE: "google",
+  
 };
 
 // ─── Messages ────────────────────────────────────────────────────────────────
@@ -81,17 +82,7 @@ export const AUTH_MESSAGES = {
   GOOGLE_AUTH_FAILED: "Google authentication failed",
 };
 
-export const USER_MESSAGES = {
-  PROFILE_FETCHED: "Profile fetched successfully",
-  PROFILE_UPDATED: "Profile updated successfully",
-  PREFERENCES_UPDATED: "Preferences updated successfully",
-  ACCOUNT_DELETED: "Account deleted successfully",
 
-  // Error messages
-  USER_NOT_FOUND: "User not found",
-  FORBIDDEN: "You do not have permission to perform this action",
-  ACCOUNT_DELETED_ERROR: "This account has been deleted",
-};
 
 // Immutable allowed values — used in validation and schema enum
 export const USER_THEMES = ["light", "dark", "system"];
