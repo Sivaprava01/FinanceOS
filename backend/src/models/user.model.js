@@ -4,6 +4,12 @@
  * Central identity document for FinanceOS.
  * Supports both local (email/password) and Google OAuth authentication.
  *
+ * Phase 02 fields: name, email, password, provider, googleId,
+ *                  refreshToken, isEmailVerified, avatar
+ *
+ * Phase 03 fields: country, preferredCurrency, timeZone,
+ *                  preferences (nested), isDeleted
+ *
  * Security notes:
  * - password and refreshToken use select:false so they are never
  *   accidentally returned in API responses
@@ -17,8 +23,44 @@ import { AUTH_PROVIDERS } from "../constants/index.js";
 
 const { Schema } = mongoose;
 
+// ─── Preferences Sub-schema ───────────────────────────────────────────────────
+// Kept as an embedded sub-document so we can add fields (budgetAlerts,
+// twoFactorAuth, etc.) in future phases without touching top-level schema.
+
+const preferencesSchema = new Schema(
+  {
+    language: {
+      type: String,
+      default: "en",
+      trim: true,
+    },
+
+    theme: {
+      type: String,
+      enum: ["light", "dark", "system"],
+      default: "system",
+    },
+
+    notifications: {
+      email: {
+        type: Boolean,
+        default: true,
+      },
+      push: {
+        type: Boolean,
+        default: true,
+      },
+    },
+  },
+  { _id: false } // No separate _id for this embedded document
+);
+
+// ─── User Schema ──────────────────────────────────────────────────────────────
+
 const userSchema = new Schema(
   {
+    // ── Phase 02: Auth fields ─────────────────────────────────────────────────
+
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -54,13 +96,12 @@ const userSchema = new Schema(
       unique: true,
     },
 
-    // Stored hashed; select:false prevents accidental exposure in responses
+    // Stored as plain token string; select:false prevents accidental exposure
     refreshToken: {
       type: String,
       select: false,
     },
 
-    // Reserved for Phase 03 email verification — included now to avoid a migration later
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -69,6 +110,40 @@ const userSchema = new Schema(
     avatar: {
       type: String,
       default: null,
+    },
+
+    // ── Phase 03: Profile fields ──────────────────────────────────────────────
+
+    country: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      // ISO 3166-1 alpha-2 format validated at the service/validation layer
+      default: null,
+    },
+
+    preferredCurrency: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      default: "USD",
+    },
+
+    timeZone: {
+      type: String,
+      trim: true,
+      default: "UTC",
+    },
+
+    preferences: {
+      type: preferencesSchema,
+      default: () => ({}), // Mongoose will populate defaults from preferencesSchema
+    },
+
+    // Soft delete — document is retained in MongoDB but excluded from all queries
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

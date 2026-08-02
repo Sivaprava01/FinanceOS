@@ -37,7 +37,7 @@ const protect = asyncHandler(async (req, res, next) => {
   // ensures deleted or deactivated users are rejected immediately
   const user = await User.findById(decoded._id);
 
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new ApiError(HTTP_STATUS.UNAUTHORIZED, AUTH_MESSAGES.UNAUTHORIZED);
   }
 
