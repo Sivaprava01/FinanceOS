@@ -220,15 +220,29 @@ const normalizeRow = (row, source) => {
 /**
  * Extracts transactions from PDF text using pattern matching.
  *
- * Approach:
- * - Scan every line for a recognised date at the start (or near the start).
- * - Once a date anchor is found, extract all currency amounts from the
- *   remainder of the line (everything after the date token).
- * - Assign debit/credit/balance from the amount columns using a keyword
- *   heuristic — no bank-specific column positions are hardcoded.
- * - Lines that span multiple rows (narration continues on next line) are
- *   joined before parsing using a look-ahead that checks whether the
- *   following line starts with a date anchor.
+ * Strategy: transaction-block assembly.
+ *
+ * pdf-parse outputs each field of a transaction on its own line — date,
+ * merchant, UPI reference lines, and amounts are all separate. To handle
+ * this, the parser groups consecutive lines into "blocks" where each block
+ * begins with a line that contains a date token. All lines up to the next
+ * date-containing line form one transaction block.
+ *
+ * Within each block:
+ *   - The date is extracted from the first line (stripping any leading
+ *     serial-number digits, e.g. "106.07.2026" → "06.07.2026").
+ *   - The merchant is the next non-empty line after the date line.
+ *   - The amounts line is the last line of the block (amounts are
+ *     concatenated without spaces, e.g. "899.002510.30").
+ *   - The last amount is treated as the closing balance; the first is the
+ *     transaction amount.
+ *   - Debit vs Credit is determined by whether the deposit column is
+ *     populated — detected via the UPI/narration line keywords.
+ *
+ * Date formats supported (all separator variants):
+ *   DD.MM.YYYY  DD/MM/YYYY  DD-MM-YYYY  DD.MM.YY  DD/MM/YY
+ *   YYYY-MM-DD  (ISO)
+ *   DD MMM YYYY  DD MMM YY  (e.g. "10 Jul 2025")
  *
  * @param {string} text - Raw text from PDF
  * @returns {Array} Array of transactions
@@ -236,161 +250,162 @@ const normalizeRow = (row, source) => {
 const extractTransactionsFromText = (text) => {
   const isDev = process.env.NODE_ENV !== "production";
 
-  // Matches a date token at the start of a line (after optional whitespace).
-  // Supported formats:
-  //   DD/MM/YYYY  DD-MM-YYYY  DD.MM.YYYY
-  //   DD/MM/YY    DD-MM-YY
-  //   YYYY-MM-DD  (ISO)
-  //   DD MMM YYYY  DD MMM YY  (e.g. 10 Jul 2025)
-  const DATE_AT_START = /^(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
+  // DATE_ANYWHERE — matches a date embedded anywhere in a line.
+  //
+  // This PDF has lines like "1924.07.2026" (serial "19" fused to date "24.07.2026").
+  // We match broadly and then strip any leading serial digits in the extraction step.
+  //
+  // Match priority:
+  //   1. YYYY.MM.DD / YYYY-MM-DD / YYYY/MM/DD  (year 1900-2099)
+  //   2. DD.MM.YYYY / DD-MM-YYYY / DD/MM/YYYY  (day 01-31, month 01-12)
+  //   3. DD MMM YYYY  (word-month)
+  const DATE_ANYWHERE = /((?:19|20)\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2}|(?:0[1-9]|[12]\d|3[01])[\/\-\.](?:0[1-9]|1[0-2])[\/\-\.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
 
-  // Matches a currency amount: 1-7 digits, optional comma-groups, mandatory decimal
-  // Examples: 450.00  10,000.00  1,24,550.00  1,899.00
-  const AMOUNT_RE = /\d{1,3}(?:,\d{2,3})*\.\d{2}/g;
+  // Matches a currency amount with mandatory decimal and exactly 2 decimal places.
+  // \d+ (not \d{1,3}) so that "5000.00" is captured whole, not as "000.00".
+  // Handles comma-formatted numbers: 1,24,550.00 → 124550.00
+  // Handles fused amounts: "5000.007460.30" → ["5000.00", "7460.30"]
+  const AMOUNT_RE = /\d+(?:,\d{2,3})*\.\d{2}/g;
 
-  // ── Step 1: Merge continuation lines ──────────────────────────────────────
-  // pdf-parse sometimes splits a narration across two lines.
-  // A continuation line has no date anchor at its start.
-  const rawLines = text.split("\n");
-  const mergedLines = [];
+  const rawLines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
 
+  // ── Step 1: Identify which lines contain a date ───────────────────────────
+  // A "date line" is any line where a date token can be extracted.
+  // We record the line index so we can group everything between two date
+  // lines into a single transaction block.
+  const dateLineIndices = [];
   for (let i = 0; i < rawLines.length; i++) {
-    const line = rawLines[i].trim();
-    if (!line) continue;
-
-    if (DATE_AT_START.test(line)) {
-      // Peek: if the next non-empty line does NOT start with a date, it is a
-      // continuation of the narration — merge it in.
-      let merged = line;
-      while (i + 1 < rawLines.length) {
-        const next = rawLines[i + 1].trim();
-        if (next && !DATE_AT_START.test(next)) {
-          merged += " " + next;
-          i++;
-        } else {
-          break;
-        }
-      }
-      mergedLines.push(merged);
+    if (DATE_ANYWHERE.test(rawLines[i])) {
+      dateLineIndices.push(i);
     }
-    // Lines without a date anchor are skipped (headers, footers, etc.)
   }
 
   if (isDev) {
-    console.log(`[Parser] Total lines in PDF: ${rawLines.length} | Lines with date anchor: ${mergedLines.length}`);
+    console.log(`[Parser] Total non-empty lines: ${rawLines.length} | Lines containing a date: ${dateLineIndices.length}`);
   }
 
-  // ── Step 2: Parse each date-anchored line ──────────────────────────────────
+  if (dateLineIndices.length === 0) {
+    if (isDev) {
+      console.log("[Parser] No date-like tokens found anywhere in the text.");
+      console.log("[Parser] First 800 chars:", text.slice(0, 800));
+    }
+    return [];
+  }
+
+  // ── Step 2: Build transaction blocks ─────────────────────────────────────
+  // Each block = lines from the current date line up to (not including) the
+  // next date line. The last block ends at the end of the document.
+  const blocks = [];
+  for (let b = 0; b < dateLineIndices.length; b++) {
+    const start = dateLineIndices[b];
+    const end   = b + 1 < dateLineIndices.length ? dateLineIndices[b + 1] : rawLines.length;
+    blocks.push(rawLines.slice(start, end));
+  }
+
+  if (isDev) {
+    console.log(`[Parser] Transaction blocks identified: ${blocks.length}`);
+  }
+
+  // ── Step 3: Parse each block into a transaction ───────────────────────────
   const transactions = [];
-  const rejected = [];
+  const rejected     = [];
 
-  for (const line of mergedLines) {
-    const dateMatch = line.match(DATE_AT_START);
-    if (!dateMatch) continue;
+  for (const block of blocks) {
+    const dateLine = block[0];
 
-    const date = parseDate(dateMatch[0]);
-    if (!date) {
-      rejected.push({ reason: "unparseable date", line });
+    // ── Extract date ───────────────────────────────────────────────────────
+    // The first line of each block is the date line, but it often has a
+    // serial number fused directly to the front with no separator:
+    //   "106.07.2026"  → serial "1",  date "06.07.2026"
+    //   "1924.07.2026" → serial "19", date "24.07.2026"
+    //   "06.07.2026"   → no serial,   date "06.07.2026"
+    //
+    // Algorithm: look for a DD.MM.YYYY pattern (day 01-31, month 01-12)
+    // anywhere in the date line. Take the last occurrence so that if
+    // serial digits accidentally match something earlier, we still get
+    // the real date at the end of the string.
+    const DATE_IN_LINE = /(\d{2}\.\d{2}\.\d{4})/g;
+    let dateStr = null;
+    let dm;
+    while ((dm = DATE_IN_LINE.exec(dateLine)) !== null) {
+      dateStr = dm[1]; // keep overwriting — last match wins
+    }
+
+    // If no DD.MM.YYYY found, fall back to the broad DATE_ANYWHERE match
+    if (!dateStr) {
+      const fallback = dateLine.match(DATE_ANYWHERE);
+      if (fallback) dateStr = fallback[1];
+    }
+
+    if (!dateStr) {
+      rejected.push({ reason: "no date token found", line: dateLine });
       continue;
     }
 
-    // Everything after the date token is amounts + narration
-    const remainder = line.slice(dateMatch[0].length).trim();
+    const date = parseDate(dateStr);
+    if (!date) {
+      rejected.push({ reason: `could not parse date "${dateStr}"`, line: dateLine });
+      continue;
+    }
 
-    // Reset lastIndex before exec loop
+    // ── Extract merchant (first non-empty line after the date line) ────────
+    const merchant = block.length > 1 ? block[1].substring(0, 100) : "Unknown";
+
+    // ── Collect all text in the block for narration ────────────────────────
+    const fullNarration = block.join(" ");
+
+    // ── Extract amounts from block lines AFTER the date line ──────────────
+    // Line 0 is the date line (e.g. "106.07.2026"). Scanning it would match
+    // "106.07" as an amount via AMOUNT_RE. Actual amounts are always on later
+    // lines of the block, so we skip line 0 entirely.
+    const amountText = block.slice(1).join(" ");
     AMOUNT_RE.lastIndex = 0;
     const amounts = [];
     let m;
-    while ((m = AMOUNT_RE.exec(remainder)) !== null) {
+    while ((m = AMOUNT_RE.exec(amountText)) !== null) {
       const n = cleanAmount(m[0]);
       if (n !== null) amounts.push(n);
     }
 
     if (amounts.length === 0) {
-      rejected.push({ reason: "no currency amount found", line });
+      rejected.push({ reason: "no currency amount found in block", line: dateLine });
+      if (isDev) console.log(`[Parser] Rejected block (no amount): "${dateLine}" | block: ${block.join(" | ").slice(0, 120)}`);
       continue;
     }
 
-    // Extract description: text before the first amount, stripped of ref numbers
-    const firstAmountPos = remainder.search(AMOUNT_RE);
-    AMOUNT_RE.lastIndex = 0;
-    let description = (firstAmountPos > 0 ? remainder.slice(0, firstAmountPos) : remainder)
-      .replace(/\s+\d{9,}\s*/g, " ")  // strip long reference/cheque numbers
-      .replace(/\s{2,}/g, " ")
-      .trim();
-
-    if (!description) description = "Unknown";
-
-    // ── Amount column assignment heuristic ───────────────────────────────────
-    // Banks use 2- or 3-amount column layouts:
-    //   2 amounts: [transaction_amount, closing_balance]
-    //   3 amounts: [debit, credit, closing_balance]  (one of debit/credit is 0 or absent)
+    // ── Determine debit vs credit ──────────────────────────────────────────
+    // This statement has separate Withdrawal and Deposit columns.
+    // When it's a Deposit, the amounts line contains: <deposit_amount><balance>
+    // When it's a Withdrawal, the amounts line contains: <withdrawal_amount><balance>
     //
-    // The closing balance is always the largest value on the line.
-    // If only one non-balance amount exists, use description keywords to
-    // determine debit vs credit.
-    let debit = null;
-    let credit = null;
-    let balance = null;
+    // Heuristic: if narration contains deposit/credit keywords, treat as credit.
+    // Otherwise debit.
+    const creditKeywords = /\bdeposit\b|credit|salary|received|refund|interest|cashback|\binward\b|\bCr\b/i;
+    const isCredit = creditKeywords.test(fullNarration);
 
-    if (amounts.length === 1) {
-      // Only one amount — treat as transaction amount, no balance available
-      const creditKeywords = /credit|deposit|salary|received|refund|interest|cashback/i;
-      if (creditKeywords.test(description)) {
-        credit = amounts[0];
-      } else {
-        debit = amounts[0];
-      }
-    } else if (amounts.length === 2) {
-      // Last amount is almost always the closing balance (largest running total)
-      balance = amounts[amounts.length - 1];
-      const txAmount = amounts[0];
-      const creditKeywords = /credit|deposit|salary|received|refund|interest|cashback/i;
-      if (creditKeywords.test(description)) {
-        credit = txAmount;
-      } else {
-        debit = txAmount;
-      }
-    } else {
-      // 3+ amounts: last is balance; work out debit vs credit from positions
-      balance = amounts[amounts.length - 1];
-      const a = amounts[amounts.length - 3]; // likely debit column
-      const b = amounts[amounts.length - 2]; // likely credit column
-      // Whichever is non-zero (they can't both be non-zero on the same line)
-      if (a > 0 && b === 0) {
-        debit = a;
-      } else if (b > 0 && a === 0) {
-        credit = b;
-      } else {
-        // Both non-zero — use keyword heuristic
-        const creditKeywords = /credit|deposit|salary|received|refund|interest|cashback/i;
-        if (creditKeywords.test(description)) {
-          credit = b || a;
-        } else {
-          debit = a || b;
-        }
-      }
-    }
+    // Last amount is closing balance; first transaction amount is the actual tx
+    const balance = amounts.length >= 2 ? amounts[amounts.length - 1] : null;
+    const txAmount = amounts[0];
 
     transactions.push({
       date,
-      amount: debit ?? credit ?? amounts[0],
-      type: credit !== null ? "Credit" : "Debit",
-      merchant: description.substring(0, 100),
-      description: line,
+      amount: txAmount,
+      type: isCredit ? "Credit" : "Debit",
+      merchant,
+      description: fullNarration.substring(0, 255),
       originalDate: date,
-      originalAmount: debit ?? credit ?? amounts[0],
-      originalType: credit !== null ? "Credit" : "Debit",
-      originalMerchant: description.substring(0, 100),
-      originalDescription: line,
+      originalAmount: txAmount,
+      originalType: isCredit ? "Credit" : "Debit",
+      originalMerchant: merchant,
+      originalDescription: fullNarration.substring(0, 255),
     });
   }
 
   if (isDev) {
     console.log(`[Parser] Parsed: ${transactions.length} | Rejected: ${rejected.length}`);
     if (rejected.length > 0) {
-      console.log("[Parser] Rejected lines:");
-      rejected.forEach((r) => console.log(`  [${r.reason}] ${r.line.slice(0, 80)}`));
+      console.log("[Parser] Rejected blocks:");
+      rejected.forEach((r) => console.log(`  reason="${r.reason}" | line="${r.line.slice(0, 80)}"`));
     }
   }
 
@@ -417,8 +432,8 @@ const parseDate = (dateStr) => {
 
   const s = String(dateStr).trim();
 
-  // YYYY-MM-DD (ISO format) — must test before DD-MM-YYYY to avoid misparse
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD — test before DD-MM-YYYY
+  const iso = s.match(/^(\d{4})[\/\-\.](\d{2})[\/\-\.](\d{2})$/);
   if (iso) {
     const year = parseInt(iso[1]);
     const month = parseInt(iso[2]);
