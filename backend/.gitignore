@@ -29,3 +29,6 @@ build/
 # Temporary
 tmp/
 temp/
+
+# Uploaded files (temporary, deleted after processing)
+uploads/
