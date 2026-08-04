@@ -20,7 +20,7 @@
  */
 
 import fs from "fs";
-import pdfParse from "pdf-parse";
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import csv from "csv-parser";
 import XLSX from "xlsx";
 import ApiError from "../utils/ApiError.js";
