@@ -154,6 +154,24 @@ export const ASSET_MESSAGES = {
   FORBIDDEN: "You do not have permission to access this asset",
 };
 
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export const DASHBOARD_MESSAGES = {
+  OVERVIEW_FETCHED:           "Dashboard overview fetched successfully",
+  SPENDING_ANALYSIS_FETCHED:  "Spending analysis fetched successfully",
+  MONTHLY_COMPARISON_FETCHED: "Monthly comparison fetched successfully",
+  HEALTH_SCORE_FETCHED:       "Financial health score fetched successfully",
+  INSIGHTS_FETCHED:           "Insights fetched successfully",
+};
+
+// Health score grade thresholds — immutable business rules
+export const HEALTH_SCORE_GRADES = [
+  { min: 90, grade: "Excellent" },
+  { min: 75, grade: "Good" },
+  { min: 60, grade: "Fair" },
+  { min: 0,  grade: "Needs Improvement" },
+];
+
 
 
 // Immutable allowed values — used in validation and schema enum
