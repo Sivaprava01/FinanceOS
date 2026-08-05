@@ -20,6 +20,10 @@ import {
   getUserTransactions,
   getTransaction,
   updateTransaction,
+  deleteTransaction,
+  getTransactionStats,
+  getCategories,
+  bulkUpdateTransactions,
 } from "../controllers/transaction.controller.js";
 
 const router = express.Router();
@@ -233,5 +237,107 @@ router.get("/:id", getTransaction);
  * }
  */
 router.put("/:id", updateTransaction);
+
+// ─── PHASE 06: Transaction Management ──────────────────────────────────────
+
+/**
+ * DELETE /api/v1/transactions/:id
+ *
+ * Soft deletes a transaction.
+ * Only the transaction owner can delete their own transaction.
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "...",
+ *     "message": "Transaction successfully deleted",
+ *     "deletedAt": "2026-08-05T10:00:00Z"
+ *   }
+ * }
+ */
+router.delete("/:id", deleteTransaction);
+
+// ─── Get Transaction Statistics ────────────────────────────────────────────
+
+/**
+ * GET /api/v1/transactions/stats/overview
+ *
+ * Gets spending statistics for the authenticated user.
+ * Includes totals by category, by type, and top merchants.
+ *
+ * Query Params (optional):
+ * - fromDate: ISO date string
+ * - toDate: ISO date string
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "period": { "from": "2026-08-01", "to": "2026-08-31" },
+ *     "summary": {
+ *       "totalTransactions": 50,
+ *       "totalDebit": 5000,
+ *       "totalCredit": 10000,
+ *       "netFlow": 5000
+ *     },
+ *     "byType": { "Debit": 5000, "Credit": 10000 },
+ *     "byCategory": { "Food": 2000, "Transport": 1000, ... },
+ *     "topMerchants": [
+ *       { "merchant": "Amazon", "total": 1500 },
+ *       ...
+ *     ]
+ *   }
+ * }
+ */
+router.get("/stats/overview", getTransactionStats);
+
+// ─── Get Categories ───────────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/transactions/categories/list
+ *
+ * Gets all unique categories used by the authenticated user.
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "categories": ["Food", "Transport", "Shopping", "Entertainment", ...],
+ *     "count": 15
+ *   }
+ * }
+ */
+router.get("/categories/list", getCategories);
+
+// ─── Bulk Update Transactions ──────────────────────────────────────────────
+
+/**
+ * POST /api/v1/transactions/bulk-update
+ *
+ * Updates multiple transactions with the same values.
+ * Useful for bulk categorization or adding notes.
+ *
+ * Request:
+ * {
+ *   "transactionIds": ["id1", "id2", "id3"],
+ *   "updateData": {
+ *     "category": "Food",
+ *     "notes": "Grocery purchases"
+ *   }
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "success": true,
+ *     "matched": 3,
+ *     "modified": 3,
+ *     "message": "Successfully updated 3 transaction(s)"
+ *   }
+ * }
+ */
+router.post("/bulk-update", bulkUpdateTransactions);
 
 export default router;

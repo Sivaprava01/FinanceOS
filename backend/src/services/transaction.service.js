@@ -473,15 +473,206 @@ const formatMerchantMappingResponse = (mapping) => {
   };
 };
 
-// ─── Export Service ────────────────────────────────────────────────────────────
+// (Removed - see bottom of file for updated export)
+
+
+// ─── Delete Transaction (PHASE 06) ─────────────────────────────────────────
+
+/**
+ * Soft deletes a transaction.
+ * Sets isDeleted flag to true instead of permanently removing from database.
+ * Preserves data for audit trail and allows potential recovery.
+ *
+ * @param {string} transactionId - The transaction's ID
+ * @param {string} userId - The user's ID (for authorization)
+ * @returns {Promise<object>} Deleted transaction record
+ * @throws {ApiError} If not found or doesn't belong to user
+ */
+const deleteTransaction = async (transactionId, userId) => {
+  const transaction = await Transaction.findOne({
+    _id: transactionId,
+    user: userId,
+    isDeleted: false,
+  });
+
+  if (!transaction) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Transaction not found");
+  }
+
+  transaction.isDeleted = true;
+  await transaction.save();
+
+  return {
+    _id: transaction._id,
+    message: "Transaction successfully deleted",
+    deletedAt: new Date(),
+  };
+};
+
+// ─── Get Transaction Statistics (PHASE 06) ────────────────────────────────
+
+/**
+ * Generates spending statistics for a user.
+ * Includes totals by type, by category, and monthly breakdown.
+ *
+ * @param {string} userId - User's ID
+ * @param {object} options - Filter options
+ *   - fromDate: start date
+ *   - toDate: end date
+ * @returns {Promise<object>} Statistics object
+ */
+const getTransactionStats = async (userId, options = {}) => {
+  const { fromDate, toDate } = options;
+
+  const query = {
+    user: userId,
+    isDeleted: false,
+  };
+
+  if (fromDate || toDate) {
+    query.date = {};
+    if (fromDate) query.date.$gte = new Date(fromDate);
+    if (toDate) query.date.$lte = new Date(toDate);
+  }
+
+  // Get all transactions matching criteria
+  const transactions = await Transaction.find(query).lean();
+
+  // Calculate statistics
+  let totalDebit = 0;
+  let totalCredit = 0;
+  const byCategory = {};
+  const byMerchant = {};
+  const byType = { Debit: 0, Credit: 0 };
+
+  for (const tx of transactions) {
+    if (tx.type === "Debit") {
+      totalDebit += tx.amount;
+      byType.Debit += tx.amount;
+    } else {
+      totalCredit += tx.amount;
+      byType.Credit += tx.amount;
+    }
+
+    // By Category
+    const cat = tx.category || "Uncategorized";
+    byCategory[cat] = (byCategory[cat] || 0) + tx.amount;
+
+    // By Merchant
+    byMerchant[tx.merchant] = (byMerchant[tx.merchant] || 0) + tx.amount;
+  }
+
+  return {
+    period: {
+      from: fromDate || "all-time",
+      to: toDate || "all-time",
+    },
+    summary: {
+      totalTransactions: transactions.length,
+      totalDebit: parseFloat(totalDebit.toFixed(2)),
+      totalCredit: parseFloat(totalCredit.toFixed(2)),
+      netFlow: parseFloat((totalCredit - totalDebit).toFixed(2)),
+    },
+    byType,
+    byCategory,
+    topMerchants: Object.entries(byMerchant)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([merchant, total]) => ({
+        merchant,
+        total: parseFloat(total.toFixed(2)),
+      })),
+  };
+};
+
+// ─── Get Categories (PHASE 06) ─────────────────────────────────────────────
+
+/**
+ * Gets all unique categories used by a user across their transactions.
+ *
+ * @param {string} userId - User's ID
+ * @returns {Promise<Array>} Array of unique categories
+ */
+const getCategories = async (userId) => {
+  const categories = await Transaction.distinct("category", {
+    user: userId,
+    isDeleted: false,
+  });
+
+  // Remove null/undefined and sort
+  return categories
+    .filter((cat) => cat && cat.trim().length > 0)
+    .sort((a, b) => a.localeCompare(b));
+};
+
+// ─── Bulk Update Transactions (PHASE 06) ───────────────────────────────────
+
+/**
+ * Updates multiple transactions with the same values in a single operation.
+ * Useful for bulk categorization or adding notes to multiple transactions.
+ *
+ * @param {Array} transactionIds - Array of transaction IDs to update
+ * @param {string} userId - User's ID (for authorization)
+ * @param {object} updateData - Fields to update
+ * @returns {Promise<object>} Update result with count
+ * @throws {ApiError} If not found or doesn't belong to user
+ */
+const bulkUpdateTransactions = async (transactionIds, userId, updateData) => {
+  const allowedFields = ["category", "notes", "merchant", "description", "date", "amount"];
+  
+  // Filter to only allowed fields
+  const sanitizedUpdate = {};
+  for (const field of allowedFields) {
+    if (updateData[field] !== undefined) {
+      sanitizedUpdate[field] = updateData[field];
+    }
+  }
+
+  if (Object.keys(sanitizedUpdate).length === 0) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "No valid fields provided for update");
+  }
+
+  // Mark as edited if not a notes-only update
+  if (Object.keys(sanitizedUpdate).some((f) => f !== "notes")) {
+    sanitizedUpdate.isEdited = true;
+    sanitizedUpdate.editedAt = new Date();
+  }
+
+  // Update all transactions belonging to this user
+  const result = await Transaction.updateMany(
+    {
+      _id: { $in: transactionIds },
+      user: userId,
+      isDeleted: false,
+    },
+    sanitizedUpdate
+  );
+
+  if (result.matchedCount === 0) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "No transactions found to update");
+  }
+
+  return {
+    success: true,
+    matched: result.matchedCount,
+    modified: result.modifiedCount,
+    message: `Successfully updated ${result.modifiedCount} transaction(s)`,
+  };
+};
+
+// ─── Export Updated Service ────────────────────────────────────────────────
 
 export const transactionService = {
   extractTransactions,
   getTransactionsForReview,
   createTransaction,
   updateTransaction,
+  deleteTransaction,
   learnMerchantMapping,
   applyMerchantMappings,
   importTransactions,
   getUserTransactions,
+  getTransactionStats,
+  getCategories,
+  bulkUpdateTransactions,
 };

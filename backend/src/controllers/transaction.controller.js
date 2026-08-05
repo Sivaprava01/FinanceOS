@@ -237,3 +237,120 @@ export const getTransaction = asyncHandler(async (req, res) => {
     new ApiResponse(HTTP_STATUS.OK, "Transaction retrieved successfully", transaction)
   );
 });
+
+
+// ─── Delete Transaction (PHASE 06) ─────────────────────────────────────────
+
+/**
+ * Soft deletes a transaction (preserves data for audit trail).
+ * Only the transaction owner can delete their own transaction.
+ *
+ * Route: DELETE /api/v1/transactions/:id
+ * Protected: Yes
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ */
+export const deleteTransaction = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { id } = req.params;
+
+  const deleted = await transactionService.deleteTransaction(id, user._id);
+
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, "Transaction deleted successfully", deleted)
+  );
+});
+
+// ─── Get Transaction Statistics (PHASE 06) ────────────────────────────────
+
+/**
+ * Gets spending statistics for the authenticated user.
+ * Includes totals by category, by type, and monthly summaries.
+ *
+ * Route: GET /api/v1/transactions/stats/overview
+ * Protected: Yes
+ * Query Params:
+ * - fromDate: ISO date string (optional)
+ * - toDate: ISO date string (optional)
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ */
+export const getTransactionStats = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { fromDate, toDate } = req.query;
+
+  const stats = await transactionService.getTransactionStats(user._id, {
+    fromDate,
+    toDate,
+  });
+
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, "Transaction statistics retrieved", stats)
+  );
+});
+
+// ─── Get Categories (PHASE 06) ─────────────────────────────────────────────
+
+/**
+ * Gets all unique categories used by the authenticated user.
+ *
+ * Route: GET /api/v1/transactions/categories/list
+ * Protected: Yes
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ */
+export const getCategories = asyncHandler(async (req, res) => {
+  const { user } = req;
+
+  const categories = await transactionService.getCategories(user._id);
+
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, "Categories retrieved", {
+      categories,
+      count: categories.length,
+    })
+  );
+});
+
+// ─── Bulk Update Transactions (PHASE 06) ───────────────────────────────────
+
+/**
+ * Bulk updates transactions with the same values.
+ * Useful for categorizing multiple transactions at once.
+ *
+ * Route: POST /api/v1/transactions/bulk-update
+ * Protected: Yes
+ * Body:
+ * {
+ *   "transactionIds": ["id1", "id2", "id3"],
+ *   "updateData": { "category": "Food", "notes": "Groceries" }
+ * }
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ */
+export const bulkUpdateTransactions = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { transactionIds, updateData } = req.body;
+
+  if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
+    throw new Error("Transaction IDs must be a non-empty array");
+  }
+
+  if (!updateData || Object.keys(updateData).length === 0) {
+    throw new Error("Update data must contain at least one field");
+  }
+
+  const result = await transactionService.bulkUpdateTransactions(
+    transactionIds,
+    user._id,
+    updateData
+  );
+
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, result.message, result)
+  );
+});
