@@ -127,6 +127,33 @@ export const LOAN_MESSAGES = {
   FORBIDDEN: "You do not have permission to access this loan",
 };
 
+// ─── Asset ────────────────────────────────────────────────────────────────────
+
+export const ASSET_CATEGORIES = [
+  "Cash",
+  "Bank Account",
+  "Gold",
+  "Real Estate",
+  "Vehicle",
+  "Stocks",
+  "Mutual Funds",
+  "Cryptocurrency",
+  "Others",
+];
+
+export const ASSET_MESSAGES = {
+  CREATED:        "Asset created successfully",
+  FETCHED:        "Asset fetched successfully",
+  LIST_FETCHED:   "Assets fetched successfully",
+  UPDATED:        "Asset updated successfully",
+  DELETED:        "Asset deleted successfully",
+  SUMMARY_FETCHED: "Asset summary fetched successfully",
+  NET_WORTH_FETCHED: "Net worth calculated successfully",
+
+  NOT_FOUND: "Asset not found",
+  FORBIDDEN: "You do not have permission to access this asset",
+};
+
 
 
 // Immutable allowed values — used in validation and schema enum
