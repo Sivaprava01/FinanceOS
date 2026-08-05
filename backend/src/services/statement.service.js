@@ -34,9 +34,16 @@ const uploadStatement = async (userId, file) => {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Unsupported file type");
   }
 
+  // Construct the relative file path from Multer's output
+  // Multer stores files with absolute path in file.path, we need relative
+  // file.filename is the name Multer created (e.g., "6a70c36467f97cca9679e475-1722678600000-123456.pdf")
+  // We store it relative to project root as /uploads/filename
+  const relativePath = `/uploads/${file.filename}`;
+
   const statement = await Statement.create({
     user: userId,
     originalFileName: file.originalname,
+    filePath: relativePath,
     fileType,
     fileSize: file.size,
     status: "Uploaded",
@@ -176,6 +183,7 @@ const formatStatementResponse = (statement) => {
   return {
     _id: statement._id || statement.id,
     originalFileName: statement.originalFileName,
+    filePath: statement.filePath,
     fileType: statement.fileType,
     fileSize: statement.fileSize,
     status: statement.status,

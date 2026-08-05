@@ -42,6 +42,14 @@ const statementSchema = new Schema(
       trim: true,
     },
 
+    // Actual file path on disk (relative to project root)
+    // Format: /uploads/[userId]-[timestamp]-[random].ext
+    // Used to locate the file for extraction in Phase 05
+    filePath: {
+      type: String,
+      required: [true, "File path is required"],
+    },
+
     // File type: PDF, CSV, XLSX
     fileType: {
       type: String,
