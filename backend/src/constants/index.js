@@ -98,6 +98,35 @@ export const USER_MESSAGES = {
 // Immutable allowed values — used in validation and schema enum
 export const USER_THEMES = ["light", "dark", "system"];
 
+// ─── Loan ─────────────────────────────────────────────────────────────────────
+
+export const LOAN_STATUS = {
+  ACTIVE: "Active",
+  CLOSED: "Closed",
+};
+
+export const LOAN_TYPES = [
+  "Home Loan",
+  "Car Loan",
+  "Personal Loan",
+  "Education Loan",
+  "Business Loan",
+  "Gold Loan",
+  "Other",
+];
+
+export const LOAN_MESSAGES = {
+  CREATED: "Loan created successfully",
+  FETCHED: "Loan fetched successfully",
+  LIST_FETCHED: "Loans fetched successfully",
+  UPDATED: "Loan updated successfully",
+  DELETED: "Loan deleted successfully",
+  SUMMARY_FETCHED: "Loan summary fetched successfully",
+
+  NOT_FOUND: "Loan not found",
+  FORBIDDEN: "You do not have permission to access this loan",
+};
+
 
 
 // Immutable allowed values — used in validation and schema enum
