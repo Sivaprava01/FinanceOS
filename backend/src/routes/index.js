@@ -13,6 +13,7 @@ import statementRoutes from "./statement.routes.js";
 import transactionRoutes from "./transaction.routes.js";
 import loanRoutes from "./loan.routes.js";
 import assetRoutes from "./asset.routes.js";
+import dashboardRoutes from "./dashboard.routes.js";
 
 const router = express.Router();
 
@@ -23,5 +24,6 @@ router.use("/statements", statementRoutes);
 router.use("/transactions", transactionRoutes);
 router.use("/loans", loanRoutes);
 router.use("/assets", assetRoutes);
+router.use("/dashboard", dashboardRoutes);
 
 export default router;
