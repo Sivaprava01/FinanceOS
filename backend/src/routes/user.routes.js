@@ -12,12 +12,19 @@
 
 import express from "express";
 import protect from "../middlewares/auth.middleware.js";
-import { validateUpdateProfile, validateUpdatePreferences } from "../validations/user.validation.js";
+import {
+  validateUpdateProfile,
+  validateUpdatePreferences,
+  validateChangePassword,
+} from "../validations/user.validation.js";
 import {
   getMe,
   updateProfile,
   updatePreferences,
   deleteAccount,
+  changePassword,
+  linkGoogle,
+  unlinkGoogle,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -29,6 +36,11 @@ router.get("/me", getMe);
 router.patch("/profile", validateUpdateProfile, updateProfile);
 router.patch("/preferences", validateUpdatePreferences, updatePreferences);
 router.delete("/me", deleteAccount);
+
+// ── Account Settings ──────────────────────────────────────────────────────────
+router.post("/change-password", validateChangePassword, changePassword);
+router.post("/google/link", linkGoogle);
+router.post("/google/unlink", unlinkGoogle);
 
 // ── Reserved: GET /:id ────────────────────────────────────────────────────────
 // Admin-only endpoint — requires RBAC which is not yet implemented.

@@ -95,6 +95,39 @@ export const USER_MESSAGES = {
   ACCOUNT_DELETED_ERROR: "This account has been deleted",
 };
 
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export const SETTINGS_MESSAGES = {
+  // Account settings
+  PASSWORD_CHANGED: "Password changed successfully",
+  GOOGLE_ACCOUNT_LINKED: "Google account linked successfully",
+  GOOGLE_ACCOUNT_UNLINKED: "Google account unlinked successfully",
+  
+  // Privacy settings
+  PRIVACY_SETTINGS_UPDATED: "Privacy settings updated successfully",
+  PRIVACY_SETTINGS_FETCHED: "Privacy settings fetched successfully",
+  
+  // Currency
+  CURRENCIES_FETCHED: "Supported currencies retrieved",
+  EXCHANGE_RATE_FETCHED: "Exchange rate retrieved",
+  CURRENCY_CONVERTED: "Currency converted successfully",
+};
+
+// ─── Currency ─────────────────────────────────────────────────────────────────
+
+export const COMMON_CURRENCIES = [
+  "USD", // US Dollar
+  "EUR", // Euro
+  "GBP", // British Pound
+  "JPY", // Japanese Yen
+  "CHF", // Swiss Franc
+  "CAD", // Canadian Dollar
+  "AUD", // Australian Dollar
+  "NZD", // New Zealand Dollar
+  "CNY", // Chinese Yuan
+  "INR", // Indian Rupee
+];
+
 // Immutable allowed values — used in validation and schema enum
 export const USER_THEMES = ["light", "dark", "system"];
 

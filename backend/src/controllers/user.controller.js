@@ -53,3 +53,37 @@ export const deleteAccount = asyncHandler(async (req, res) => {
     .status(HTTP_STATUS.OK)
     .json(new ApiResponse(HTTP_STATUS.OK, USER_MESSAGES.ACCOUNT_DELETED, null));
 });
+
+// ─── POST /users/change-password ──────────────────────────────────────────────
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await userService.changePassword(req.user._id, oldPassword, newPassword);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Password changed successfully", { user }));
+});
+
+// ─── POST /users/google/link ──────────────────────────────────────────────────
+
+export const linkGoogle = asyncHandler(async (req, res) => {
+  const { googleId } = req.body;
+
+  const user = await userService.linkGoogleAccount(req.user._id, googleId);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Google account linked successfully", { user }));
+});
+
+// ─── POST /users/google/unlink ────────────────────────────────────────────────
+
+export const unlinkGoogle = asyncHandler(async (req, res) => {
+  const user = await userService.unlinkGoogleAccount(req.user._id);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Google account unlinked successfully", { user }));
+});

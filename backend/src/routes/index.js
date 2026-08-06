@@ -15,6 +15,7 @@ import loanRoutes from "./loan.routes.js";
 import assetRoutes from "./asset.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
 import familyRoutes from "./family.routes.js";
+import currencyRoutes from "./currency.routes.js";
 
 const router = express.Router();
 
@@ -27,5 +28,6 @@ router.use("/loans", loanRoutes);
 router.use("/assets", assetRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/families", familyRoutes);
+router.use("/currencies", currencyRoutes);
 
 export default router;
