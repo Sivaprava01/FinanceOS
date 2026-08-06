@@ -99,3 +99,62 @@ export const validateUpdatePreferences = [
 
   handleValidationErrors,
 ];
+
+// ─── Change Password ──────────────────────────────────────────────────────────
+
+export const validateChangePassword = [
+  body("oldPassword")
+    .notEmpty().withMessage("Current password is required")
+    .isString().withMessage("Current password must be a string"),
+
+  body("newPassword")
+    .notEmpty().withMessage("New password is required")
+    .isLength({ min: 8 }).withMessage("New password must be at least 8 characters")
+    .withMessage("New password must be different from current password"),
+
+  handleValidationErrors,
+];
+
+// ─── Currency Conversion ──────────────────────────────────────────────────────
+
+export const validateConvertCurrency = [
+  body("amount")
+    .notEmpty().withMessage("Amount is required")
+    .isFloat({ min: 0 }).withMessage("Amount must be a positive number"),
+
+  body("from")
+    .notEmpty().withMessage("Source currency is required")
+    .isLength({ min: 3, max: 3 }).withMessage("Currency must be a 3-letter code")
+    .isAlpha().withMessage("Currency must contain only letters")
+    .toUpperCase(),
+
+  body("to")
+    .notEmpty().withMessage("Target currency is required")
+    .isLength({ min: 3, max: 3 }).withMessage("Currency must be a 3-letter code")
+    .isAlpha().withMessage("Currency must contain only letters")
+    .toUpperCase(),
+
+  handleValidationErrors,
+];
+
+export const validateConvertBatch = [
+  body("amounts")
+    .isArray({ min: 1 }).withMessage("Amounts must be a non-empty array"),
+
+  body("amounts.*.amount")
+    .isFloat({ min: 0 }).withMessage("Each amount must be a positive number"),
+
+  body("amounts.*.currency")
+    .optional()
+    .isLength({ min: 3, max: 3 }).withMessage("Currency must be a 3-letter code")
+    .isAlpha().withMessage("Currency must contain only letters")
+    .toUpperCase(),
+
+  body("to")
+    .notEmpty().withMessage("Target currency is required")
+    .isLength({ min: 3, max: 3 }).withMessage("Currency must be a 3-letter code")
+    .isAlpha().withMessage("Currency must contain only letters")
+    .toUpperCase(),
+
+  handleValidationErrors,
+];

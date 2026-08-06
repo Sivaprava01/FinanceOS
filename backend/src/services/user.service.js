@@ -166,6 +166,112 @@ const deleteAccount = async (userId) => {
   });
 };
 
+// ─── Change Password ──────────────────────────────────────────────────────────
+
+/**
+ * Changes user password.
+ * Verifies old password before allowing change.
+ * Only works for local auth users (not Google OAuth).
+ *
+ * @param {string} userId
+ * @param {string} oldPassword - Current password (plain text)
+ * @param {string} newPassword - New password (plain text)
+ * @returns {Promise<object>}
+ * @throws {ApiError}
+ */
+const changePassword = async (userId, oldPassword, newPassword) => {
+  const user = await User.findById(userId).select("+password");
+
+  if (!user || user.isDeleted) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, USER_MESSAGES.USER_NOT_FOUND);
+  }
+
+  if (user.provider !== "local") {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      "Cannot change password for Google OAuth accounts. Manage your password in Google Account settings."
+    );
+  }
+
+  // Verify old password
+  const isPasswordValid = await user.comparePassword(oldPassword);
+  if (!isPasswordValid) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Current password is incorrect");
+  }
+
+  // Update password (pre-save hook will hash it)
+  user.password = newPassword;
+  await user.save();
+
+  return buildPublicUser(user);
+};
+
+// ─── Manage Google Account ────────────────────────────────────────────────────
+
+/**
+ * Links a Google account to a local auth user.
+ * Used for users who want to add Google OAuth to existing account.
+ *
+ * @param {string} userId
+ * @param {string} googleId - Google user ID from Google OAuth
+ * @returns {Promise<object>}
+ * @throws {ApiError}
+ */
+const linkGoogleAccount = async (userId, googleId) => {
+  if (!googleId) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Google ID is required");
+  }
+
+  // Check if Google ID already linked to another user
+  const existing = await User.findOne({ googleId, _id: { $ne: userId } });
+  if (existing) {
+    throw new ApiError(HTTP_STATUS.CONFLICT, "This Google account is already linked to another user");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $set: { googleId } },
+    { new: true, runValidators: true }
+  );
+
+  if (!user || user.isDeleted) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, USER_MESSAGES.USER_NOT_FOUND);
+  }
+
+  return buildPublicUser(user);
+};
+
+/**
+ * Unlinks a Google account from a local auth user.
+ * User must have a password to unlink (can't be passwordless).
+ *
+ * @param {string} userId
+ * @returns {Promise<object>}
+ * @throws {ApiError}
+ */
+const unlinkGoogleAccount = async (userId) => {
+  const user = await User.findById(userId).select("+password");
+
+  if (!user || user.isDeleted) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, USER_MESSAGES.USER_NOT_FOUND);
+  }
+
+  if (!user.googleId) {
+    throw new ApiError(HTTP_STATUS.CONFLICT, "Google account is not linked");
+  }
+
+  if (!user.password) {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      "Cannot unlink Google account. You must set a password first to maintain account access."
+    );
+  }
+
+  await User.findByIdAndUpdate(userId, { $unset: { googleId: 1 } });
+
+  return buildPublicUser(user);
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const userService = {
@@ -173,4 +279,7 @@ export const userService = {
   updateProfile,
   updatePreferences,
   deleteAccount,
+  changePassword,
+  linkGoogleAccount,
+  unlinkGoogleAccount,
 };
