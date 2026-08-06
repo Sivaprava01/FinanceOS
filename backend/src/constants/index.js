@@ -172,6 +172,56 @@ export const HEALTH_SCORE_GRADES = [
   { min: 0,  grade: "Needs Improvement" },
 ];
 
+// ─── Family ───────────────────────────────────────────────────────────────────
+
+export const FAMILY_ROLES = {
+  HEAD: "Family Head",
+  MEMBER: "Family Member",
+};
+
+export const INVITATION_STATUS = {
+  PENDING: "Pending",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+};
+
+export const FAMILY_MESSAGES = {
+  // Family management
+  FAMILY_CREATED: "Family created successfully",
+  FAMILY_FETCHED: "Family fetched successfully",
+  FAMILY_LIST_FETCHED: "Families fetched successfully",
+  FAMILY_UPDATED: "Family updated successfully",
+  FAMILY_DELETED: "Family deleted successfully",
+  
+  // Invitations
+  INVITATION_SENT: "Invitation sent successfully",
+  INVITATIONS_FETCHED: "Invitations fetched successfully",
+  INVITATION_ACCEPTED: "Invitation accepted successfully",
+  INVITATION_REJECTED: "Invitation rejected successfully",
+  
+  // Members
+  MEMBER_REMOVED: "Member removed successfully",
+  MEMBER_LIST_FETCHED: "Family members fetched successfully",
+  
+  // Sharing
+  SHARING_UPDATED: "Sharing preferences updated successfully",
+  SHARING_FETCHED: "Sharing preferences fetched successfully",
+  
+  // Dashboard
+  FAMILY_DASHBOARD_FETCHED: "Family dashboard fetched successfully",
+  
+  // Error messages
+  FAMILY_NOT_FOUND: "Family not found",
+  INVITATION_NOT_FOUND: "Invitation not found",
+  MEMBER_NOT_FOUND: "Member not found",
+  FORBIDDEN: "You do not have permission to perform this action",
+  ALREADY_MEMBER: "User is already a member of this family",
+  CANNOT_REMOVE_HEAD: "Family head cannot be removed",
+  INVITATION_EXPIRED: "This invitation has expired",
+  INVALID_INVITATION: "This invitation is not valid or has already been responded to",
+  USER_NOT_FOUND: "User not found",
+};
+
 
 
 // Immutable allowed values — used in validation and schema enum

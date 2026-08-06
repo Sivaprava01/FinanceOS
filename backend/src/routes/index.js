@@ -14,6 +14,7 @@ import transactionRoutes from "./transaction.routes.js";
 import loanRoutes from "./loan.routes.js";
 import assetRoutes from "./asset.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
+import familyRoutes from "./family.routes.js";
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.use("/transactions", transactionRoutes);
 router.use("/loans", loanRoutes);
 router.use("/assets", assetRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/families", familyRoutes);
 
 export default router;
