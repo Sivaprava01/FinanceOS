@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme - Emerald first */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.6%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.6%;
+
+    --primary: 156 100% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+
+    --accent: 0 0% 9%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 156 100% 40%;
+
+    --radius: 12px;
+    --font-heading: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
+    --font-body: 'General Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  .dark {
+    /* Dark theme - Purple first */
+    --background: 270 15% 8%;
+    --foreground: 0 0% 98%;
+
+    --card: 270 12% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --primary: 270 100% 60%;
+    --primary-foreground: 270 15% 8%;
+
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 88%;
+
+    --accent: 0 0% 98%;
+    --accent-foreground: 270 15% 8%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 270 15% 8%;
+
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 270 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading font-semibold;
+  }
+
+  h1 {
+    @apply text-4xl;
+  }
+
+  h2 {
+    @apply text-3xl;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+
+  h4 {
+    @apply text-xl;
+  }
+
+  h5 {
+    @apply text-lg;
+  }
+
+  h6 {
+    @apply text-base;
+  }
+
+  body {
+    @apply font-body;
+  }
+
+  button {
+    @apply focus-visible:outline-none;
+  }
+}
+
+/* Smooth theme transition */
+html {
+  color-scheme: light dark;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Disable text selection on UI elements */
+button,
+a,
+[role='button'] {
+  @apply select-none;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  @apply outline-2 outline-offset-2 outline-ring;
+}
+
+/* Remove default focus outline on buttons */
+button:focus-visible {
+  @apply outline-2 outline-offset-2 outline-ring;
+}
