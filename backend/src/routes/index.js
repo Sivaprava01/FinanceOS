@@ -11,6 +11,7 @@ import authRoutes from "./auth.routes.js";
 import userRoutes from "./user.routes.js";
 import statementRoutes from "./statement.routes.js";
 import transactionRoutes from "./transaction.routes.js";
+import loanRoutes from "./loan.routes.js";
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/statements", statementRoutes);
 router.use("/transactions", transactionRoutes);
+router.use("/loans", loanRoutes);
 
 export default router;
