@@ -101,6 +101,43 @@ export const updateTransaction = asyncHandler(async (req, res) => {
   );
 });
 
+// ─── Create Transaction (Manual) ───────────────────────────────────────────────
+
+/**
+ * Creates a manually entered transaction.
+ * User provides all transaction details directly.
+ * This bypasses the statement import workflow.
+ *
+ * Route: POST /api/v1/transactions
+ * Protected: Yes
+ * Body: { date, amount, type, merchant, category, description?, notes? }
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ */
+export const createTransaction = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { date, amount, type, merchant, category, description, notes } = req.body;
+
+  const transaction = await transactionService.createTransaction(user._id, {
+    date,
+    amount,
+    type,
+    merchant,
+    category,
+    description,
+    notes,
+  });
+
+  return res.status(HTTP_STATUS.CREATED).json(
+    new ApiResponse(
+      HTTP_STATUS.CREATED,
+      "Transaction created successfully",
+      transaction
+    )
+  );
+});
+
 // ─── Learn Merchant Mapping ────────────────────────────────────────────────────
 
 /**

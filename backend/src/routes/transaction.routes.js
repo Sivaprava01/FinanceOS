@@ -17,6 +17,7 @@ import {
   getTransactionsForReview,
   learnMerchantMapping,
   importTransactions,
+  createTransaction,
   getUserTransactions,
   getTransaction,
   updateTransaction,
@@ -25,12 +26,59 @@ import {
   getCategories,
   bulkUpdateTransactions,
 } from "../controllers/transaction.controller.js";
+import {
+  validateExtractTransactions,
+  validateImportTransactions,
+  validateLearnMerchant,
+  validateCreateTransaction,
+  validateUpdateTransaction,
+  validateTransactionId,
+} from "../validations/transaction.validation.js";
 
 const router = express.Router();
 
 // ─── All routes require authentication ─────────────────────────────────────────
 
 router.use(protect);
+
+// ─── Extract Transactions from Statement ───────────────────────────────────────
+
+/**
+ * POST /api/v1/transactions
+ *
+ * Creates a manually entered transaction.
+ * User provides all transaction data directly.
+ *
+ * Request:
+ * {
+ *   "date": "2026-08-01T00:00:00Z",
+ *   "amount": 50.00,
+ *   "type": "Debit",
+ *   "merchant": "Coffee Shop",
+ *   "category": "Food",
+ *   "description": "Coffee",
+ *   "notes": "Morning coffee"
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "...",
+ *     "date": "2026-08-01T00:00:00Z",
+ *     "amount": 50.00,
+ *     "type": "Debit",
+ *     "merchant": "Coffee Shop",
+ *     "category": "Food",
+ *     ...
+ *   }
+ * }
+ */
+router.post(
+  "/",
+  validateCreateTransaction,
+  createTransaction
+);
 
 // ─── Extract Transactions from Statement ───────────────────────────────────────
 
@@ -58,7 +106,7 @@ router.use(protect);
  *   }
  * }
  */
-router.post("/extract", extractTransactions);
+router.post("/extract", validateExtractTransactions, extractTransactions);
 
 // ─── Get Transactions for Review ───────────────────────────────────────────────
 

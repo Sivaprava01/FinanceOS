@@ -194,3 +194,52 @@ export const validateTransactionId = [
   param("id").isMongoId().withMessage("Invalid transaction ID"),
   handleValidationErrors,
 ];
+
+/**
+ * Validates data for manually creating a transaction.
+ *
+ * POST /api/v1/transactions
+ * Body: { date, amount, type, merchant, category, description?, notes? }
+ */
+export const validateCreateTransaction = [
+  body("date")
+    .notEmpty()
+    .withMessage("Date is required")
+    .isISO8601()
+    .withMessage("Date must be in ISO 8601 format"),
+  body("amount")
+    .notEmpty()
+    .withMessage("Amount is required")
+    .isFloat({ min: 0.01 })
+    .withMessage("Amount must be greater than 0"),
+  body("type")
+    .notEmpty()
+    .withMessage("Transaction type is required")
+    .isIn(["Debit", "Credit"])
+    .withMessage("Type must be Debit or Credit"),
+  body("merchant")
+    .notEmpty()
+    .withMessage("Merchant name is required")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("Merchant name must be a non-empty string"),
+  body("category")
+    .notEmpty()
+    .withMessage("Category is required")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("Category must be a non-empty string"),
+  body("description")
+    .optional()
+    .isString()
+    .trim()
+    .withMessage("Description must be a string"),
+  body("notes")
+    .optional()
+    .isString()
+    .trim()
+    .withMessage("Notes must be a string"),
+  handleValidationErrors,
+];
