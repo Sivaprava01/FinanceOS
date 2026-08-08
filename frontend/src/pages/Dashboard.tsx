@@ -3,8 +3,8 @@
  * Main dashboard page.
  */
 
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card';
 
 const Dashboard: React.FC = () => {
   return (
@@ -28,7 +28,7 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;

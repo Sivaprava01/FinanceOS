@@ -1,10 +1,10 @@
 /**
  * Sidebar Component
- * Floating sidebar with navigation menu.
+ * Floating sidebar with navigation.
  */
 
-import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutGrid,
   Wallet,
@@ -16,128 +16,134 @@ import {
   User,
   Settings,
   X,
-} from 'lucide-react'
-import { cn } from '@lib/utils'
-import { Button } from '@components/ui/Button'
+  TrendingUp,
+  LogOut,
+} from 'lucide-react';
+import { cn } from '@lib/utils';
 
 interface SidebarProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const mainNavItems: NavItem[] = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
+  { name: 'Transactions', href: '/transactions', icon: Wallet },
+  { name: 'Statements', href: '/statements', icon: FileText },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Family Finance', href: '/family', icon: Users },
+  { name: 'Categories', href: '/categories', icon: Tags },
+  { name: 'How It Works', href: '/how-it-works', icon: HelpCircle },
+];
+
+const bottomNavItems: NavItem[] = [
+  { name: 'Profile', href: '/profile', icon: User },
+  { name: 'Settings', href: '/settings', icon: Settings },
+];
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const location = useLocation()
+  const location = useLocation();
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutGrid },
-    { name: 'Transactions', href: '/transactions', icon: Wallet },
-    { name: 'Statements', href: '/statements', icon: FileText },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Family Finance', href: '/family', icon: Users },
-    { name: 'Categories', href: '/categories', icon: Tags },
-    { name: 'How It Works', href: '/how-it-works', icon: HelpCircle },
-  ]
-
-  const bottomItems = [
-    { name: 'Profile', href: '/profile', icon: User },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ]
-
-  const NavLink: React.FC<{
-    name: string
-    href: string
-    icon: React.ComponentType<{ className?: string }>
-  }> = ({ name, href, icon: Icon }) => {
-    const isActive = location.pathname === href
+  const NavLink: React.FC<NavItem> = ({ name, href, icon: Icon }) => {
+    const isActive = location.pathname === href;
 
     return (
       <Link
         to={href}
+        onClick={onClose}
+        aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'group flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
           isActive
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
         )}
-        onClick={() => onClose()}
       >
-        <Icon className="mr-3 h-5 w-5" />
-        {name}
+        <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <span>{name}</span>
       </Link>
-    )
-  }
+    );
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    window.location.href = '/login';
+  };
 
   return (
     <>
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar panel */}
       <aside
+        id="sidebar"
+        aria-label="Main navigation"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 transform bg-card shadow-lg transition-transform duration-300 ease-in-out md:relative md:transform-none md:shadow-none',
-          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-card transition-transform duration-300 ease-in-out md:relative md:translate-x-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex h-full flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border px-6 py-4">
-            <h1 className="text-xl font-bold text-primary">FinanceOS</h1>
-            <button
-              onClick={onClose}
-              className="rounded-lg p-1 hover:bg-secondary md:hidden"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.href}
-                name={item.name}
-                href={item.href}
-                icon={item.icon}
-              />
-            ))}
-          </nav>
-
-          {/* Bottom Navigation */}
-          <div className="border-t border-border px-4 py-4">
-            <div className="space-y-1">
-              {bottomItems.map((item) => (
-                <NavLink
-                  key={item.href}
-                  name={item.name}
-                  href={item.href}
-                  icon={item.icon}
-                />
-              ))}
+        {/* Logo */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={onClose}
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <TrendingUp className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
             </div>
+            <span className="text-lg font-bold text-foreground">FinanceOS</span>
+          </Link>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+            aria-label="Close sidebar"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
 
-            {/* Logout Button */}
-            <Button
-              variant="destructive"
-              size="sm"
-              className="mt-4 w-full"
-              onClick={() => {
-                localStorage.removeItem('accessToken')
-                window.location.href = '/login'
-              }}
-            >
-              Logout
-            </Button>
+        {/* Main navigation */}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4" aria-label="Main">
+          {mainNavItems.map((item) => (
+            <NavLink key={item.href} {...item} />
+          ))}
+        </nav>
+
+        {/* Bottom navigation */}
+        <div className="border-t border-border px-3 py-3">
+          <div className="space-y-0.5">
+            {bottomNavItems.map((item) => (
+              <NavLink key={item.href} {...item} />
+            ))}
           </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>Log out</span>
+          </button>
         </div>
       </aside>
     </>
-  )
-}
+  );
+};
 
-export default Sidebar
+export default Sidebar;

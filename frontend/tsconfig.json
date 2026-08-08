@@ -36,7 +36,6 @@
       "@services/*": ["src/services/*"],
       "@store/*": ["src/store/*"],
       "@styles/*": ["src/styles/*"],
-      "@types/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
       "@assets/*": ["src/assets/*"],
       "@lib/*": ["src/lib/*"]

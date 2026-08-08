@@ -1,5 +1,5 @@
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card'
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card';
 
 const Profile: React.FC = () => (
   <div>
@@ -13,6 +13,6 @@ const Profile: React.FC = () => (
       </CardContent>
     </Card>
   </div>
-)
+);
 
-export default Profile
+export default Profile;

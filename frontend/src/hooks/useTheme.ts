@@ -3,16 +3,16 @@
  * Access theme context and theme utilities.
  */
 
-import { useContext } from 'react'
-import { ThemeContext } from '@store/ThemeContext'
-import type { ThemeContextType } from '@types/index'
+import { useContext } from 'react';
+import { ThemeContext } from '@store/theme-context-value';
+import type { ThemeContextType } from '@/types';
 
 export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext)
+  const context = useContext(ThemeContext);
 
   if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider')
+    throw new Error('useTheme must be used within ThemeProvider');
   }
 
-  return context
-}
+  return context;
+};

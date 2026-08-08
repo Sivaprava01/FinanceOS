@@ -1,26 +1,38 @@
 /**
  * Route Configuration
- * Centralized routing for the application.
+ * Centralized routing with lazy-loaded pages.
  */
 
-import React from 'react'
-import { Navigate } from 'react-router-dom'
-import PublicLayout from '@layouts/PublicLayout'
-import ProtectedLayout from '@layouts/ProtectedLayout'
-import NotFound from '@pages/NotFound'
-import Login from '@pages/auth/Login'
-import Register from '@pages/auth/Register'
-import ForgotPassword from '@pages/auth/ForgotPassword'
-import ResetPassword from '@pages/auth/ResetPassword'
-import Dashboard from '@pages/Dashboard'
-import Transactions from '@pages/Transactions'
-import Statements from '@pages/Statements'
-import Analytics from '@pages/Analytics'
-import FamilyFinance from '@pages/FamilyFinance'
-import Categories from '@pages/Categories'
-import HowItWorks from '@pages/HowItWorks'
-import Profile from '@pages/Profile'
-import Settings from '@pages/Settings'
+import React, { lazy, Suspense } from 'react';
+import { Navigate } from 'react-router-dom';
+import PublicLayout from '@layouts/PublicLayout';
+import ProtectedLayout from '@layouts/ProtectedLayout';
+import { Loader } from '@components/ui/Loader';
+
+// ─── Lazy-loaded pages ──────────────────────────────────────────────────────
+const NotFound = lazy(() => import('@pages/NotFound'));
+const ErrorPage = lazy(() => import('@pages/Error'));
+const Login = lazy(() => import('@pages/auth/Login'));
+const Register = lazy(() => import('@pages/auth/Register'));
+const ForgotPassword = lazy(() => import('@pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('@pages/auth/ResetPassword'));
+const Dashboard = lazy(() => import('@pages/Dashboard'));
+const Transactions = lazy(() => import('@pages/Transactions'));
+const Statements = lazy(() => import('@pages/Statements'));
+const Analytics = lazy(() => import('@pages/Analytics'));
+const FamilyFinance = lazy(() => import('@pages/FamilyFinance'));
+const Categories = lazy(() => import('@pages/Categories'));
+const HowItWorks = lazy(() => import('@pages/HowItWorks'));
+const Profile = lazy(() => import('@pages/Profile'));
+const Settings = lazy(() => import('@pages/Settings'));
+
+const fallback = (
+  <div className="flex min-h-screen items-center justify-center">
+    <Loader size="lg" />
+  </div>
+);
+
+const s = (element: React.ReactElement) => <Suspense fallback={fallback}>{element}</Suspense>;
 
 export const routes = [
   {
@@ -31,68 +43,30 @@ export const routes = [
     path: '/',
     element: <PublicLayout />,
     children: [
-      {
-        path: 'login',
-        element: <Login />,
-      },
-      {
-        path: 'register',
-        element: <Register />,
-      },
-      {
-        path: 'forgot-password',
-        element: <ForgotPassword />,
-      },
-      {
-        path: 'reset-password/:token',
-        element: <ResetPassword />,
-      },
+      { path: 'login', element: s(<Login />) },
+      { path: 'register', element: s(<Register />) },
+      { path: 'forgot-password', element: s(<ForgotPassword />) },
+      { path: 'reset-password/:token', element: s(<ResetPassword />) },
     ],
   },
   {
     path: '/',
     element: <ProtectedLayout />,
     children: [
-      {
-        path: 'dashboard',
-        element: <Dashboard />,
-      },
-      {
-        path: 'transactions',
-        element: <Transactions />,
-      },
-      {
-        path: 'statements',
-        element: <Statements />,
-      },
-      {
-        path: 'analytics',
-        element: <Analytics />,
-      },
-      {
-        path: 'family',
-        element: <FamilyFinance />,
-      },
-      {
-        path: 'categories',
-        element: <Categories />,
-      },
-      {
-        path: 'how-it-works',
-        element: <HowItWorks />,
-      },
-      {
-        path: 'profile',
-        element: <Profile />,
-      },
-      {
-        path: 'settings',
-        element: <Settings />,
-      },
+      { path: 'dashboard', element: s(<Dashboard />) },
+      { path: 'transactions', element: s(<Transactions />) },
+      { path: 'statements', element: s(<Statements />) },
+      { path: 'analytics', element: s(<Analytics />) },
+      { path: 'family', element: s(<FamilyFinance />) },
+      { path: 'categories', element: s(<Categories />) },
+      { path: 'how-it-works', element: s(<HowItWorks />) },
+      { path: 'profile', element: s(<Profile />) },
+      { path: 'settings', element: s(<Settings />) },
+      { path: 'error', element: s(<ErrorPage />) },
     ],
   },
   {
     path: '*',
-    element: <NotFound />,
+    element: s(<NotFound />),
   },
-]
+];

@@ -3,11 +3,11 @@
  * Text input field component with validation support.
  */
 
-import React from 'react'
-import { cn } from '@lib/utils'
+import React from 'react';
+import { cn } from '@lib/utils';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  error?: boolean
+  error?: boolean;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -23,8 +23,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       {...props}
     />
   )
-)
+);
 
-Input.displayName = 'Input'
+Input.displayName = 'Input';
 
-export { Input }
+export { Input };

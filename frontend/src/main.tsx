@@ -2,13 +2,13 @@
  * Application Entry Point
  */
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
-import App from './App'
-import { ThemeProvider } from '@store/ThemeContext'
-import '@styles/globals.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import App from './App';
+import { ThemeProvider } from '@store/ThemeContext';
+import '@styles/globals.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-})
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -29,4 +29,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>
-)
+);

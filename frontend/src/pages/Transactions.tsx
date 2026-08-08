@@ -3,8 +3,8 @@
  * View and manage transactions.
  */
 
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card'
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card';
 
 const Transactions: React.FC = () => {
   return (
@@ -19,7 +19,7 @@ const Transactions: React.FC = () => {
         </CardContent>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default Transactions
+export default Transactions;

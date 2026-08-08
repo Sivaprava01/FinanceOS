@@ -1,137 +1,217 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-@layer base {
-  :root {
-    /* Light theme - Emerald first */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.6%;
+/*
+ * FinanceOS Design Tokens
+ * @theme inline maps CSS custom properties to Tailwind utility classes.
+ * Light theme: Emerald-first  |  Dark theme: Purple-first
+ */
+@theme inline {
+  /* Color tokens — resolved from CSS vars per theme */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.6%;
+  /* Border radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-full: 9999px;
 
-    --primary: 156 100% 40%;
-    --primary-foreground: 0 0% 100%;
+  /* Typography */
+  --font-heading: var(--font-heading-family);
+  --font-body: var(--font-body-family);
+  --font-sans: var(--font-body-family);
 
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
-    --accent: 0 0% 9%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 156 100% 40%;
-
-    --radius: 12px;
-    --font-heading: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
-    --font-body: 'General Sans', system-ui, -apple-system, sans-serif;
-  }
-
-  .dark {
-    /* Dark theme - Purple first */
-    --background: 270 15% 8%;
-    --foreground: 0 0% 98%;
-
-    --card: 270 12% 12%;
-    --card-foreground: 0 0% 98%;
-
-    --primary: 270 100% 60%;
-    --primary-foreground: 270 15% 8%;
-
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 88%;
-
-    --accent: 0 0% 98%;
-    --accent-foreground: 270 15% 8%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 270 15% 8%;
-
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 270 100% 60%;
-  }
+  /* Animations */
+  --animate-fade-in: fadeIn 300ms ease-in-out;
+  --animate-slide-in: slideIn 300ms ease-out;
+  --animate-spin: spin 1s linear infinite;
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+/* ─── Light Theme (Emerald-first) ──────────────────────────────────────────── */
+:root {
+  --radius: 12px;
+  --font-heading-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
+  --font-body-family: 'General Sans', system-ui, -apple-system, sans-serif;
 
-  body {
-    @apply bg-background text-foreground;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    @apply font-heading font-semibold;
-  }
-
-  h1 {
-    @apply text-4xl;
-  }
-
-  h2 {
-    @apply text-3xl;
-  }
-
-  h3 {
-    @apply text-2xl;
-  }
-
-  h4 {
-    @apply text-xl;
-  }
-
-  h5 {
-    @apply text-lg;
-  }
-
-  h6 {
-    @apply text-base;
-  }
-
-  body {
-    @apply font-body;
-  }
-
-  button {
-    @apply focus-visible:outline-none;
-  }
+  --background: oklch(100% 0 0);
+  --foreground: oklch(10% 0 0);
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(10% 0 0);
+  --primary: oklch(60% 0.17 162);
+  --primary-foreground: oklch(100% 0 0);
+  --secondary: oklch(96% 0 0);
+  --secondary-foreground: oklch(20% 0 0);
+  --accent: oklch(20% 0 0);
+  --accent-foreground: oklch(100% 0 0);
+  --destructive: oklch(60% 0.22 25);
+  --destructive-foreground: oklch(100% 0 0);
+  --muted: oklch(96% 0 0);
+  --muted-foreground: oklch(50% 0 0);
+  --border: oklch(90% 0 0);
+  --input: oklch(90% 0 0);
+  --ring: oklch(60% 0.17 162);
 }
 
-/* Smooth theme transition */
-html {
-  color-scheme: light dark;
-}
-
+/* ─── Dark Theme (Purple-first) ────────────────────────────────────────────── */
 .dark {
+  --background: oklch(15% 0.02 290);
+  --foreground: oklch(98% 0 0);
+  --card: oklch(18% 0.02 290);
+  --card-foreground: oklch(98% 0 0);
+  --primary: oklch(65% 0.25 290);
+  --primary-foreground: oklch(15% 0.02 290);
+  --secondary: oklch(22% 0 0);
+  --secondary-foreground: oklch(88% 0 0);
+  --accent: oklch(98% 0 0);
+  --accent-foreground: oklch(15% 0.02 290);
+  --destructive: oklch(60% 0.22 25);
+  --destructive-foreground: oklch(15% 0.02 290);
+  --muted: oklch(22% 0 0);
+  --muted-foreground: oklch(63% 0 0);
+  --border: oklch(28% 0 0);
+  --input: oklch(28% 0 0);
+  --ring: oklch(65% 0.25 290);
+}
+
+/* ─── Keyframes ─────────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ─── Base Styles ───────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
   color-scheme: dark;
 }
 
-/* Disable text selection on UI elements */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body-family);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading-family);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+h2 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+h3 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+h4 {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+h5 {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+h6 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+/* ─── Focus Visible ─────────────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ─── Selection ─────────────────────────────────────────────────────────────── */
 button,
 a,
 [role='button'] {
-  @apply select-none;
+  user-select: none;
 }
 
-/* Scrollbar styling */
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -142,20 +222,10 @@ a,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted));
+  background: var(--muted);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
-}
-
-/* Focus visible for accessibility */
-*:focus-visible {
-  @apply outline-2 outline-offset-2 outline-ring;
-}
-
-/* Remove default focus outline on buttons */
-button:focus-visible {
-  @apply outline-2 outline-offset-2 outline-ring;
+  background: var(--muted-foreground);
 }
