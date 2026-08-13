@@ -7,7 +7,7 @@
  *
  * Supported API: exchangerate-api.com (free tier supports 1,500 req/month)
  * Fallback: Uses cached rates if API fails (cache is not persisted)
- * 
+ *
  * Design principles:
  * - Always fetch fresh rates
  * - Never modify original transaction amounts
@@ -24,7 +24,7 @@ import { HTTP_STATUS } from "../constants/index.js";
 // This is a local cache, not a database
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
-let exchangeRateCache = {
+const exchangeRateCache = {
   data: {},
   timestamp: 0,
 };
@@ -33,13 +33,71 @@ let exchangeRateCache = {
 // ISO 4217 currency codes. Validated against this list before conversion
 
 const SUPPORTED_CURRENCIES = [
-  "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "CNY", "INR",
-  "MXN", "SGD", "HKD", "NOK", "SEK", "DKK", "AED", "SAR", "QAR", "KWD",
-  "BHD", "OMR", "JOD", "ILS", "TRY", "RUB", "ZAR", "KRW", "THB", "MYR",
-  "PHP", "IDR", "VND", "PKR", "BDT", "LKR", "NGN", "KES", "EGP", "BRL",
-  "ARS", "CLP", "COP", "PEN", "UYU", "VEF", "BGN", "HRK", "CZK", "HUF",
-  "PLN", "RON", "RSD", "UAH", "BYN", "KZK", "UZS", "TJK", "KGS", "AMD",
-  "AZN", "GEL", "BYN", "KZK", "UZS",
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CHF",
+  "CAD",
+  "AUD",
+  "NZD",
+  "CNY",
+  "INR",
+  "MXN",
+  "SGD",
+  "HKD",
+  "NOK",
+  "SEK",
+  "DKK",
+  "AED",
+  "SAR",
+  "QAR",
+  "KWD",
+  "BHD",
+  "OMR",
+  "JOD",
+  "ILS",
+  "TRY",
+  "RUB",
+  "ZAR",
+  "KRW",
+  "THB",
+  "MYR",
+  "PHP",
+  "IDR",
+  "VND",
+  "PKR",
+  "BDT",
+  "LKR",
+  "NGN",
+  "KES",
+  "EGP",
+  "BRL",
+  "ARS",
+  "CLP",
+  "COP",
+  "PEN",
+  "UYU",
+  "VEF",
+  "BGN",
+  "HRK",
+  "CZK",
+  "HUF",
+  "PLN",
+  "RON",
+  "RSD",
+  "UAH",
+  "BYN",
+  "KZK",
+  "UZS",
+  "TJK",
+  "KGS",
+  "AMD",
+  "AZN",
+  "GEL",
+  "BYN",
+  "KZK",
+  "UZS",
 ];
 
 // ─── Fetch Exchange Rates ─────────────────────────────────────────────────────
@@ -164,10 +222,7 @@ const convertCurrency = async (amount, fromCurrency, toCurrency) => {
     const rates = await fetchExchangeRates(from);
 
     if (!rates[to]) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        `Conversion from ${from} to ${to} not supported`
-      );
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Conversion from ${from} to ${to} not supported`);
     }
 
     const rate = rates[to];

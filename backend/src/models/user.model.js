@@ -112,6 +112,22 @@ const userSchema = new Schema(
       default: null,
     },
 
+    // ── Password Reset ────────────────────────────────────────────────────────
+
+    // Hashed password reset token (for security)
+    passwordResetToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    // When the reset token expires (30 minutes from request)
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
     // ── Phase 03: Profile fields ──────────────────────────────────────────────
 
     country: {

@@ -35,13 +35,47 @@ import { HTTP_STATUS } from "../constants/index.js";
  * Future: OCR support can be added here for scanned PDFs
  *
  * @param {string} filePath - Path to PDF file
+ * @param {string} password - Optional password for password-protected PDFs
  * @returns {Promise<Array>} Array of extracted transactions
  * @throws {ApiError} If PDF is invalid or cannot be parsed
  */
-const parsePDF = async (filePath) => {
+const parsePDF = async (filePath, password = null) => {
   try {
     const fileBuffer = fs.readFileSync(filePath);
-    const pdfData = await pdfParse(fileBuffer);
+
+    let pdfData;
+
+    // pdf-parse passes options as a second parameter
+    // The options object can include password for encrypted PDFs
+    const options = password ? { password } : {};
+
+    try {
+      // Call pdfParse with file buffer and options
+      // pdfParse(buffer, options) where options can include { password: 'xyz' }
+      pdfData = await pdfParse(fileBuffer, options);
+    } catch (err) {
+      // Handle password-related errors from pdfjs-dist
+      const errorMsg = err?.message || err?.toString() || "";
+      const isPasswordError =
+        errorMsg.includes("password") ||
+        errorMsg.includes("encrypted") ||
+        errorMsg.includes("unable to decrypt") ||
+        errorMsg.includes("Invalid password");
+
+      if (isPasswordError) {
+        // Check if we already tried with a password
+        if (password) {
+          // Password was provided but failed - wrong password
+          throw new ApiError(HTTP_STATUS.BAD_REQUEST, "PDF_PASSWORD_INCORRECT");
+        } else {
+          // No password provided yet - password required
+          throw new ApiError(HTTP_STATUS.BAD_REQUEST, "PDF_PASSWORD_REQUIRED");
+        }
+      } else {
+        throw err;
+      }
+    }
+
     const text = pdfData.text;
 
     if (!text || text.trim().length === 0) {
@@ -103,12 +137,7 @@ const parseCSV = async (filePath) => {
       })
       .on("end", () => {
         if (transactions.length === 0) {
-          reject(
-            new ApiError(
-              HTTP_STATUS.BAD_REQUEST,
-              "No valid transactions found in CSV file"
-            )
-          );
+          reject(new ApiError(HTTP_STATUS.BAD_REQUEST, "No valid transactions found in CSV file"));
         } else {
           resolve(transactions);
         }
@@ -146,9 +175,7 @@ const parseExcel = async (filePath) => {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "No data found in Excel sheet");
     }
 
-    const transactions = rows
-      .map((row) => normalizeRow(row, "XLSX"))
-      .filter((t) => t !== null);
+    const transactions = rows.map((row) => normalizeRow(row, "XLSX")).filter((t) => t !== null);
 
     if (transactions.length === 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "No valid transactions found in Excel file");
@@ -168,10 +195,10 @@ const parseExcel = async (filePath) => {
  * Handles various column naming conventions.
  *
  * @param {object} row - Row from CSV/Excel
- * @param {string} source - "CSV" or "XLSX"
+ * @param {string} _source - "CSV" or "XLSX" (unused but kept for API consistency)
  * @returns {object|null} Normalized transaction or null if invalid
  */
-const normalizeRow = (row, source) => {
+const normalizeRow = (row, _source) => {
   // Find and parse date
   const dateField = Object.keys(row).find((k) => k.toLowerCase().includes("date"));
   const date = dateField ? parseDate(row[dateField]) : null;
@@ -259,7 +286,8 @@ const extractTransactionsFromText = (text) => {
   //   1. YYYY.MM.DD / YYYY-MM-DD / YYYY/MM/DD  (year 1900-2099)
   //   2. DD.MM.YYYY / DD-MM-YYYY / DD/MM/YYYY  (day 01-31, month 01-12)
   //   3. DD MMM YYYY  (word-month)
-  const DATE_ANYWHERE = /((?:19|20)\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2}|(?:0[1-9]|[12]\d|3[01])[\/\-\.](?:0[1-9]|1[0-2])[\/\-\.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
+  const DATE_ANYWHERE =
+    /((?:19|20)\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2}|(?:0[1-9]|[12]\d|3[01])[\/\-\.](?:0[1-9]|1[0-2])[\/\-\.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
 
   // Matches a currency amount with mandatory decimal and exactly 2 decimal places.
   // \d+ (not \d{1,3}) so that "5000.00" is captured whole, not as "000.00".
@@ -267,7 +295,10 @@ const extractTransactionsFromText = (text) => {
   // Handles fused amounts: "5000.007460.30" → ["5000.00", "7460.30"]
   const AMOUNT_RE = /\d+(?:,\d{2,3})*\.\d{2}/g;
 
-  const rawLines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+  const rawLines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
 
   // ── Step 1: Identify which lines contain a date ───────────────────────────
   // A "date line" is any line where a date token can be extracted.
@@ -281,7 +312,9 @@ const extractTransactionsFromText = (text) => {
   }
 
   if (isDev) {
-    console.log(`[Parser] Total non-empty lines: ${rawLines.length} | Lines containing a date: ${dateLineIndices.length}`);
+    console.log(
+      `[Parser] Total non-empty lines: ${rawLines.length} | Lines containing a date: ${dateLineIndices.length}`
+    );
   }
 
   if (dateLineIndices.length === 0) {
@@ -298,7 +331,7 @@ const extractTransactionsFromText = (text) => {
   const blocks = [];
   for (let b = 0; b < dateLineIndices.length; b++) {
     const start = dateLineIndices[b];
-    const end   = b + 1 < dateLineIndices.length ? dateLineIndices[b + 1] : rawLines.length;
+    const end = b + 1 < dateLineIndices.length ? dateLineIndices[b + 1] : rawLines.length;
     blocks.push(rawLines.slice(start, end));
   }
 
@@ -308,7 +341,7 @@ const extractTransactionsFromText = (text) => {
 
   // ── Step 3: Parse each block into a transaction ───────────────────────────
   const transactions = [];
-  const rejected     = [];
+  const rejected = [];
 
   for (const block of blocks) {
     const dateLine = block[0];
@@ -369,7 +402,10 @@ const extractTransactionsFromText = (text) => {
 
     if (amounts.length === 0) {
       rejected.push({ reason: "no currency amount found in block", line: dateLine });
-      if (isDev) console.log(`[Parser] Rejected block (no amount): "${dateLine}" | block: ${block.join(" | ").slice(0, 120)}`);
+      if (isDev)
+        console.log(
+          `[Parser] Rejected block (no amount): "${dateLine}" | block: ${block.join(" | ").slice(0, 120)}`
+        );
       continue;
     }
 
@@ -380,11 +416,11 @@ const extractTransactionsFromText = (text) => {
     //
     // Heuristic: if narration contains deposit/credit keywords, treat as credit.
     // Otherwise debit.
-    const creditKeywords = /\bdeposit\b|credit|salary|received|refund|interest|cashback|\binward\b|\bCr\b/i;
+    const creditKeywords =
+      /\bdeposit\b|credit|salary|received|refund|interest|cashback|\binward\b|\bCr\b/i;
     const isCredit = creditKeywords.test(fullNarration);
 
     // Last amount is closing balance; first transaction amount is the actual tx
-    const balance = amounts.length >= 2 ? amounts[amounts.length - 1] : null;
     const txAmount = amounts[0];
 
     transactions.push({
@@ -405,7 +441,9 @@ const extractTransactionsFromText = (text) => {
     console.log(`[Parser] Parsed: ${transactions.length} | Rejected: ${rejected.length}`);
     if (rejected.length > 0) {
       console.log("[Parser] Rejected blocks:");
-      rejected.forEach((r) => console.log(`  reason="${r.reason}" | line="${r.line.slice(0, 80)}"`));
+      rejected.forEach((r) =>
+        console.log(`  reason="${r.reason}" | line="${r.line.slice(0, 80)}"`)
+      );
     }
   }
 
@@ -457,8 +495,18 @@ const parseDate = (dateStr) => {
   const dMonthY = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2,4})$/);
   if (dMonthY) {
     const months = {
-      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      jan: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7,
+      sep: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11,
     };
     const day = parseInt(dMonthY[1]);
     const monthIdx = months[dMonthY[2].toLowerCase()];
@@ -486,8 +534,8 @@ const parseAmount = (amountStr) => {
 
   // Strip everything except digits, a single dot, and a leading minus
   const cleaned = String(amountStr)
-    .replace(/,/g, "")           // remove thousand separators (1,24,550 → 124550)
-    .replace(/[^0-9.\-]/g, "")  // strip any other non-numeric characters
+    .replace(/,/g, "") // remove thousand separators (1,24,550 → 124550)
+    .replace(/[^0-9.\-]/g, "") // strip any other non-numeric characters
     .trim();
 
   const amount = parseFloat(cleaned);

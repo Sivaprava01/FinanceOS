@@ -1,13 +1,30 @@
 /**
  * Route Configuration
- * Centralized routing with lazy-loaded pages.
+ * Centralized routing with lazy-loaded pages and protected routes.
  */
 
 import React, { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
 import PublicLayout from '@layouts/PublicLayout';
 import ProtectedLayout from '@layouts/ProtectedLayout';
+import { ProtectedRoute } from '@components/routing/ProtectedRoute';
+import { useAuth } from '@context/useAuthContext';
 import { Loader } from '@components/ui/Loader';
+
+// Component that handles root route based on auth state
+const RootRedirect: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader size="lg" />
+      </div>
+    );
+  }
+  
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />;
+};
 
 // ─── Lazy-loaded pages ──────────────────────────────────────────────────────
 const NotFound = lazy(() => import('@pages/NotFound'));
@@ -37,7 +54,7 @@ const s = (element: React.ReactElement) => <Suspense fallback={fallback}>{elemen
 export const routes = [
   {
     path: '/',
-    element: <Navigate to="/dashboard" replace />,
+    element: <RootRedirect />,
   },
   {
     path: '/',
@@ -46,12 +63,16 @@ export const routes = [
       { path: 'login', element: s(<Login />) },
       { path: 'register', element: s(<Register />) },
       { path: 'forgot-password', element: s(<ForgotPassword />) },
-      { path: 'reset-password/:token', element: s(<ResetPassword />) },
+      { path: 'reset-password', element: s(<ResetPassword />) },
     ],
   },
   {
     path: '/',
-    element: <ProtectedLayout />,
+    element: (
+      <ProtectedRoute>
+        <ProtectedLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { path: 'dashboard', element: s(<Dashboard />) },
       { path: 'transactions', element: s(<Transactions />) },

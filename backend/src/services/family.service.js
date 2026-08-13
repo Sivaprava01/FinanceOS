@@ -21,7 +21,13 @@ import Transaction from "../models/transaction.model.js";
 import Asset from "../models/asset.model.js";
 import Loan from "../models/loan.model.js";
 import ApiError from "../utils/ApiError.js";
-import { HTTP_STATUS, FAMILY_ROLES, INVITATION_STATUS, FAMILY_MESSAGES, LOAN_STATUS } from "../constants/index.js";
+import {
+  HTTP_STATUS,
+  FAMILY_ROLES,
+  INVITATION_STATUS,
+  FAMILY_MESSAGES,
+  LOAN_STATUS,
+} from "../constants/index.js";
 
 const { Types } = mongoose;
 
@@ -140,7 +146,9 @@ const getFamily = async (familyId, userId) => {
   const family = await Family.findOne({
     _id: familyId,
     isDeleted: false,
-  }).populate("familyHead", "name email avatar").populate("members.user", "name email avatar");
+  })
+    .populate("familyHead", "name email avatar")
+    .populate("members.user", "name email avatar");
 
   if (!family) {
     throw new ApiError(HTTP_STATUS.NOT_FOUND, FAMILY_MESSAGES.FAMILY_NOT_FOUND);
@@ -162,10 +170,7 @@ const getFamily = async (familyId, userId) => {
  */
 const listFamilies = async (userId) => {
   const families = await Family.find({
-    $or: [
-      { familyHead: userId },
-      { "members.user": userId },
-    ],
+    $or: [{ familyHead: userId }, { "members.user": userId }],
     isDeleted: false,
   })
     .populate("familyHead", "name email avatar")
@@ -198,11 +203,9 @@ const updateFamily = async (familyId, userId, data) => {
     throw new ApiError(HTTP_STATUS.FORBIDDEN, FAMILY_MESSAGES.FORBIDDEN);
   }
 
-  const updated = await Family.findByIdAndUpdate(
-    familyId,
-    { $set: data },
-    { new: true }
-  ).populate("familyHead", "name email avatar").populate("members.user", "name email avatar");
+  const updated = await Family.findByIdAndUpdate(familyId, { $set: data }, { new: true })
+    .populate("familyHead", "name email avatar")
+    .populate("members.user", "name email avatar");
 
   return updated.toObject();
 };
@@ -435,9 +438,7 @@ const removeMember = async (familyId, headId, memberId) => {
   }
 
   // Remove from members array
-  family.members = family.members.filter(
-    (m) => m.user.toString() !== memberId.toString()
-  );
+  family.members = family.members.filter((m) => m.user.toString() !== memberId.toString());
 
   await family.save();
 
@@ -475,9 +476,7 @@ const leaveFamily = async (familyId, userId) => {
   }
 
   // Remove from members array
-  family.members = family.members.filter(
-    (m) => m.user.toString() !== userId.toString()
-  );
+  family.members = family.members.filter((m) => m.user.toString() !== userId.toString());
 
   await family.save();
 
@@ -645,9 +644,9 @@ const getFamilyDashboard = async (familyId, requestingUserId) => {
   // Aggregate shared data
   let totalSharedAssets = 0;
   let totalSharedLiabilities = 0;
-  let sharedTransactions = [];
+  const sharedTransactions = [];
   let sharedExpenses = 0;
-  let spendingByMember = [];
+  const spendingByMember = [];
 
   // Get transactions from members who share
   if (memberIds.length > 0) {

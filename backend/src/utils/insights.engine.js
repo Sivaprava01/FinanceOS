@@ -28,10 +28,10 @@ const savingsTrendRule = ({ monthly }) => {
 
   if (prevSavings === 0 || currSavings === prevSavings) return null;
 
-  const diff    = currSavings - prevSavings;
-  const pct     = Math.abs(Math.round((diff / Math.abs(prevSavings)) * 100));
-  const dir     = diff > 0 ? "improved" : "declined";
-  const symbol  = diff > 0 ? "📈" : "📉";
+  const diff = currSavings - prevSavings;
+  const pct = Math.abs(Math.round((diff / Math.abs(prevSavings)) * 100));
+  const dir = diff > 0 ? "improved" : "declined";
+  const symbol = diff > 0 ? "📈" : "📉";
 
   return `${symbol} Savings ${dir} by ${pct}% compared to last month.`;
 };
@@ -44,10 +44,10 @@ const expenseTrendRule = ({ monthly }) => {
   if (previousMonth.expenses === 0) return null;
 
   const diff = currentMonth.expenses - previousMonth.expenses;
-  const pct  = Math.abs(Math.round((diff / previousMonth.expenses) * 100));
+  const pct = Math.abs(Math.round((diff / previousMonth.expenses) * 100));
   if (pct === 0) return null;
 
-  const dir    = diff > 0 ? "increased" : "decreased";
+  const dir = diff > 0 ? "increased" : "decreased";
   const symbol = diff > 0 ? "⚠️" : "✅";
 
   return `${symbol} Total spending ${dir} by ${pct}% compared to last month.`;
@@ -135,9 +135,8 @@ const noIncomeRule = ({ overview }) => {
  */
 const positiveBalanceRule = ({ overview }) => {
   if (overview.netBalance <= 0) return null;
-  const pct = overview.totalIncome > 0
-    ? Math.round((overview.netBalance / overview.totalIncome) * 100)
-    : 0;
+  const pct =
+    overview.totalIncome > 0 ? Math.round((overview.netBalance / overview.totalIncome) * 100) : 0;
   if (pct < 5) return null;
   return `✅ You saved ${pct}% of your income this month. Keep it up!`;
 };
@@ -169,16 +168,14 @@ const RULES = [
  * @returns {string[]} Array of insight strings (empty if no data available)
  */
 const generateInsights = (data) => {
-  return RULES
-    .map((rule) => {
-      try {
-        return rule(data);
-      } catch {
-        // A single failing rule must never break the entire insights response
-        return null;
-      }
-    })
-    .filter(Boolean);
+  return RULES.map((rule) => {
+    try {
+      return rule(data);
+    } catch {
+      // A single failing rule must never break the entire insights response
+      return null;
+    }
+  }).filter(Boolean);
 };
 
 export { generateInsights };

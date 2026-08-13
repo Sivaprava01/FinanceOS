@@ -12,7 +12,7 @@
  */
 
 import { authService } from "../services/auth.service.js";
-import { ApiResponse, asyncHandler } from "../utils/index.js";
+import { ApiResponse, ApiError, asyncHandler } from "../utils/index.js";
 import { HTTP_STATUS, AUTH_MESSAGES, COOKIE_NAMES, COOKIE_OPTIONS } from "../constants/index.js";
 
 // ─── Cookie Helper ────────────────────────────────────────────────────────────
@@ -55,12 +55,12 @@ export const register = asyncHandler(async (req, res) => {
 
   setRefreshTokenCookie(res, refreshToken);
 
-  return res
-    .status(HTTP_STATUS.CREATED)
-    .json(new ApiResponse(HTTP_STATUS.CREATED, AUTH_MESSAGES.REGISTER_SUCCESS, {
+  return res.status(HTTP_STATUS.CREATED).json(
+    new ApiResponse(HTTP_STATUS.CREATED, AUTH_MESSAGES.REGISTER_SUCCESS, {
       user,
       accessToken,
-    }));
+    })
+  );
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -75,12 +75,12 @@ export const login = asyncHandler(async (req, res) => {
 
   setRefreshTokenCookie(res, refreshToken);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.LOGIN_SUCCESS, {
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.LOGIN_SUCCESS, {
       user,
       accessToken,
-    }));
+    })
+  );
 });
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -106,11 +106,11 @@ export const refreshToken = asyncHandler(async (req, res) => {
 
   setRefreshTokenCookie(res, newRefreshToken);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.TOKEN_REFRESHED, {
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.TOKEN_REFRESHED, {
       accessToken,
-    }));
+    })
+  );
 });
 
 // ─── Get Profile ──────────────────────────────────────────────────────────────
@@ -118,9 +118,59 @@ export const refreshToken = asyncHandler(async (req, res) => {
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await authService.getProfile(req.user._id);
 
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.PROFILE_FETCHED, {
+      user,
+    })
+  );
+});
+
+// ─── Request Password Reset ───────────────────────────────────────────────────
+
+export const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Email is required");
+  }
+
+  const result = await authService.requestPasswordReset(email);
+
+  // Always return success message (prevent account enumeration)
   return res
     .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.PROFILE_FETCHED, {
-      user,
-    }));
+    .json(
+      new ApiResponse(
+        HTTP_STATUS.OK,
+        "If an account with this email exists, a password reset link has been sent.",
+        result
+      )
+    );
+});
+
+// ─── Reset Password ───────────────────────────────────────────────────────────
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { email, token, newPassword, confirmPassword } = req.body;
+
+  if (!email || !token || !newPassword || !confirmPassword) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Email, token, new password, and confirm password are required"
+    );
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Passwords do not match");
+  }
+
+  if (newPassword.length < 8) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Password must be at least 8 characters long");
+  }
+
+  const result = await authService.resetPassword(email, token, newPassword);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, result.message, result));
 });

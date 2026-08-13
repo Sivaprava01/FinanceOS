@@ -30,7 +30,9 @@ export const getSpendingAnalysis = asyncHandler(async (req, res) => {
 
   return res
     .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, DASHBOARD_MESSAGES.SPENDING_ANALYSIS_FETCHED, { analysis }));
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, DASHBOARD_MESSAGES.SPENDING_ANALYSIS_FETCHED, { analysis })
+    );
 });
 
 // ─── GET /dashboard/monthly-comparison ───────────────────────────────────────
@@ -40,7 +42,9 @@ export const getMonthlyComparison = asyncHandler(async (req, res) => {
 
   return res
     .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, DASHBOARD_MESSAGES.MONTHLY_COMPARISON_FETCHED, { comparison }));
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, DASHBOARD_MESSAGES.MONTHLY_COMPARISON_FETCHED, { comparison })
+    );
 });
 
 // ─── GET /dashboard/health-score ─────────────────────────────────────────────
@@ -50,7 +54,9 @@ export const getHealthScore = asyncHandler(async (req, res) => {
 
   return res
     .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, DASHBOARD_MESSAGES.HEALTH_SCORE_FETCHED, { healthScore }));
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, DASHBOARD_MESSAGES.HEALTH_SCORE_FETCHED, { healthScore })
+    );
 });
 
 // ─── GET /dashboard/insights ──────────────────────────────────────────────────

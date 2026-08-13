@@ -19,6 +19,20 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, isLoading, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
 
+    // When using asChild with Slot, we can't wrap children, so only show loading for native buttons
+    if (asChild) {
+      return (
+        <Comp
+          className={cn(buttonVariants({ variant, size, className }))}
+          disabled={disabled || isLoading}
+          ref={ref}
+          {...props}
+        >
+          {children}
+        </Comp>
+      );
+    }
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}

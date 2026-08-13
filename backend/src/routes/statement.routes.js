@@ -14,6 +14,7 @@ import {
   uploadStatement,
   getImportHistory,
   getStatement,
+  processStatement,
 } from "../controllers/statement.controller.js";
 
 const router = express.Router();
@@ -49,12 +50,30 @@ router.use(protect);
  *   }
  * }
  */
-router.post(
-  "/upload",
-  uploadSingle,
-  validateStatementFile,
-  uploadStatement
-);
+router.post("/upload", uploadSingle, validateStatementFile, uploadStatement);
+
+// ─── Process Statement ────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/statements/:id/import
+ *
+ * Process a statement: extract transactions from the file and import them to the database.
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "message": "Statement processed successfully. 42 transactions imported.",
+ *   "data": {
+ *     "statement": {
+ *       "_id": "...",
+ *       "status": "Completed",
+ *       "transactionCount": 42,
+ *       ...
+ *     }
+ *   }
+ * }
+ */
+router.post("/:id/import", processStatement);
 
 // ─── Get Import History ───────────────────────────────────────────────────────
 

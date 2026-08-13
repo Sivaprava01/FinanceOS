@@ -1,6 +1,7 @@
 /**
  * Transaction Routes
  *
+ * POST   /api/v1/transactions              - Create manual transaction
  * POST   /api/v1/transactions/extract           - Extract from statement
  * GET    /api/v1/transactions/review/:id        - Get transactions for review
  * POST   /api/v1/transactions/learn-merchant    - Learn merchant mapping
@@ -8,11 +9,13 @@
  * GET    /api/v1/transactions                   - Get all transactions
  * GET    /api/v1/transactions/:id               - Get single transaction
  * PUT    /api/v1/transactions/:id               - Update transaction
+ * DELETE /api/v1/transactions/:id               - Delete transaction
  */
 
 import express from "express";
 import protect from "../middlewares/auth.middleware.js";
 import {
+  createTransaction,
   extractTransactions,
   getTransactionsForReview,
   learnMerchantMapping,
@@ -31,6 +34,41 @@ const router = express.Router();
 // ─── All routes require authentication ─────────────────────────────────────────
 
 router.use(protect);
+
+// ─── Create Manual Transaction ─────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/transactions
+ *
+ * Creates a manual transaction (not from a statement import).
+ * statementId will be null for these transactions.
+ *
+ * Request:
+ * {
+ *   "date": "2026-08-01T00:00:00Z",
+ *   "amount": 100.50,
+ *   "type": "Debit",
+ *   "merchant": "Coffee Shop",
+ *   "description": "Morning coffee",
+ *   "category": "Food",
+ *   "notes": "Optional notes"
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "...",
+ *     "date": "2026-08-01T00:00:00Z",
+ *     "amount": 100.50,
+ *     "type": "Debit",
+ *     "merchant": "Coffee Shop",
+ *     "category": "Food",
+ *     ...
+ *   }
+ * }
+ */
+router.post("/", createTransaction);
 
 // ─── Extract Transactions from Statement ───────────────────────────────────────
 

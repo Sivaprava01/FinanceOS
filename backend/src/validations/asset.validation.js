@@ -14,30 +14,38 @@ import { ASSET_CATEGORIES } from "../constants/index.js";
 export const validateCreateAsset = [
   body("assetName")
     .trim()
-    .notEmpty().withMessage("Asset name is required")
-    .isLength({ max: 100 }).withMessage("Asset name cannot exceed 100 characters"),
+    .notEmpty()
+    .withMessage("Asset name is required")
+    .isLength({ max: 100 })
+    .withMessage("Asset name cannot exceed 100 characters"),
 
   body("assetCategory")
-    .notEmpty().withMessage("Asset category is required")
+    .notEmpty()
+    .withMessage("Asset category is required")
     .isIn(ASSET_CATEGORIES)
     .withMessage(`Asset category must be one of: ${ASSET_CATEGORIES.join(", ")}`),
 
   body("currentValue")
-    .notEmpty().withMessage("Current value is required")
-    .isFloat({ min: 0 }).withMessage("Current value cannot be negative"),
+    .notEmpty()
+    .withMessage("Current value is required")
+    .isFloat({ min: 0 })
+    .withMessage("Current value cannot be negative"),
 
   body("purchaseValue")
     .optional({ nullable: true })
-    .isFloat({ min: 0 }).withMessage("Purchase value cannot be negative"),
+    .isFloat({ min: 0 })
+    .withMessage("Purchase value cannot be negative"),
 
   body("purchaseDate")
     .optional({ nullable: true })
-    .isISO8601().withMessage("Purchase date must be a valid date"),
+    .isISO8601()
+    .withMessage("Purchase date must be a valid date"),
 
   body("notes")
     .optional({ nullable: true })
     .trim()
-    .isLength({ max: 500 }).withMessage("Notes cannot exceed 500 characters"),
+    .isLength({ max: 500 })
+    .withMessage("Notes cannot exceed 500 characters"),
 
   handleValidationErrors,
 ];
@@ -48,8 +56,10 @@ export const validateUpdateAsset = [
   body("assetName")
     .optional()
     .trim()
-    .notEmpty().withMessage("Asset name cannot be empty")
-    .isLength({ max: 100 }).withMessage("Asset name cannot exceed 100 characters"),
+    .notEmpty()
+    .withMessage("Asset name cannot be empty")
+    .isLength({ max: 100 })
+    .withMessage("Asset name cannot exceed 100 characters"),
 
   body("assetCategory")
     .optional()
@@ -58,20 +68,24 @@ export const validateUpdateAsset = [
 
   body("currentValue")
     .optional()
-    .isFloat({ min: 0 }).withMessage("Current value cannot be negative"),
+    .isFloat({ min: 0 })
+    .withMessage("Current value cannot be negative"),
 
   body("purchaseValue")
     .optional({ nullable: true })
-    .isFloat({ min: 0 }).withMessage("Purchase value cannot be negative"),
+    .isFloat({ min: 0 })
+    .withMessage("Purchase value cannot be negative"),
 
   body("purchaseDate")
     .optional({ nullable: true })
-    .isISO8601().withMessage("Purchase date must be a valid date"),
+    .isISO8601()
+    .withMessage("Purchase date must be a valid date"),
 
   body("notes")
     .optional({ nullable: true })
     .trim()
-    .isLength({ max: 500 }).withMessage("Notes cannot exceed 500 characters"),
+    .isLength({ max: 500 })
+    .withMessage("Notes cannot exceed 500 characters"),
 
   handleValidationErrors,
 ];

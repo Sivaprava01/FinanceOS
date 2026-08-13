@@ -1,31 +1,71 @@
 /**
  * Login Page
- * User authentication form — Phase 1 UI only, no backend connection.
+ * User authentication form with full backend integration.
+ * Phase 2 implementation with React Hook Form, Zod validation, and authService.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Input } from '@components/ui/Input';
+import { useLogin } from '@hooks/useAuth';
+import { useAuth } from '@context/useAuthContext';
+
+// ─── Validation Schema ───────────────────────────────────────────────────────
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+
+// ─── Login Component ────────────────────────────────────────────────────────
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const loginMutation = useLogin();
+  const [showPassword, setShowPassword] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
-    // Phase 1: UI-only simulation — no backend call
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('/dashboard');
-    }, 800);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      await loginMutation.mutateAsync({
+        email: data.email,
+        password: data.password,
+      });
+
+      // After successful login:
+      // 1. Token is stored in localStorage by mutation's onSuccess
+      // 2. Query cache is populated immediately by mutation's onSuccess
+      // 3. AuthContext subscription fires and updates user state
+      // 4. isAuthenticated becomes true
+      // 5. The useEffect above will detect isAuthenticated=true and navigate
+      // 6. ProtectedRoute will render the dashboard
+      // Do NOT navigate here - let the effect handle it.
+    } catch {
+      // Error is handled by mutation, which sets error state
+    }
   };
 
   return (
@@ -47,13 +87,19 @@ const Login: React.FC = () => {
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {error && (
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            {/* API Error */}
+            {loginMutation.isError && (
               <div
                 role="alert"
                 className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
               >
-                {error}
+                <p className="font-medium">Sign in failed</p>
+                <p className="mt-1">
+                  {loginMutation.error instanceof Error
+                    ? loginMutation.error.message
+                    : 'Invalid email or password. Please try again.'}
+                </p>
               </div>
             )}
 
@@ -67,9 +113,10 @@ const Login: React.FC = () => {
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
-                required
-                disabled={isLoading}
+                disabled={loginMutation.isPending}
+                {...register('email')}
               />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
 
             {/* Password */}
@@ -92,15 +139,16 @@ const Login: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  required
-                  disabled={isLoading}
+                  disabled={loginMutation.isPending}
                   className="pr-10"
+                  {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={loginMutation.isPending}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -109,9 +157,17 @@ const Login: React.FC = () => {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" isLoading={isLoading} disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              isLoading={loginMutation.isPending}
+              disabled={loginMutation.isPending}
+            >
               Sign in
             </Button>
           </form>

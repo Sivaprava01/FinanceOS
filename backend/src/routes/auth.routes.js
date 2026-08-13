@@ -6,6 +6,8 @@
  * POST   /api/v1/auth/logout             - Logout (protected)
  * POST   /api/v1/auth/refresh            - Rotate refresh token
  * GET    /api/v1/auth/me                 - Get current user profile (protected)
+ * POST   /api/v1/auth/forgot-password    - Request password reset email
+ * POST   /api/v1/auth/reset-password     - Reset password with token
  * GET    /api/v1/auth/google             - Initiate Google OAuth
  * GET    /api/v1/auth/google/callback    - Google OAuth callback
  */
@@ -20,6 +22,8 @@ import {
   logout,
   refreshToken,
   getProfile,
+  requestPasswordReset,
+  resetPassword,
 } from "../controllers/auth.controller.js";
 import { COOKIE_NAMES, COOKIE_OPTIONS, AUTH_MESSAGES } from "../constants/index.js";
 import { HTTP_STATUS } from "../constants/index.js";
@@ -33,6 +37,11 @@ router.post("/login", validateLogin, login);
 router.post("/logout", protect, logout);
 router.post("/refresh", refreshToken);
 router.get("/me", protect, getProfile);
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+router.post("/forgot-password", requestPasswordReset);
+router.post("/reset-password", resetPassword);
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 

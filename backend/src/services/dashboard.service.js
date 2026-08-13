@@ -24,7 +24,7 @@ const { Types } = mongoose;
 /** Returns the first and last millisecond of a given month. */
 const monthBounds = (year, month) => ({
   start: new Date(year, month, 1),
-  end:   new Date(year, month + 1, 0, 23, 59, 59, 999),
+  end: new Date(year, month + 1, 0, 23, 59, 59, 999),
 });
 
 /** Rounds a number to 2 decimal places. */
@@ -53,7 +53,7 @@ const sumIncomeExpenses = async (userId, start, end) => {
     },
   ]);
 
-  const income   = result.find((r) => r._id === "Credit")?.total ?? 0;
+  const income = result.find((r) => r._id === "Credit")?.total ?? 0;
   const expenses = result.find((r) => r._id === "Debit")?.total ?? 0;
   return { income: r2(income), expenses: r2(expenses) };
 };
@@ -68,24 +68,15 @@ const sumIncomeExpenses = async (userId, start, end) => {
  * @returns {Promise<object>}
  */
 const getOverview = async (userId) => {
-  const now   = new Date();
+  const now = new Date();
   const { start, end } = monthBounds(now.getFullYear(), now.getMonth());
 
-  const [
-    monthlyTotals,
-    recentTransactions,
-    topCategories,
-    loans,
-    assets,
-  ] = await Promise.all([
+  const [monthlyTotals, recentTransactions, topCategories, loans, assets] = await Promise.all([
     // Income and expenses for current month
     sumIncomeExpenses(userId, start, end),
 
     // Latest 10 transactions
-    Transaction.find({ user: userId, isDeleted: false })
-      .sort({ date: -1 })
-      .limit(10)
-      .lean(),
+    Transaction.find({ user: userId, isDeleted: false }).sort({ date: -1 }).limit(10).lean(),
 
     // Top 5 spending categories this month
     Transaction.aggregate([
@@ -109,26 +100,26 @@ const getOverview = async (userId) => {
     Asset.find({ user: userId }).lean(),
   ]);
 
-  const totalAssets      = r2(assets.reduce((s, a) => s + a.currentValue, 0));
+  const totalAssets = r2(assets.reduce((s, a) => s + a.currentValue, 0));
   const totalLiabilities = r2(loans.reduce((s, l) => s + l.outstandingBalance, 0));
-  const monthlyEmi       = r2(loans.reduce((s, l) => s + l.emiAmount, 0));
+  const monthlyEmi = r2(loans.reduce((s, l) => s + l.emiAmount, 0));
 
   return {
-    totalIncome:   monthlyTotals.income,
+    totalIncome: monthlyTotals.income,
     totalExpenses: monthlyTotals.expenses,
-    netBalance:    r2(monthlyTotals.income - monthlyTotals.expenses),
+    netBalance: r2(monthlyTotals.income - monthlyTotals.expenses),
     netWorth: {
       totalAssets,
       totalLiabilities,
       netWorth: r2(totalAssets - totalLiabilities),
     },
-    activeLoans:   loans.length,
+    activeLoans: loans.length,
     monthlyEmi,
     recentTransactions: recentTransactions.map((t) => ({
-      _id:      t._id,
-      date:     t.date,
-      amount:   t.amount,
-      type:     t.type,
+      _id: t._id,
+      date: t.date,
+      amount: t.amount,
+      type: t.type,
       merchant: t.merchant,
       category: t.category,
     })),
@@ -145,10 +136,13 @@ const getOverview = async (userId) => {
  * @returns {Promise<object>}
  */
 const getSpendingAnalysis = async (userId) => {
-  const now   = new Date();
+  const now = new Date();
   const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const { start: prevStart, end: prevEnd } = monthBounds(prevMonth.getFullYear(), prevMonth.getMonth());
+  const { start: prevStart, end: prevEnd } = monthBounds(
+    prevMonth.getFullYear(),
+    prevMonth.getMonth()
+  );
 
   const uid = new Types.ObjectId(userId);
   const baseMatch = { user: uid, isDeleted: false };
@@ -208,14 +202,24 @@ const getSpendingAnalysis = async (userId) => {
     ]),
 
     // Top 5 highest individual expense transactions — current month
-    Transaction.find({ user: userId, isDeleted: false, type: "Debit", date: { $gte: curStart, $lte: curEnd } })
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: "Debit",
+      date: { $gte: curStart, $lte: curEnd },
+    })
       .sort({ amount: -1 })
       .limit(5)
       .select("date amount merchant category")
       .lean(),
 
     // Top 5 highest individual income transactions — current month
-    Transaction.find({ user: userId, isDeleted: false, type: "Credit", date: { $gte: curStart, $lte: curEnd } })
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: "Credit",
+      date: { $gte: curStart, $lte: curEnd },
+    })
       .sort({ amount: -1 })
       .limit(5)
       .select("date amount merchant category")
@@ -225,33 +229,33 @@ const getSpendingAnalysis = async (userId) => {
   // Build category comparison (current vs previous month)
   const prevMap = Object.fromEntries(prevByCategory.map((c) => [c._id, c.total]));
   const categoryComparison = byCategory.map((c) => {
-    const prev          = prevMap[c._id] ?? 0;
-    const change        = c.total - prev;
+    const prev = prevMap[c._id] ?? 0;
+    const change = c.total - prev;
     const changePercent = prev > 0 ? Math.round((change / prev) * 100) : 100;
     return {
-      category:      c._id,
+      category: c._id,
       currentAmount: r2(c.total),
       previousAmount: r2(prev),
-      change:        r2(change),
+      change: r2(change),
       changePercent,
     };
   });
 
-  const incomeTotal   = incomeVsExpense.find((r) => r._id === "Credit")?.total ?? 0;
-  const expenseTotal  = incomeVsExpense.find((r) => r._id === "Debit")?.total   ?? 0;
+  const incomeTotal = incomeVsExpense.find((r) => r._id === "Credit")?.total ?? 0;
+  const expenseTotal = incomeVsExpense.find((r) => r._id === "Debit")?.total ?? 0;
 
   return {
     byCategory: byCategory.map((c) => ({ ...c, total: r2(c.total) })),
     categoryComparison,
     monthlyTrend: monthlyTrend.map((m) => ({
-      year:  m._id.year,
+      year: m._id.year,
       month: m._id.month,
       total: r2(m.total),
     })),
     incomeVsExpense: {
-      income:   r2(incomeTotal),
+      income: r2(incomeTotal),
       expenses: r2(expenseTotal),
-      savings:  r2(incomeTotal - expenseTotal),
+      savings: r2(incomeTotal - expenseTotal),
     },
     topMerchants,
     highestExpenses,
@@ -268,14 +272,17 @@ const getSpendingAnalysis = async (userId) => {
  * @returns {Promise<object>}
  */
 const getMonthlyComparison = async (userId) => {
-  const now       = new Date();
+  const now = new Date();
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const { start: curStart,  end: curEnd  } = monthBounds(now.getFullYear(), now.getMonth());
-  const { start: prevStart, end: prevEnd } = monthBounds(prevMonth.getFullYear(), prevMonth.getMonth());
+  const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
+  const { start: prevStart, end: prevEnd } = monthBounds(
+    prevMonth.getFullYear(),
+    prevMonth.getMonth()
+  );
 
   const [current, previous] = await Promise.all([
-    sumIncomeExpenses(userId, curStart,  curEnd),
+    sumIncomeExpenses(userId, curStart, curEnd),
     sumIncomeExpenses(userId, prevStart, prevEnd),
   ]);
 
@@ -284,29 +291,29 @@ const getMonthlyComparison = async (userId) => {
     return Math.round(((curr - prev) / prev) * 100);
   };
 
-  const currSavings = r2(current.income  - current.expenses);
+  const currSavings = r2(current.income - current.expenses);
   const prevSavings = r2(previous.income - previous.expenses);
 
   return {
     currentMonth: {
-      label:    `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`,
-      income:   current.income,
+      label: `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`,
+      income: current.income,
       expenses: current.expenses,
-      savings:  currSavings,
+      savings: currSavings,
     },
     previousMonth: {
-      label:    `${prevMonth.toLocaleString("default", { month: "long" })} ${prevMonth.getFullYear()}`,
-      income:   previous.income,
+      label: `${prevMonth.toLocaleString("default", { month: "long" })} ${prevMonth.getFullYear()}`,
+      income: previous.income,
       expenses: previous.expenses,
-      savings:  prevSavings,
+      savings: prevSavings,
     },
     comparison: {
-      incomeDiff:          r2(current.income   - previous.income),
-      incomeChangePercent: pct(current.income,   previous.income),
-      expenseDiff:         r2(current.expenses  - previous.expenses),
+      incomeDiff: r2(current.income - previous.income),
+      incomeChangePercent: pct(current.income, previous.income),
+      expenseDiff: r2(current.expenses - previous.expenses),
       expenseChangePercent: pct(current.expenses, previous.expenses),
-      savingsDiff:         r2(currSavings       - prevSavings),
-      savingsChangePercent: pct(currSavings,      prevSavings),
+      savingsDiff: r2(currSavings - prevSavings),
+      savingsChangePercent: pct(currSavings, prevSavings),
     },
   };
 };
@@ -326,14 +333,17 @@ const getMonthlyComparison = async (userId) => {
  * @returns {Promise<object>}
  */
 const getHealthScore = async (userId) => {
-  const now       = new Date();
+  const now = new Date();
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const { start: curStart,  end: curEnd  } = monthBounds(now.getFullYear(), now.getMonth());
-  const { start: prevStart, end: prevEnd } = monthBounds(prevMonth.getFullYear(), prevMonth.getMonth());
+  const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
+  const { start: prevStart, end: prevEnd } = monthBounds(
+    prevMonth.getFullYear(),
+    prevMonth.getMonth()
+  );
 
   const [current, previous, loans, assets] = await Promise.all([
-    sumIncomeExpenses(userId, curStart,  curEnd),
+    sumIncomeExpenses(userId, curStart, curEnd),
     sumIncomeExpenses(userId, prevStart, prevEnd),
     Loan.find({ user: userId, loanStatus: LOAN_STATUS.ACTIVE }).lean(),
     Asset.find({ user: userId }).lean(),
@@ -341,33 +351,27 @@ const getHealthScore = async (userId) => {
 
   // ── Savings Rate (40 pts) ─────────────────────────────────────────────────
   // Full 40 pts at ≥20% savings rate. Scales linearly below that.
-  const savingsRate    = current.income > 0
-    ? (current.income - current.expenses) / current.income
-    : 0;
-  const savingsScore   = Math.min(40, Math.max(0, Math.round(savingsRate * 200)));
+  const savingsRate = current.income > 0 ? (current.income - current.expenses) / current.income : 0;
+  const savingsScore = Math.min(40, Math.max(0, Math.round(savingsRate * 200)));
 
   // ── Debt Ratio (30 pts) ───────────────────────────────────────────────────
   // Full 30 pts when liabilities = 0. 0 pts when liabilities ≥ total assets.
-  const totalAssets      = assets.reduce((s, a) => s + a.currentValue, 0);
+  const totalAssets = assets.reduce((s, a) => s + a.currentValue, 0);
   const totalLiabilities = loans.reduce((s, l) => s + l.outstandingBalance, 0);
-  const debtRatio        = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
-  const debtScore        = Math.round(Math.max(0, 30 - debtRatio * 30));
+  const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
+  const debtScore = Math.round(Math.max(0, 30 - debtRatio * 30));
 
   // ── Spending Habits (20 pts) ──────────────────────────────────────────────
   // Full 20 pts when expenses did not increase month-over-month.
   // Linearly penalised up to 50% increase.
-  const spendingIncrease = previous.expenses > 0
-    ? (current.expenses - previous.expenses) / previous.expenses
-    : 0;
-  const spendingScore    = spendingIncrease <= 0
-    ? 20
-    : Math.max(0, Math.round(20 - spendingIncrease * 40));
+  const spendingIncrease =
+    previous.expenses > 0 ? (current.expenses - previous.expenses) / previous.expenses : 0;
+  const spendingScore =
+    spendingIncrease <= 0 ? 20 : Math.max(0, Math.round(20 - spendingIncrease * 40));
 
   // ── Income Stability (10 pts) ─────────────────────────────────────────────
   // Full 10 pts when income recorded this month and last month.
-  const incomeScore = current.income > 0 && previous.income > 0 ? 10
-    : current.income > 0 ? 5
-    : 0;
+  const incomeScore = current.income > 0 && previous.income > 0 ? 10 : current.income > 0 ? 5 : 0;
 
   const totalScore = savingsScore + debtScore + spendingScore + incomeScore;
 
@@ -378,10 +382,22 @@ const getHealthScore = async (userId) => {
     score: totalScore,
     grade,
     breakdown: {
-      savingsRate:    { score: savingsScore,   maxScore: 40, value: `${Math.round(savingsRate * 100)}%` },
-      debtRatio:      { score: debtScore,      maxScore: 30, value: `${Math.round(debtRatio * 100)}%` },
-      spendingHabits: { score: spendingScore,  maxScore: 20, value: spendingIncrease <= 0 ? "Stable" : `+${Math.round(spendingIncrease * 100)}%` },
-      incomeStability:{ score: incomeScore,    maxScore: 10, value: current.income > 0 ? "Income recorded" : "No income" },
+      savingsRate: {
+        score: savingsScore,
+        maxScore: 40,
+        value: `${Math.round(savingsRate * 100)}%`,
+      },
+      debtRatio: { score: debtScore, maxScore: 30, value: `${Math.round(debtRatio * 100)}%` },
+      spendingHabits: {
+        score: spendingScore,
+        maxScore: 20,
+        value: spendingIncrease <= 0 ? "Stable" : `+${Math.round(spendingIncrease * 100)}%`,
+      },
+      incomeStability: {
+        score: incomeScore,
+        maxScore: 10,
+        value: current.income > 0 ? "Income recorded" : "No income",
+      },
     },
   };
 };

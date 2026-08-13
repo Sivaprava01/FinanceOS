@@ -1,7 +1,11 @@
 /**
  * Axios API Instance
  * Centralized API configuration with interceptors for authentication and error handling.
- * NOTE: Phase 1 — infrastructure only. No API calls are made from the UI.
+ *
+ * CRITICAL: Response interceptor must NOT create infinite loops.
+ * - On 401, clear token ONCE (don't retry)
+ * - Do NOT redirect on every 401 (let React Router handle it)
+ * - Let the error propagate to the React Query hook
  */
 
 import axios, { AxiosError, AxiosInstance } from 'axios';
@@ -37,15 +41,26 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiResponse>) => {
+    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      window.location.href = '/login';
+      // Clear the invalid token (do this once)
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+      }
+      // Do NOT redirect here. Let the React Query hook and AuthContext handle it.
+      // The hook has retry logic that will stop on 401 and set isLoading=false.
+      // AuthContext will detect the error and set isAuthenticated=false.
+      // React Router will redirect to /login because the route is protected.
     }
 
+    // Handle network errors
     if (!error.response) {
       return Promise.reject(new Error('Network error. Please check your connection.'));
     }
 
+    // Return the error so React Query hook can handle it
     return Promise.reject(error.response.data || error);
   }
 );

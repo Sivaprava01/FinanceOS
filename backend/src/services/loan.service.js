@@ -22,9 +22,9 @@ import { HTTP_STATUS, LOAN_MESSAGES, LOAN_STATUS } from "../constants/index.js";
  * @returns {object} EMI tracking fields
  */
 const calculateEmiTracking = (loan) => {
-  const now        = new Date();
-  const startDate  = new Date(loan.loanStartDate);
-  const endDate    = new Date(loan.loanEndDate);
+  const now = new Date();
+  const startDate = new Date(loan.loanStartDate);
+  const endDate = new Date(loan.loanEndDate);
 
   // Total tenure in months from start to end date
   const totalMonths =
@@ -33,14 +33,13 @@ const calculateEmiTracking = (loan) => {
 
   // EMIs paid = months elapsed since start date (floored, capped at total)
   const monthsElapsed =
-    (now.getFullYear() - startDate.getFullYear()) * 12 +
-    (now.getMonth() - startDate.getMonth());
+    (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
 
-  const emisPaid      = Math.max(0, Math.min(monthsElapsed, totalMonths));
+  const emisPaid = Math.max(0, Math.min(monthsElapsed, totalMonths));
   const emisRemaining = Math.max(0, totalMonths - emisPaid);
 
-  const totalPaid            = emisPaid * loan.emiAmount;
-  const calculatedRemaining  = Math.max(0, loan.principalAmount - totalPaid);
+  const totalPaid = emisPaid * loan.emiAmount;
+  const calculatedRemaining = Math.max(0, loan.principalAmount - totalPaid);
 
   // Progress percentage based on total tenure
   const progressPercent =
@@ -59,12 +58,10 @@ const calculateEmiTracking = (loan) => {
   })();
 
   // Remaining tenure expressed in years and months
-  const remainingYears  = Math.floor(emisRemaining / 12);
+  const remainingYears = Math.floor(emisRemaining / 12);
   const remainingMonths = emisRemaining % 12;
   const remainingTenure =
-    remainingYears > 0
-      ? `${remainingYears}y ${remainingMonths}m`
-      : `${remainingMonths}m`;
+    remainingYears > 0 ? `${remainingYears}y ${remainingMonths}m` : `${remainingMonths}m`;
 
   return {
     totalMonths,
@@ -87,22 +84,22 @@ const calculateEmiTracking = (loan) => {
  * @returns {object}
  */
 const buildLoanPayload = (loan) => {
-  const doc     = loan.toObject ? loan.toObject() : loan;
+  const doc = loan.toObject ? loan.toObject() : loan;
   const tracking = calculateEmiTracking(doc);
 
   return {
-    _id:                doc._id,
-    loanName:           doc.loanName,
-    loanType:           doc.loanType,
-    lenderName:         doc.lenderName,
-    principalAmount:    doc.principalAmount,
-    interestRate:       doc.interestRate,
-    loanStartDate:      doc.loanStartDate,
-    loanEndDate:        doc.loanEndDate,
-    emiAmount:          doc.emiAmount,
-    emiDueDay:          doc.emiDueDay,
+    _id: doc._id,
+    loanName: doc.loanName,
+    loanType: doc.loanType,
+    lenderName: doc.lenderName,
+    principalAmount: doc.principalAmount,
+    interestRate: doc.interestRate,
+    loanStartDate: doc.loanStartDate,
+    loanEndDate: doc.loanEndDate,
+    emiAmount: doc.emiAmount,
+    emiDueDay: doc.emiDueDay,
     outstandingBalance: doc.outstandingBalance,
-    loanStatus:         doc.loanStatus,
+    loanStatus: doc.loanStatus,
     // Dynamic calculations
     ...tracking,
     createdAt: doc.createdAt,
@@ -247,16 +244,16 @@ const deleteLoan = async (loanId, userId) => {
 const getLoanSummary = async (userId) => {
   const loans = await Loan.find({ user: userId }).lean();
 
-  let totalActiveLoans     = 0;
-  let totalOutstanding     = 0;
-  let monthlyEmiTotal      = 0;
-  let totalClosedLoans     = 0;
+  let totalActiveLoans = 0;
+  let totalOutstanding = 0;
+  let monthlyEmiTotal = 0;
+  let totalClosedLoans = 0;
 
   for (const loan of loans) {
     if (loan.loanStatus === LOAN_STATUS.ACTIVE) {
       totalActiveLoans++;
       totalOutstanding += loan.outstandingBalance;
-      monthlyEmiTotal  += loan.emiAmount;
+      monthlyEmiTotal += loan.emiAmount;
     } else {
       totalClosedLoans++;
     }
@@ -265,8 +262,8 @@ const getLoanSummary = async (userId) => {
   return {
     totalActiveLoans,
     totalClosedLoans,
-    totalOutstanding:  Math.round(totalOutstanding  * 100) / 100,
-    monthlyEmiTotal:   Math.round(monthlyEmiTotal   * 100) / 100,
+    totalOutstanding: Math.round(totalOutstanding * 100) / 100,
+    monthlyEmiTotal: Math.round(monthlyEmiTotal * 100) / 100,
   };
 };
 

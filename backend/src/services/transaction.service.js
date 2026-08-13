@@ -24,6 +24,7 @@ import Statement from "../models/statement.model.js";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
 import { parserService } from "./parser.service.js";
+import { categorizationService } from "./categorization.service.js";
 
 // Get project root directory for path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -34,17 +35,18 @@ const PROJECT_ROOT = path.join(__dirname, "../..");
 
 /**
  * Extracts transactions from uploaded statement file.
- * 
+ *
  * Takes statementId, fetches the statement from DB to get filePath,
  * then reads and parses the file based on its type (PDF, CSV, XLSX).
  * Returns normalized transaction data.
  *
  * @param {string} statementId - The statement's database ID
  * @param {string} userId - The user's ID (for authorization check)
+ * @param {string} password - Optional password for encrypted PDFs
  * @returns {Promise<Array>} Array of extracted transactions (not yet saved)
  * @throws {ApiError} If statement not found, file missing, or parsing fails
  */
-const extractTransactions = async (statementId, userId) => {
+const extractTransactions = async (statementId, userId, password = null) => {
   // Fetch statement from DB to get file path and type
   const statement = await Statement.findOne({
     _id: statementId,
@@ -73,7 +75,7 @@ const extractTransactions = async (statementId, userId) => {
 
   try {
     if (statement.fileType === "PDF") {
-      transactions = await parserService.parsePDF(fullPath);
+      transactions = await parserService.parsePDF(fullPath, password);
     } else if (statement.fileType === "CSV") {
       transactions = await parserService.parseCSV(fullPath);
     } else if (statement.fileType === "XLSX") {
@@ -85,6 +87,12 @@ const extractTransactions = async (statementId, userId) => {
     if (err instanceof ApiError) throw err;
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to extract transactions: " + err.message);
   }
+
+  // Apply learned merchant mappings
+  transactions = await applyMerchantMappings(userId, transactions);
+
+  // Apply automatic categorization based on merchant names
+  transactions = categorizationService.applyDefaultCategorization(transactions);
 
   return transactions;
 };
@@ -191,8 +199,7 @@ const updateTransaction = async (transactionId, userId, updateData) => {
   }
 
   // Track if merchant changed (for learning)
-  const merchantChanged =
-    updateData.merchant && updateData.merchant !== transaction.merchant;
+  const merchantChanged = updateData.merchant && updateData.merchant !== transaction.merchant;
 
   // Apply updates
   Object.assign(transaction, updateData);
@@ -208,7 +215,8 @@ const updateTransaction = async (transactionId, userId, updateData) => {
     result.merchantLearningOpportunity = {
       original: transaction.originalMerchant,
       corrected: transaction.merchant,
-      action: "Would you like FinanceOS to recognize this merchant automatically in future imports?",
+      action:
+        "Would you like FinanceOS to recognize this merchant automatically in future imports?",
     };
   }
 
@@ -231,7 +239,10 @@ const updateTransaction = async (transactionId, userId, updateData) => {
  */
 const learnMerchantMapping = async (userId, originalMerchant, correctedMerchant) => {
   if (!originalMerchant || !correctedMerchant) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Both original and corrected merchant names required");
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Both original and corrected merchant names required"
+    );
   }
 
   const normalizedOriginal = originalMerchant.toLowerCase().trim();
@@ -353,7 +364,8 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     // Delete temporary file after successful import
     try {
       // Use stored filePath from statement if not provided
-      const pathToDelete = filePath || (statement.filePath ? path.join(PROJECT_ROOT, statement.filePath) : null);
+      const pathToDelete =
+        filePath || (statement.filePath ? path.join(PROJECT_ROOT, statement.filePath) : null);
       if (pathToDelete && fs.existsSync(pathToDelete)) {
         fs.unlinkSync(pathToDelete);
       }
@@ -371,7 +383,10 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
   } catch (err) {
     await session.abortTransaction();
     if (err instanceof ApiError) throw err;
-    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to import transactions: " + err.message);
+    throw new ApiError(
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      "Failed to import transactions: " + err.message
+    );
   } finally {
     session.endSession();
   }
@@ -474,7 +489,6 @@ const formatMerchantMappingResponse = (mapping) => {
 };
 
 // (Removed - see bottom of file for updated export)
-
 
 // ─── Delete Transaction (PHASE 06) ─────────────────────────────────────────
 
@@ -619,7 +633,7 @@ const getCategories = async (userId) => {
  */
 const bulkUpdateTransactions = async (transactionIds, userId, updateData) => {
   const allowedFields = ["category", "notes", "merchant", "description", "date", "amount"];
-  
+
   // Filter to only allowed fields
   const sanitizedUpdate = {};
   for (const field of allowedFields) {

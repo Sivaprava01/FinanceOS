@@ -12,6 +12,8 @@ import User from "../models/user.model.js";
 import { tokenUtils } from "../utils/token.js";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS, AUTH_MESSAGES, AUTH_PROVIDERS } from "../constants/index.js";
+import { sendPasswordResetEmail, isEmailServiceAvailable } from "./mail.service.js";
+import crypto from "crypto";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -107,11 +109,8 @@ const login = async ({ email, password }) => {
 
   // Soft-deleted accounts must not receive new tokens under any circumstances
   if (user.isDeleted) {
-  throw new ApiError(
-    HTTP_STATUS.FORBIDDEN,
-    AUTH_MESSAGES.ACCOUNT_DELETED
-  );
-}
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, AUTH_MESSAGES.ACCOUNT_DELETED);
+  }
 
   // Google-only accounts have no password
   if (user.provider !== AUTH_PROVIDERS.LOCAL || !user.password) {
@@ -245,6 +244,115 @@ const handleGoogleAuth = async ({ googleId, email, name, avatar }) => {
   return { accessToken, refreshToken };
 };
 
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+/**
+ * Generates a password reset token and sends a reset link to the user's email.
+ * In development, logs the token to console. In production, send via email.
+ *
+ * @param {string} email - User's email address
+ * @returns {Promise<{ resetTokenSent: boolean, email: string, devToken?: string }>}
+ */
+const requestPasswordReset = async (email) => {
+  // Always return success to prevent account enumeration
+  // But still process valid emails
+  const user = await User.findOne({ email });
+
+  if (user && user.provider === AUTH_PROVIDERS.LOCAL) {
+    // Generate a secure reset token (32 bytes = 64 hex characters)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Hash the token before storing (same way we hash passwords)
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    // Store the hashed token and expiry (30 minutes)
+    user.passwordResetToken = hashedToken;
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000;
+
+    await user.save({ validateBeforeSave: false });
+
+    // Generate the reset link using configured frontend URL
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${email}`;
+
+    // Try to send email
+    const emailResult = await sendPasswordResetEmail(email, resetToken, resetLink);
+
+    // In development mode with no SMTP configured, return the devToken for testing
+    if (process.env.NODE_ENV !== "production" && emailResult.devMode) {
+      return {
+        resetTokenSent: true,
+        email,
+        devToken: resetToken, // Only in development when SMTP not configured
+      };
+    }
+
+    // If email sending failed, throw an error
+    if (!emailResult.success) {
+      throw new ApiError(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        "Failed to send password reset email. Please try again later."
+      );
+    }
+
+    // In production or when SMTP is configured, don't return the token
+    // (it should only come via email)
+    return {
+      resetTokenSent: true,
+      email,
+    };
+  }
+
+  // Always return success message even if email not found (prevents account enumeration)
+  return {
+    resetTokenSent: true,
+    email,
+  };
+};
+
+/**
+ * Validates the password reset token and resets the user's password.
+ *
+ * @param {string} email - User's email
+ * @param {string} token - Plain reset token from URL/request
+ * @param {string} newPassword - New password
+ * @returns {Promise<{ passwordReset: boolean, message: string }>}
+ */
+const resetPassword = async (email, token, newPassword) => {
+  // Hash the incoming token to compare with stored hash
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  // Find user and verify token + expiry
+  const user = await User.findOne({
+    email,
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Password reset token is invalid or has expired. Please request a new reset link."
+    );
+  }
+
+  // Update password (will be hashed by pre-save hook)
+  user.password = newPassword;
+
+  // Clear reset token to prevent reuse
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+
+  // Invalidate all existing refresh tokens (force re-login on all devices)
+  user.refreshToken = undefined;
+
+  await user.save();
+
+  return {
+    passwordReset: true,
+    message: "Password has been reset successfully. Please log in with your new password.",
+  };
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const authService = {
@@ -254,4 +362,6 @@ export const authService = {
   refreshAccessToken,
   getProfile,
   handleGoogleAuth,
+  requestPasswordReset,
+  resetPassword,
 };

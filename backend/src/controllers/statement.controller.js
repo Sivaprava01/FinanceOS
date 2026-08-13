@@ -13,6 +13,7 @@
  */
 
 import { statementService } from "../services/statement.service.js";
+import { transactionService } from "../services/transaction.service.js";
 import { ApiResponse, asyncHandler } from "../utils/index.js";
 import { HTTP_STATUS } from "../constants/index.js";
 
@@ -38,13 +39,15 @@ export const uploadStatement = asyncHandler(async (req, res) => {
 
   const statement = await statementService.uploadStatement(user._id, file);
 
-  return res.status(HTTP_STATUS.CREATED).json(
-    new ApiResponse(
-      HTTP_STATUS.CREATED,
-      "File uploaded successfully. Processing will begin shortly.",
-      statement
-    )
-  );
+  return res
+    .status(HTTP_STATUS.CREATED)
+    .json(
+      new ApiResponse(
+        HTTP_STATUS.CREATED,
+        "File uploaded successfully. Processing will begin shortly.",
+        statement
+      )
+    );
 });
 
 // ─── Get Import History ────────────────────────────────────────────────────────
@@ -104,7 +107,64 @@ export const getStatement = asyncHandler(async (req, res) => {
 
   const statement = await statementService.getStatementById(id, user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Statement retrieved", statement)
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Statement retrieved", statement));
+});
+
+// ─── Process Statement (Parse and Import) ────────────────────────────────────
+
+/**
+ * Processes an uploaded statement: extracts transactions and imports them.
+ * Only available for statements with status "Uploaded".
+ *
+ * Route: POST /api/v1/statements/:id/import
+ * Protected: Yes (requires authentication)
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ */
+export const processStatement = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { id: statementId } = req.params;
+
+  // Verify statement exists and belongs to user
+  const statement = await statementService.getStatementById(statementId, user._id);
+
+  if (statement.status !== "Uploaded") {
+    throw new Error(
+      `Statement cannot be processed. Current status: ${statement.status}. Only "Uploaded" statements can be processed.`
+    );
+  }
+
+  // Extract transactions from file
+  const extractedTransactions = await transactionService.extractTransactions(statementId, user._id);
+
+  if (extractedTransactions.length === 0) {
+    throw new Error("No transactions were extracted from the statement");
+  }
+
+  // Import transactions to database
+  const importResult = await transactionService.importTransactions(
+    statementId,
+    user._id,
+    extractedTransactions,
+    statement.filePath
   );
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(
+      new ApiResponse(
+        HTTP_STATUS.OK,
+        `Statement processed successfully. ${importResult.transactionCount} transactions imported.`,
+        {
+          statement: {
+            ...statement,
+            status: "Completed",
+            transactionCount: importResult.transactionCount,
+          },
+        }
+      )
+    );
 });

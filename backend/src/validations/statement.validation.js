@@ -10,7 +10,7 @@
 
 import fs from "fs";
 import ApiError from "../utils/ApiError.js";
-import { HTTP_STATUS, APP_MESSAGES } from "../constants/index.js";
+import { HTTP_STATUS } from "../constants/index.js";
 
 // ─── Validation Error Handler ─────────────────────────────────────────────────
 

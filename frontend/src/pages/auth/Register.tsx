@@ -1,32 +1,84 @@
 /**
  * Register Page
- * User registration form — Phase 1 UI only, no backend connection.
+ * User registration form with full backend integration.
+ * Phase 2 implementation with React Hook Form, Zod validation, and authService.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Input } from '@components/ui/Input';
+import { useRegister } from '@hooks/useAuth';
+import { useAuth } from '@context/useAuthContext';
+
+// ─── Validation Schema ───────────────────────────────────────────────────────
+
+const registerSchema = z
+  .object({
+    name: z.string().min(1, 'Name is required').max(100, 'Name cannot exceed 100 characters'),
+    email: z.string().email('Please enter a valid email address'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one number'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
+
+type RegisterFormData = z.infer<typeof registerSchema>;
+
+// ─── Register Component ────────────────────────────────────────────────────
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const registerMutation = useRegister();
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
-    // Phase 1: UI-only simulation — no backend call
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('/login');
-    }, 800);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const onSubmit = async (data: RegisterFormData) => {
+    try {
+      await registerMutation.mutateAsync({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      });
+
+      // After successful registration:
+      // 1. Token is stored in localStorage by mutation's onSuccess
+      // 2. Query cache is populated immediately by mutation's onSuccess
+      // 3. AuthContext subscription fires and updates user state
+      // 4. isAuthenticated becomes true
+      // 5. The useEffect above will detect isAuthenticated=true and navigate
+      // 6. ProtectedRoute will render the dashboard
+      // Do NOT navigate here - let the effect handle it.
+    } catch {
+      // Error is handled by mutation, which sets error state
+    }
   };
 
   return (
@@ -46,13 +98,19 @@ const Register: React.FC = () => {
           <CardDescription>Join thousands managing finances smarter</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {error && (
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            {/* API Error */}
+            {registerMutation.isError && (
               <div
                 role="alert"
                 className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
               >
-                {error}
+                <p className="font-medium">Registration failed</p>
+                <p className="mt-1">
+                  {registerMutation.error instanceof Error
+                    ? registerMutation.error.message
+                    : 'An error occurred during registration. Please try again.'}
+                </p>
               </div>
             )}
 
@@ -66,9 +124,10 @@ const Register: React.FC = () => {
                 type="text"
                 placeholder="Jane Smith"
                 autoComplete="name"
-                required
-                disabled={isLoading}
+                disabled={registerMutation.isPending}
+                {...register('name')}
               />
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
             {/* Email */}
@@ -81,9 +140,10 @@ const Register: React.FC = () => {
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
-                required
-                disabled={isLoading}
+                disabled={registerMutation.isPending}
+                {...register('email')}
               />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
 
             {/* Password */}
@@ -97,15 +157,16 @@ const Register: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Min. 8 characters"
                   autoComplete="new-password"
-                  required
-                  disabled={isLoading}
+                  disabled={registerMutation.isPending}
                   className="pr-10"
+                  {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={registerMutation.isPending}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -114,6 +175,9 @@ const Register: React.FC = () => {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
             </div>
 
             {/* Confirm Password */}
@@ -130,15 +194,16 @@ const Register: React.FC = () => {
                   type={showConfirm ? 'text' : 'password'}
                   placeholder="Re-enter your password"
                   autoComplete="new-password"
-                  required
-                  disabled={isLoading}
+                  disabled={registerMutation.isPending}
                   className="pr-10"
+                  {...register('confirmPassword')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                   aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+                  disabled={registerMutation.isPending}
                 >
                   {showConfirm ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -147,9 +212,17 @@ const Register: React.FC = () => {
                   )}
                 </button>
               </div>
+              {errors.confirmPassword && (
+                <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" isLoading={isLoading} disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              isLoading={registerMutation.isPending}
+              disabled={registerMutation.isPending}
+            >
               Create account
             </Button>
           </form>
