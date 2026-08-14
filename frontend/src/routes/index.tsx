@@ -40,6 +40,7 @@ const Analytics = lazy(() => import('@pages/Analytics'));
 const FamilyFinance = lazy(() => import('@pages/FamilyFinance'));
 const Categories = lazy(() => import('@pages/Categories'));
 const HowItWorks = lazy(() => import('@pages/HowItWorks'));
+const Search = lazy(() => import('@pages/Search'));
 const Profile = lazy(() => import('@pages/Profile'));
 const Settings = lazy(() => import('@pages/Settings'));
 
@@ -81,6 +82,7 @@ export const routes = [
       { path: 'family', element: s(<FamilyFinance />) },
       { path: 'categories', element: s(<Categories />) },
       { path: 'how-it-works', element: s(<HowItWorks />) },
+      { path: 'search', element: s(<Search />) },
       { path: 'profile', element: s(<Profile />) },
       { path: 'settings', element: s(<Settings />) },
       { path: 'error', element: s(<ErrorPage />) },

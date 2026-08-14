@@ -13,6 +13,7 @@ import {
   Users,
   Tags,
   HelpCircle,
+  Search,
   User,
   Settings,
   X,
@@ -39,6 +40,10 @@ const mainNavItems: NavItem[] = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Family Finance', href: '/family', icon: Users },
   { name: 'Categories', href: '/categories', icon: Tags },
+];
+
+const utilityNavItems: NavItem[] = [
+  { name: 'Search', href: '/search', icon: Search },
   { name: 'How It Works', href: '/how-it-works', icon: HelpCircle },
 ];
 
@@ -120,6 +125,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Main navigation */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4" aria-label="Main">
           {mainNavItems.map((item) => (
+            <NavLink key={item.href} {...item} />
+          ))}
+          
+          {/* Divider */}
+          <div className="my-2 h-px bg-border" />
+          
+          {/* Utility navigation */}
+          {utilityNavItems.map((item) => (
             <NavLink key={item.href} {...item} />
           ))}
         </nav>
