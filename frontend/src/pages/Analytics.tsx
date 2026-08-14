@@ -9,10 +9,15 @@ import ExpenseCategoryChart from '@/components/charts/ExpenseCategoryChart';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart';
 import CashFlowChart from '@/components/charts/CashFlowChart';
 import HealthScoreCard from '@/components/charts/HealthScoreCard';
+import IncomeSourcesChart from '@/components/charts/IncomeSourcesChart';
+import DailySpendingChart from '@/components/charts/DailySpendingChart';
+import CategoryTrendsChart from '@/components/charts/CategoryTrendsChart';
+import TopMerchantsChart from '@/components/charts/TopMerchantsChart';
+import YearlySummaryCard from '@/components/charts/YearlySummaryCard';
 import { useInsightsAnalytics } from '@/hooks/useAnalytics';
 
 const Analytics: React.FC = () => {
-  const { data: insightsData, isLoading: insightsLoading } = useInsightsAnalytics();
+  const { data: insightsData } = useInsightsAnalytics();
 
   return (
     <div className="space-y-6">
@@ -47,18 +52,45 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* Charts Grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column */}
-        <div className="space-y-6">
-          <ExpenseCategoryChart />
+      {/* Financial Overview Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Financial Overview</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <YearlySummaryCard />
           <HealthScoreCard />
         </div>
+      </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
+      {/* Income Analytics Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Income Analytics</h2>
+        <IncomeSourcesChart />
+      </div>
+
+      {/* Expense Analytics Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Expense Analytics</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DailySpendingChart />
           <MonthlyTrendChart />
+        </div>
+      </div>
+
+      {/* Category Analytics Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Category Analytics</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ExpenseCategoryChart />
+          <CategoryTrendsChart />
+        </div>
+      </div>
+
+      {/* Cash Flow Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Cash Flow</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
           <CashFlowChart />
+          <TopMerchantsChart />
         </div>
       </div>
 
