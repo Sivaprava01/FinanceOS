@@ -1,15 +1,27 @@
 /**
  * Protected Layout
- * Layout for authenticated pages — floating sidebar + top navigation.
+ * Layout for authenticated pages — floating sidebar + top navigation with onboarding.
  */
 
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '@components/layout/Sidebar';
 import TopNavigation from '@components/layout/TopNavigation';
+import OnboardingFlow from '@components/OnboardingFlow';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const ProtectedLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const { showOnboarding, completeOnboarding, skipOnboarding } = useOnboarding();
+
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow
+        onComplete={completeOnboarding}
+        onSkip={skipOnboarding}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
