@@ -39,7 +39,13 @@ const Register: React.FC = () => {
     setServerError('')
     try {
       await registerUser(data.name, data.email, data.password)
-      navigate('/dashboard')
+      // Check if user has already skipped onboarding
+      const onboardingSkipped = localStorage.getItem('onboarding_skipped')
+      if (!onboardingSkipped) {
+        navigate('/onboarding')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'message' in err

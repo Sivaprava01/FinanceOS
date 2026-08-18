@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent } from '@components/ui/Card'
-import { cn } from '@lib/utils'
+import { cn, formatCurrency } from '@lib/utils'
+import { useCurrency } from '@hooks/useCurrency'
 
 interface KPICardProps {
   title: string
@@ -12,14 +13,6 @@ interface KPICardProps {
   className?: string
 }
 
-const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
-
 export const KPICard: React.FC<KPICardProps> = ({
   title,
   value,
@@ -29,6 +22,8 @@ export const KPICard: React.FC<KPICardProps> = ({
   trend,
   className,
 }) => {
+  const { currency } = useCurrency()
+
   const trendColor =
     trend === 'up'
       ? 'text-green-600'
@@ -46,7 +41,7 @@ export const KPICard: React.FC<KPICardProps> = ({
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="mt-2 text-2xl font-bold tracking-tight">
               {prefix && <span>{prefix}</span>}
-              {formatCurrency(value)}
+              {formatCurrency(value, currency)}
               {suffix && <span className="text-base font-medium"> {suffix}</span>}
             </p>
             {trend && (

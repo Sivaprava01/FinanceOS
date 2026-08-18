@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@comp
 import { Button } from '@components/ui/Button'
 import { KPICard } from '@components/dashboard/KPICard'
 import { useOverview, useSpendingAnalysis } from '@hooks/useDashboard'
+import { useCurrency } from '@hooks/useCurrency'
 import { useNavigate } from 'react-router-dom'
 
 const CHART_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4']
@@ -34,6 +35,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const { data: overview, isLoading: overviewLoading, error: overviewError, refetch: refetchOverview } = useOverview()
   const { data: analysis, isLoading: analysisLoading, error: analysisError, refetch: refetchAnalysis } = useSpendingAnalysis()
+  const { format } = useCurrency()
 
   const isLoading = overviewLoading || analysisLoading
   const hasError = overviewError || analysisError
@@ -182,7 +184,7 @@ const Dashboard: React.FC = () => {
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                  <Tooltip formatter={(v: number) => format(v)} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -226,7 +228,7 @@ const Dashboard: React.FC = () => {
                         txn.type === 'Credit' ? 'text-green-600' : 'text-red-600'
                       }`}
                     >
-                      {txn.type === 'Credit' ? '+' : '-'}${txn.amount.toFixed(2)}
+                      {txn.type === 'Credit' ? '+' : '-'}{format(txn.amount)}
                     </p>
                   </div>
                 ))}
@@ -256,7 +258,7 @@ const Dashboard: React.FC = () => {
                       />
                       <span className="text-sm">{cat._id}</span>
                     </div>
-                    <span className="text-sm font-semibold">${cat.total.toFixed(2)}</span>
+                    <span className="text-sm font-semibold">{format(cat.total)}</span>
                   </div>
                 ))}
               </div>

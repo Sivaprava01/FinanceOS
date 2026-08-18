@@ -81,7 +81,7 @@ const updateProfile = async (userId, updates) => {
     userId,
     { $set: sanitized },
     {
-      new: true,           // Return the updated document
+      new: true, // Return the updated document
       runValidators: true, // Run Mongoose schema validators on update
     }
   );
@@ -124,6 +124,9 @@ const updatePreferences = async (userId, updates) => {
     if (updates.notifications.push !== undefined) {
       preferenceUpdate["preferences.notifications.push"] = updates.notifications.push;
     }
+  }
+  if (updates.dateFormat !== undefined) {
+    preferenceUpdate["preferences.dateFormat"] = updates.dateFormat;
   }
 
   const user = await User.findByIdAndUpdate(
@@ -225,7 +228,10 @@ const linkGoogleAccount = async (userId, googleId) => {
   // Check if Google ID already linked to another user
   const existing = await User.findOne({ googleId, _id: { $ne: userId } });
   if (existing) {
-    throw new ApiError(HTTP_STATUS.CONFLICT, "This Google account is already linked to another user");
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      "This Google account is already linked to another user"
+    );
   }
 
   const user = await User.findByIdAndUpdate(

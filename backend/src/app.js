@@ -38,7 +38,7 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: CORS_ORIGINS,
-    credentials: true,                                     // Allow cookies cross-origin
+    credentials: true, // Allow cookies cross-origin
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

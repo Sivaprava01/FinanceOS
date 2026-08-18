@@ -11,6 +11,7 @@ interface UpdateProfileInput {
 interface UpdatePreferencesInput {
   language?: string
   theme?: 'light' | 'dark' | 'system'
+  dateFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
   notifications?: { email?: boolean; push?: boolean }
 }
 

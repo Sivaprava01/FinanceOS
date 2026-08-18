@@ -30,13 +30,9 @@ export const createFamily = asyncHandler(async (req, res) => {
 
   const family = await familyService.createFamily(req.user._id, req.body);
 
-  return res.status(HTTP_STATUS.CREATED).json(
-    new ApiResponse(
-      HTTP_STATUS.CREATED,
-      FAMILY_MESSAGES.FAMILY_CREATED,
-      { family }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.CREATED)
+    .json(new ApiResponse(HTTP_STATUS.CREATED, FAMILY_MESSAGES.FAMILY_CREATED, { family }));
 });
 
 export const getFamily = asyncHandler(async (req, res) => {
@@ -45,25 +41,22 @@ export const getFamily = asyncHandler(async (req, res) => {
 
   const family = await familyService.getFamily(familyId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.FAMILY_FETCHED,
-      { family }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_FETCHED, { family }));
 });
 
 export const listFamilies = asyncHandler(async (req, res) => {
   const families = await familyService.listFamilies(req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.FAMILY_LIST_FETCHED,
-      { families, count: families.length }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_LIST_FETCHED, {
+        families,
+        count: families.length,
+      })
+    );
 });
 
 export const updateFamily = asyncHandler(async (req, res) => {
@@ -73,13 +66,9 @@ export const updateFamily = asyncHandler(async (req, res) => {
 
   const family = await familyService.updateFamily(familyId, req.user._id, req.body);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.FAMILY_UPDATED,
-      { family }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_UPDATED, { family }));
 });
 
 export const deleteFamily = asyncHandler(async (req, res) => {
@@ -88,9 +77,9 @@ export const deleteFamily = asyncHandler(async (req, res) => {
 
   await familyService.deleteFamily(familyId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_DELETED)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_DELETED));
 });
 
 // ─── Invitations ───────────────────────────────────────────────────────────────
@@ -106,28 +95,22 @@ export const sendInvitation = asyncHandler(async (req, res) => {
     req.body.invitedEmail
   );
 
-  return res.status(HTTP_STATUS.CREATED).json(
-    new ApiResponse(
-      HTTP_STATUS.CREATED,
-      FAMILY_MESSAGES.INVITATION_SENT,
-      { invitation }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.CREATED)
+    .json(new ApiResponse(HTTP_STATUS.CREATED, FAMILY_MESSAGES.INVITATION_SENT, { invitation }));
 });
 
 export const listInvitations = asyncHandler(async (req, res) => {
-  const invitations = await familyService.listInvitations(
-    req.user._id,
-    req.user.email
-  );
+  const invitations = await familyService.listInvitations(req.user._id, req.user.email);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.INVITATIONS_FETCHED,
-      { invitations, count: invitations.length }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.INVITATIONS_FETCHED, {
+        invitations,
+        count: invitations.length,
+      })
+    );
 });
 
 export const acceptInvitation = asyncHandler(async (req, res) => {
@@ -136,13 +119,9 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
 
   const result = await familyService.acceptInvitation(invitationId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.INVITATION_ACCEPTED,
-      result
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.INVITATION_ACCEPTED, result));
 });
 
 export const rejectInvitation = asyncHandler(async (req, res) => {
@@ -151,13 +130,9 @@ export const rejectInvitation = asyncHandler(async (req, res) => {
 
   const result = await familyService.rejectInvitation(invitationId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.INVITATION_REJECTED,
-      result
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.INVITATION_REJECTED, result));
 });
 
 // ─── Member Management ─────────────────────────────────────────────────────────
@@ -169,9 +144,9 @@ export const removeMember = asyncHandler(async (req, res) => {
 
   await familyService.removeMember(familyId, req.user._id, memberId);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.MEMBER_REMOVED)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.MEMBER_REMOVED));
 });
 
 export const leaveFamily = asyncHandler(async (req, res) => {
@@ -180,9 +155,9 @@ export const leaveFamily = asyncHandler(async (req, res) => {
 
   await familyService.leaveFamily(familyId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "You have left the family successfully")
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "You have left the family successfully"));
 });
 
 export const listMembers = asyncHandler(async (req, res) => {
@@ -191,13 +166,14 @@ export const listMembers = asyncHandler(async (req, res) => {
 
   const members = await familyService.listMembers(familyId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.MEMBER_LIST_FETCHED,
-      { members, count: members.length }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.MEMBER_LIST_FETCHED, {
+        members,
+        count: members.length,
+      })
+    );
 });
 
 // ─── Sharing Preferences ───────────────────────────────────────────────────────
@@ -209,13 +185,9 @@ export const updateSharing = asyncHandler(async (req, res) => {
 
   const sharing = await familyService.updateSharing(familyId, req.user._id, req.body);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.SHARING_UPDATED,
-      { sharing }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.SHARING_UPDATED, { sharing }));
 });
 
 export const getSharing = asyncHandler(async (req, res) => {
@@ -225,32 +197,20 @@ export const getSharing = asyncHandler(async (req, res) => {
 
   const sharing = await familyService.getSharing(familyId, userId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.SHARING_FETCHED,
-      { sharing }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.SHARING_FETCHED, { sharing }));
 });
 
 export const getMySharing = asyncHandler(async (req, res) => {
   const { familyId } = req.params;
   validateObjectId(familyId, "Family ID");
 
-  const sharing = await familyService.getSharing(
-    familyId,
-    req.user._id,
-    req.user._id
-  );
+  const sharing = await familyService.getSharing(familyId, req.user._id, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.SHARING_FETCHED,
-      { sharing }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.SHARING_FETCHED, { sharing }));
 });
 
 // ─── Family Dashboard ──────────────────────────────────────────────────────────
@@ -261,11 +221,7 @@ export const getFamilyDashboard = asyncHandler(async (req, res) => {
 
   const dashboard = await familyService.getFamilyDashboard(familyId, req.user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      FAMILY_MESSAGES.FAMILY_DASHBOARD_FETCHED,
-      { dashboard }
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_DASHBOARD_FETCHED, { dashboard }));
 });

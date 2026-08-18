@@ -1,21 +1,25 @@
 import api from './api'
 import type { Transaction, CreateTransactionInput } from '@/types'
 
-interface GetTransactionsParams {
+export interface GetTransactionsParams {
   limit?: number
   skip?: number
   fromDate?: string
   toDate?: string
   merchant?: string
   category?: string
+  type?: 'Debit' | 'Credit'
+  search?: string
+  minAmount?: number
+  maxAmount?: number
 }
 
-interface GetTransactionsResult {
+export interface GetTransactionsResult {
   transactions: Transaction[]
   count: number
 }
 
-interface UpdateTransactionInput {
+export interface UpdateTransactionInput {
   merchant?: string
   description?: string
   category?: string
@@ -24,9 +28,22 @@ interface UpdateTransactionInput {
   date?: string
 }
 
+export interface BulkUpdateInput {
+  transactionIds: string[]
+  updateData: {
+    category?: string
+    notes?: string
+    merchant?: string
+    description?: string
+  }
+}
+
 export const transactionService = {
   getTransactions: async (params?: GetTransactionsParams): Promise<GetTransactionsResult> => {
-    const response = await api.get<{ success: boolean; message: string; data: GetTransactionsResult }>('/transactions', { params })
+    const response = await api.get<{ success: boolean; message: string; data: GetTransactionsResult }>(
+      '/transactions',
+      { params }
+    )
     return response.data.data
   },
 
@@ -45,7 +62,18 @@ export const transactionService = {
   },
 
   getCategories: async (): Promise<string[]> => {
-    const response = await api.get<{ success: boolean; message: string; data: { categories: string[]; count: number } }>('/transactions/categories/list')
+    const response = await api.get<{ success: boolean; message: string; data: { categories: string[]; count: number } }>(
+      '/transactions/categories/list'
+    )
     return response.data.data.categories
+  },
+
+  bulkUpdate: async (input: BulkUpdateInput): Promise<{ matched: number; modified: number }> => {
+    const response = await api.post<{
+      success: boolean
+      message: string
+      data: { matched: number; modified: number }
+    }>('/transactions/bulk-update', input)
+    return response.data.data
   },
 }

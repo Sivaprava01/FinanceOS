@@ -11,6 +11,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ForgotPassword from '../pages/auth/ForgotPassword'
 import ResetPassword from '../pages/auth/ResetPassword'
+import Onboarding from '../pages/Onboarding'
 import Dashboard from '../pages/Dashboard'
 import Transactions from '../pages/Transactions'
 import Statements from '../pages/Statements'
@@ -20,6 +21,7 @@ import Categories from '../pages/Categories'
 import HowItWorks from '../pages/HowItWorks'
 import Profile from '../pages/Profile'
 import Settings from '../pages/Settings'
+import Search from '../pages/Search'
 
 export const routes = [
   {
@@ -45,6 +47,10 @@ export const routes = [
       {
         path: 'reset-password/:token',
         element: <ResetPassword />,
+      },
+      {
+        path: 'onboarding',
+        element: <Onboarding />,
       },
     ],
   },
@@ -87,6 +93,10 @@ export const routes = [
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'search',
+        element: <Search />,
       },
     ],
   },

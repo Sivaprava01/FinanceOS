@@ -1,6 +1,6 @@
 /**
  * Health Routes
- * 
+ *
  * Defines endpoints for health check
  * Route → Controller → Service → Response
  */
@@ -12,9 +12,9 @@ const router = express.Router();
 
 /**
  * GET /api/v1/health
- * 
+ *
  * Returns the health status of the server
- * 
+ *
  * Response:
  * {
  *   "success": true,

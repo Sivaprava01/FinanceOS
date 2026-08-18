@@ -8,9 +8,12 @@ interface GetStatementsResult {
 }
 
 export const statementService = {
-  uploadStatement: async (file: File): Promise<Statement> => {
+  uploadStatement: async (file: File, currency?: string): Promise<Statement> => {
     const formData = new FormData()
     formData.append('statement', file)
+    if (currency) {
+      formData.append('currency', currency.toUpperCase())
+    }
     const response = await api.post<{ success: boolean; message: string; data: Statement }>('/statements/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

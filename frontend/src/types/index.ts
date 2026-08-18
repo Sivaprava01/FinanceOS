@@ -13,6 +13,7 @@ export interface User {
   preferences: {
     language: string
     theme: 'light' | 'dark' | 'system'
+    dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
     notifications: { email: boolean; push: boolean }
   }
   createdAt: string
@@ -46,6 +47,7 @@ export interface Transaction {
   description: string
   category: string
   notes: string
+  currency: string | null
   isEdited: boolean
   editedAt: string | null
   createdAt: string
@@ -60,6 +62,7 @@ export interface CreateTransactionInput {
   category: string
   description?: string
   notes?: string
+  currency?: string
 }
 
 export interface Statement {
@@ -70,6 +73,7 @@ export interface Statement {
   fileSize: number
   status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed'
   transactionCount: number
+  currency: string | null
   uploadedAt: string
   processedAt?: string | null
   failureReason?: string | null
@@ -111,6 +115,29 @@ export interface SpendingAnalysis {
   topMerchants: { _id: string; count: number; total: number }[]
   highestExpenses: { date: string; amount: number; merchant: string; category: string }[]
   highestIncome: { date: string; amount: number; merchant: string; category: string }[]
+}
+
+export interface MonthlyComparison {
+  currentMonth: {
+    label: string
+    income: number
+    expenses: number
+    savings: number
+  }
+  previousMonth: {
+    label: string
+    income: number
+    expenses: number
+    savings: number
+  }
+  comparison: {
+    incomeDiff: number
+    incomeChangePercent: number
+    expenseDiff: number
+    expenseChangePercent: number
+    savingsDiff: number
+    savingsChangePercent: number
+  }
 }
 
 export interface AuthContextType {

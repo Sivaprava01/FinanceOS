@@ -16,11 +16,7 @@ import { HTTP_STATUS } from "../constants/index.js";
 export const getHealthStatus = asyncHandler(async (req, res) => {
   const healthStatus = await healthService.checkHealth();
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(
-      HTTP_STATUS.OK,
-      healthStatus.message,
-      healthStatus
-    )
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, healthStatus.message, healthStatus));
 });

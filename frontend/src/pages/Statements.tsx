@@ -3,7 +3,10 @@ import { Upload } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { useStatements, useUploadStatement } from '@hooks/useStatements'
+import { useAuth } from '@hooks/useAuth'
 import type { Statement } from '@/types'
+
+const COMMON_CURRENCIES = ['USD','EUR','GBP','INR','AUD','CAD','SGD','JPY','AED','NZD','CHF','CNY','MYR','THB','PHP','ZAR','BRL','TRY','KRW','SEK']
 
 const STATUS_STYLES: Record<Statement['status'], string> = {
   Uploaded: 'bg-yellow-100 text-yellow-800',
@@ -23,9 +26,18 @@ const Statements: React.FC = () => {
   const [uploadError, setUploadError] = useState<string>('')
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [selectedStatement, setSelectedStatement] = useState<Statement | null>(null)
+  const [statementCurrency, setStatementCurrency] = useState<string>('')
 
+  const { user } = useAuth()
   const { data, isLoading, error } = useStatements()
   const uploadStatement = useUploadStatement()
+
+  // Default to user's preferred currency
+  React.useEffect(() => {
+    if (user?.preferredCurrency && !statementCurrency) {
+      setStatementCurrency(user.preferredCurrency)
+    }
+  }, [user?.preferredCurrency, statementCurrency])
 
   const statements = data?.statements ?? []
 
@@ -75,7 +87,7 @@ const Statements: React.FC = () => {
     }
 
     try {
-      await uploadStatement.mutateAsync(file)
+      await uploadStatement.mutateAsync({ file, currency: statementCurrency || user?.preferredCurrency || 'USD' })
       setUploadSuccess(true)
     } catch (err) {
       const message =
@@ -110,19 +122,39 @@ const Statements: React.FC = () => {
               Drag and drop your file here, or click to browse
             </p>
 
-            <div className="mt-6">
-              <input
-                type="file"
-                id="file-input"
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.xls,.xlsx,.csv"
-              />
-              <Button asChild disabled={uploadStatement.isPending}>
-                <label htmlFor="file-input" className="cursor-pointer">
-                  Browse Files
+            <div className="mt-6 space-y-4">
+              {/* Statement Currency — required field */}
+              <div className="inline-flex flex-col items-start gap-1">
+                <label htmlFor="stmt-currency" className="text-sm font-medium">
+                  Statement Currency <span className="text-destructive">*</span>
                 </label>
-              </Button>
+                <select
+                  id="stmt-currency"
+                  value={statementCurrency}
+                  onChange={(e) => setStatementCurrency(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm min-w-[160px]"
+                >
+                  {COMMON_CURRENCIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Currency used in this statement</p>
+              </div>
+
+              <div>
+                <input
+                  type="file"
+                  id="file-input"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept=".pdf,.xls,.xlsx,.csv"
+                />
+                <Button asChild disabled={uploadStatement.isPending}>
+                  <label htmlFor="file-input" className="cursor-pointer">
+                    Browse Files
+                  </label>
+                </Button>
+              </div>
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground">

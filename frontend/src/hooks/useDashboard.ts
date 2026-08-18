@@ -16,3 +16,11 @@ export const useSpendingAnalysis = () => {
     staleTime: 2 * 60 * 1000,
   })
 }
+
+export const useMonthlyComparison = () => {
+  return useQuery({
+    queryKey: ['dashboard', 'monthly-comparison'],
+    queryFn: () => dashboardService.getMonthlyComparison(),
+    staleTime: 2 * 60 * 1000,
+  })
+}

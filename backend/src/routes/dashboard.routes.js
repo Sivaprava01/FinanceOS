@@ -25,10 +25,10 @@ const router = express.Router();
 // All dashboard routes require a valid access token
 router.use(protect);
 
-router.get("/overview",           getOverview);
-router.get("/spending-analysis",  getSpendingAnalysis);
+router.get("/overview", getOverview);
+router.get("/spending-analysis", getSpendingAnalysis);
 router.get("/monthly-comparison", getMonthlyComparison);
-router.get("/health-score",       getHealthScore);
-router.get("/insights",           getInsights);
+router.get("/health-score", getHealthScore);
+router.get("/insights", getInsights);
 
 export default router;

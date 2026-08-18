@@ -38,13 +38,15 @@ export const uploadStatement = asyncHandler(async (req, res) => {
 
   const statement = await statementService.uploadStatement(user._id, file);
 
-  return res.status(HTTP_STATUS.CREATED).json(
-    new ApiResponse(
-      HTTP_STATUS.CREATED,
-      "File uploaded successfully. Processing will begin shortly.",
-      statement
-    )
-  );
+  return res
+    .status(HTTP_STATUS.CREATED)
+    .json(
+      new ApiResponse(
+        HTTP_STATUS.CREATED,
+        "File uploaded successfully. Processing will begin shortly.",
+        statement
+      )
+    );
 });
 
 // ─── Get Import History ────────────────────────────────────────────────────────
@@ -104,7 +106,7 @@ export const getStatement = asyncHandler(async (req, res) => {
 
   const statement = await statementService.getStatementById(id, user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Statement retrieved", statement)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Statement retrieved", statement));
 });

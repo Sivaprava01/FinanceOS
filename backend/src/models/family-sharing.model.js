@@ -83,10 +83,7 @@ const familySharingSchema = new Schema(
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 
 // Unique: one sharing preference document per family member
-familySharingSchema.index(
-  { family: 1, user: 1 },
-  { unique: true }
-);
+familySharingSchema.index({ family: 1, user: 1 }, { unique: true });
 
 // ─── Pre-save Hook ────────────────────────────────────────────────────────────
 // When shareEverything is true, enable all sharing options
@@ -100,12 +97,7 @@ familySharingSchema.pre("save", function (next) {
   }
 
   // If all are false, shareEverything should also be false
-  if (
-    !this.shareTransactions &&
-    !this.shareAssets &&
-    !this.shareLoans &&
-    !this.shareNetWorth
-  ) {
+  if (!this.shareTransactions && !this.shareAssets && !this.shareLoans && !this.shareNetWorth) {
     this.shareEverything = false;
   }
 

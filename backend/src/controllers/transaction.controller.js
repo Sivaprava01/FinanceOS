@@ -72,9 +72,9 @@ export const getTransactionsForReview = asyncHandler(async (req, res) => {
 
   const reviewData = await transactionService.getTransactionsForReview(statementId, user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Ready for transaction review", reviewData)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Ready for transaction review", reviewData));
 });
 
 // ─── Update Transaction ────────────────────────────────────────────────────────
@@ -96,9 +96,9 @@ export const updateTransaction = asyncHandler(async (req, res) => {
 
   const updated = await transactionService.updateTransaction(id, user._id, updateData);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Transaction updated successfully", updated)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Transaction updated successfully", updated));
 });
 
 // ─── Create Transaction (Manual) ───────────────────────────────────────────────
@@ -129,13 +129,9 @@ export const createTransaction = asyncHandler(async (req, res) => {
     notes,
   });
 
-  return res.status(HTTP_STATUS.CREATED).json(
-    new ApiResponse(
-      HTTP_STATUS.CREATED,
-      "Transaction created successfully",
-      transaction
-    )
-  );
+  return res
+    .status(HTTP_STATUS.CREATED)
+    .json(new ApiResponse(HTTP_STATUS.CREATED, "Transaction created successfully", transaction));
 });
 
 // ─── Learn Merchant Mapping ────────────────────────────────────────────────────
@@ -164,13 +160,9 @@ export const learnMerchantMapping = asyncHandler(async (req, res) => {
     correctedMerchant
   );
 
-  return res.status(HTTP_STATUS.CREATED).json(
-    new ApiResponse(
-      HTTP_STATUS.CREATED,
-      "Merchant mapping learned successfully",
-      mapping
-    )
-  );
+  return res
+    .status(HTTP_STATUS.CREATED)
+    .json(new ApiResponse(HTTP_STATUS.CREATED, "Merchant mapping learned successfully", mapping));
 });
 
 // ─── Import Transactions ───────────────────────────────────────────────────────
@@ -205,9 +197,7 @@ export const importTransactions = asyncHandler(async (req, res) => {
     filePath
   );
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, result.message, result)
-  );
+  return res.status(HTTP_STATUS.OK).json(new ApiResponse(HTTP_STATUS.OK, result.message, result));
 });
 
 // ─── Get User Transactions ────────────────────────────────────────────────────
@@ -224,21 +214,36 @@ export const importTransactions = asyncHandler(async (req, res) => {
  */
 export const getUserTransactions = asyncHandler(async (req, res) => {
   const { user } = req;
-  const { limit = 50, skip = 0, fromDate, toDate, merchant, category } = req.query;
+  const {
+    limit = 50,
+    skip = 0,
+    fromDate,
+    toDate,
+    merchant,
+    category,
+    type,
+    search,
+    minAmount,
+    maxAmount,
+  } = req.query;
 
-  const transactions = await transactionService.getUserTransactions(user._id, {
+  const { transactions, count } = await transactionService.getUserTransactions(user._id, {
     limit: Math.min(parseInt(limit) || 50, 100),
     skip: parseInt(skip) || 0,
     fromDate,
     toDate,
     merchant,
     category,
+    type,
+    search,
+    minAmount,
+    maxAmount,
   });
 
   return res.status(HTTP_STATUS.OK).json(
     new ApiResponse(HTTP_STATUS.OK, "Transactions retrieved successfully", {
       transactions,
-      count: transactions.length,
+      count,
     })
   );
 });
@@ -270,11 +275,10 @@ export const getTransaction = asyncHandler(async (req, res) => {
     throw new Error("Transaction not found");
   }
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Transaction retrieved successfully", transaction)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Transaction retrieved successfully", transaction));
 });
-
 
 // ─── Delete Transaction (PHASE 06) ─────────────────────────────────────────
 
@@ -294,9 +298,9 @@ export const deleteTransaction = asyncHandler(async (req, res) => {
 
   const deleted = await transactionService.deleteTransaction(id, user._id);
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Transaction deleted successfully", deleted)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Transaction deleted successfully", deleted));
 });
 
 // ─── Get Transaction Statistics (PHASE 06) ────────────────────────────────
@@ -323,9 +327,9 @@ export const getTransactionStats = asyncHandler(async (req, res) => {
     toDate,
   });
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, "Transaction statistics retrieved", stats)
-  );
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Transaction statistics retrieved", stats));
 });
 
 // ─── Get Categories (PHASE 06) ─────────────────────────────────────────────
@@ -387,7 +391,5 @@ export const bulkUpdateTransactions = asyncHandler(async (req, res) => {
     updateData
   );
 
-  return res.status(HTTP_STATUS.OK).json(
-    new ApiResponse(HTTP_STATUS.OK, result.message, result)
-  );
+  return res.status(HTTP_STATUS.OK).json(new ApiResponse(HTTP_STATUS.OK, result.message, result));
 });

@@ -74,11 +74,7 @@ router.use(protect);
  *   }
  * }
  */
-router.post(
-  "/",
-  validateCreateTransaction,
-  createTransaction
-);
+router.post("/", validateCreateTransaction, createTransaction);
 
 // ─── Extract Transactions from Statement ───────────────────────────────────────
 

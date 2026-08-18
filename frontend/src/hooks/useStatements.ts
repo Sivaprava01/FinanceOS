@@ -14,7 +14,8 @@ export const useStatements = () => {
 export const useUploadStatement = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => statementService.uploadStatement(file),
+    mutationFn: ({ file, currency }: { file: File; currency?: string }) =>
+      statementService.uploadStatement(file, currency),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STATEMENTS_KEY })
     },

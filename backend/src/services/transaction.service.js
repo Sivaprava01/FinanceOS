@@ -34,7 +34,7 @@ const PROJECT_ROOT = path.join(__dirname, "../..");
 
 /**
  * Extracts transactions from uploaded statement file.
- * 
+ *
  * Takes statementId, fetches the statement from DB to get filePath,
  * then reads and parses the file based on its type (PDF, CSV, XLSX).
  * Returns normalized transaction data.
@@ -191,8 +191,7 @@ const updateTransaction = async (transactionId, userId, updateData) => {
   }
 
   // Track if merchant changed (for learning)
-  const merchantChanged =
-    updateData.merchant && updateData.merchant !== transaction.merchant;
+  const merchantChanged = updateData.merchant && updateData.merchant !== transaction.merchant;
 
   // Apply updates
   Object.assign(transaction, updateData);
@@ -208,7 +207,8 @@ const updateTransaction = async (transactionId, userId, updateData) => {
     result.merchantLearningOpportunity = {
       original: transaction.originalMerchant,
       corrected: transaction.merchant,
-      action: "Would you like FinanceOS to recognize this merchant automatically in future imports?",
+      action:
+        "Would you like FinanceOS to recognize this merchant automatically in future imports?",
     };
   }
 
@@ -231,7 +231,10 @@ const updateTransaction = async (transactionId, userId, updateData) => {
  */
 const learnMerchantMapping = async (userId, originalMerchant, correctedMerchant) => {
   if (!originalMerchant || !correctedMerchant) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Both original and corrected merchant names required");
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Both original and corrected merchant names required"
+    );
   }
 
   const normalizedOriginal = originalMerchant.toLowerCase().trim();
@@ -353,7 +356,8 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     // Delete temporary file after successful import
     try {
       // Use stored filePath from statement if not provided
-      const pathToDelete = filePath || (statement.filePath ? path.join(PROJECT_ROOT, statement.filePath) : null);
+      const pathToDelete =
+        filePath || (statement.filePath ? path.join(PROJECT_ROOT, statement.filePath) : null);
       if (pathToDelete && fs.existsSync(pathToDelete)) {
         fs.unlinkSync(pathToDelete);
       }
@@ -371,7 +375,10 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
   } catch (err) {
     await session.abortTransaction();
     if (err instanceof ApiError) throw err;
-    throw new ApiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to import transactions: " + err.message);
+    throw new ApiError(
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      "Failed to import transactions: " + err.message
+    );
   } finally {
     session.endSession();
   }
@@ -393,7 +400,18 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
  * @returns {Promise<Array>} Array of transactions
  */
 const getUserTransactions = async (userId, options = {}) => {
-  const { limit = 50, skip = 0, fromDate, toDate, merchant, category } = options;
+  const {
+    limit = 50,
+    skip = 0,
+    fromDate,
+    toDate,
+    merchant,
+    category,
+    type,
+    search,
+    minAmount,
+    maxAmount,
+  } = options;
 
   const query = {
     user: userId,
@@ -414,13 +432,30 @@ const getUserTransactions = async (userId, options = {}) => {
     query.category = category;
   }
 
-  const transactions = await Transaction.find(query)
-    .sort({ date: -1 })
-    .limit(limit)
-    .skip(skip)
-    .lean();
+  if (type) {
+    query.type = type;
+  }
 
-  return transactions.map(formatTransactionResponse);
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    query.amount = {};
+    if (minAmount !== undefined) query.amount.$gte = parseFloat(minAmount);
+    if (maxAmount !== undefined) query.amount.$lte = parseFloat(maxAmount);
+  }
+
+  if (search) {
+    // Full-text search across merchant and description
+    query.$or = [
+      { merchant: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  const [transactions, count] = await Promise.all([
+    Transaction.find(query).sort({ date: -1 }).limit(limit).skip(skip).lean(),
+    Transaction.countDocuments(query),
+  ]);
+
+  return { transactions: transactions.map(formatTransactionResponse), count };
 };
 
 // ─── Helper: Format Response ───────────────────────────────────────────────────
@@ -441,6 +476,7 @@ const formatTransactionResponse = (tx) => {
     description: tx.description,
     category: tx.category,
     notes: tx.notes,
+    currency: tx.currency || null,
     isEdited: tx.isEdited,
     editedAt: tx.editedAt,
     // Original values only if edited
@@ -474,7 +510,6 @@ const formatMerchantMappingResponse = (mapping) => {
 };
 
 // (Removed - see bottom of file for updated export)
-
 
 // ─── Delete Transaction (PHASE 06) ─────────────────────────────────────────
 
@@ -619,7 +654,7 @@ const getCategories = async (userId) => {
  */
 const bulkUpdateTransactions = async (transactionIds, userId, updateData) => {
   const allowedFields = ["category", "notes", "merchant", "description", "date", "amount"];
-  
+
   // Filter to only allowed fields
   const sanitizedUpdate = {};
   for (const field of allowedFields) {

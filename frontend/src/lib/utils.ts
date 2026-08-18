@@ -15,13 +15,40 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format currency value
+ * Currency locale map — each currency renders with its natural locale.
+ * Falls back to 'en-US' for unknown codes.
+ */
+const CURRENCY_LOCALE_MAP: Record<string, string> = {
+  USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB', JPY: 'ja-JP',
+  CHF: 'de-CH', CAD: 'en-CA', AUD: 'en-AU', NZD: 'en-NZ',
+  CNY: 'zh-CN', INR: 'en-IN', SGD: 'en-SG', HKD: 'zh-HK',
+  NOK: 'nb-NO', SEK: 'sv-SE', DKK: 'da-DK', AED: 'ar-AE',
+  SAR: 'ar-SA', MYR: 'ms-MY', THB: 'th-TH', KRW: 'ko-KR',
+  BRL: 'pt-BR', MXN: 'es-MX', ZAR: 'en-ZA', TRY: 'tr-TR',
+  PHP: 'en-PH', IDR: 'id-ID', PKR: 'ur-PK',
+}
+
+/**
+ * Format currency value using the correct locale for the given currency code.
+ * Zero hardcoded currency symbols — everything uses Intl.NumberFormat.
+ *
+ * Reusable for: Dashboard, Analytics, Transactions, Budgets, Goals,
+ *               Investments, Reports, Family Finance, Exports.
  */
 export function formatCurrency(value: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-  }).format(value)
+  const code = (currency ?? 'USD').toUpperCase()
+  const locale = CURRENCY_LOCALE_MAP[code] ?? 'en-US'
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    // Fallback for unsupported/unknown currency codes
+    return `${code} ${value.toFixed(2)}`
+  }
 }
 
 /**

@@ -42,9 +42,9 @@ export const COOKIE_NAMES = {
 
 export const COOKIE_OPTIONS = {
   // Shared base options for all auth cookies
-  httpOnly: true,                                  // Never accessible via JS
-  secure: process.env.NODE_ENV === "production",   // HTTPS-only in production
-  sameSite: "strict",                              // CSRF protection
+  httpOnly: true, // Never accessible via JS
+  secure: process.env.NODE_ENV === "production", // HTTPS-only in production
+  sameSite: "strict", // CSRF protection
 };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -52,7 +52,6 @@ export const COOKIE_OPTIONS = {
 export const AUTH_PROVIDERS = {
   LOCAL: "local",
   GOOGLE: "google",
-  
 };
 
 // ─── Messages ────────────────────────────────────────────────────────────────
@@ -102,11 +101,11 @@ export const SETTINGS_MESSAGES = {
   PASSWORD_CHANGED: "Password changed successfully",
   GOOGLE_ACCOUNT_LINKED: "Google account linked successfully",
   GOOGLE_ACCOUNT_UNLINKED: "Google account unlinked successfully",
-  
+
   // Privacy settings
   PRIVACY_SETTINGS_UPDATED: "Privacy settings updated successfully",
   PRIVACY_SETTINGS_FETCHED: "Privacy settings fetched successfully",
-  
+
   // Currency
   CURRENCIES_FETCHED: "Supported currencies retrieved",
   EXCHANGE_RATE_FETCHED: "Exchange rate retrieved",
@@ -175,11 +174,11 @@ export const ASSET_CATEGORIES = [
 ];
 
 export const ASSET_MESSAGES = {
-  CREATED:        "Asset created successfully",
-  FETCHED:        "Asset fetched successfully",
-  LIST_FETCHED:   "Assets fetched successfully",
-  UPDATED:        "Asset updated successfully",
-  DELETED:        "Asset deleted successfully",
+  CREATED: "Asset created successfully",
+  FETCHED: "Asset fetched successfully",
+  LIST_FETCHED: "Assets fetched successfully",
+  UPDATED: "Asset updated successfully",
+  DELETED: "Asset deleted successfully",
   SUMMARY_FETCHED: "Asset summary fetched successfully",
   NET_WORTH_FETCHED: "Net worth calculated successfully",
 
@@ -190,11 +189,11 @@ export const ASSET_MESSAGES = {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export const DASHBOARD_MESSAGES = {
-  OVERVIEW_FETCHED:           "Dashboard overview fetched successfully",
-  SPENDING_ANALYSIS_FETCHED:  "Spending analysis fetched successfully",
+  OVERVIEW_FETCHED: "Dashboard overview fetched successfully",
+  SPENDING_ANALYSIS_FETCHED: "Spending analysis fetched successfully",
   MONTHLY_COMPARISON_FETCHED: "Monthly comparison fetched successfully",
-  HEALTH_SCORE_FETCHED:       "Financial health score fetched successfully",
-  INSIGHTS_FETCHED:           "Insights fetched successfully",
+  HEALTH_SCORE_FETCHED: "Financial health score fetched successfully",
+  INSIGHTS_FETCHED: "Insights fetched successfully",
 };
 
 // Health score grade thresholds — immutable business rules
@@ -202,7 +201,7 @@ export const HEALTH_SCORE_GRADES = [
   { min: 90, grade: "Excellent" },
   { min: 75, grade: "Good" },
   { min: 60, grade: "Fair" },
-  { min: 0,  grade: "Needs Improvement" },
+  { min: 0, grade: "Needs Improvement" },
 ];
 
 // ─── Family ───────────────────────────────────────────────────────────────────
@@ -225,24 +224,24 @@ export const FAMILY_MESSAGES = {
   FAMILY_LIST_FETCHED: "Families fetched successfully",
   FAMILY_UPDATED: "Family updated successfully",
   FAMILY_DELETED: "Family deleted successfully",
-  
+
   // Invitations
   INVITATION_SENT: "Invitation sent successfully",
   INVITATIONS_FETCHED: "Invitations fetched successfully",
   INVITATION_ACCEPTED: "Invitation accepted successfully",
   INVITATION_REJECTED: "Invitation rejected successfully",
-  
+
   // Members
   MEMBER_REMOVED: "Member removed successfully",
   MEMBER_LIST_FETCHED: "Family members fetched successfully",
-  
+
   // Sharing
   SHARING_UPDATED: "Sharing preferences updated successfully",
   SHARING_FETCHED: "Sharing preferences fetched successfully",
-  
+
   // Dashboard
   FAMILY_DASHBOARD_FETCHED: "Family dashboard fetched successfully",
-  
+
   // Error messages
   FAMILY_NOT_FOUND: "Family not found",
   INVITATION_NOT_FOUND: "Invitation not found",
@@ -255,7 +254,4 @@ export const FAMILY_MESSAGES = {
   USER_NOT_FOUND: "User not found",
 };
 
-
-
 // Immutable allowed values — used in validation and schema enum
-

@@ -31,11 +31,11 @@ const router = express.Router();
 // All loan routes require a valid access token
 router.use(protect);
 
-router.post("/",            validateCreateLoan, createLoan);
-router.get("/",             getLoans);
-router.get("/summary",      getLoanSummary);
-router.get("/:id",          getLoanById);
-router.put("/:id",          validateUpdateLoan, updateLoan);
-router.delete("/:id",       deleteLoan);
+router.post("/", validateCreateLoan, createLoan);
+router.get("/", getLoans);
+router.get("/summary", getLoanSummary);
+router.get("/:id", getLoanById);
+router.put("/:id", validateUpdateLoan, updateLoan);
+router.delete("/:id", deleteLoan);
 
 export default router;

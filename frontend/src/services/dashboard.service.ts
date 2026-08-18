@@ -1,5 +1,5 @@
 import api from './api'
-import type { DashboardOverview, SpendingAnalysis } from '@/types'
+import type { DashboardOverview, SpendingAnalysis, MonthlyComparison } from '@/types'
 
 export const dashboardService = {
   getOverview: async (): Promise<DashboardOverview> => {
@@ -11,4 +11,10 @@ export const dashboardService = {
     const response = await api.get<{ success: boolean; message: string; data: { analysis: SpendingAnalysis } }>('/dashboard/spending-analysis')
     return response.data.data.analysis
   },
+
+  getMonthlyComparison: async (): Promise<MonthlyComparison> => {
+    const response = await api.get<{ success: boolean; message: string; data: { comparison: MonthlyComparison } }>('/dashboard/monthly-comparison')
+    return response.data.data.comparison
+  },
 }
+
