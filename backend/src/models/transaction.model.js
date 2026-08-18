@@ -149,6 +149,15 @@ const transactionSchema = new Schema(
       type: Boolean,
       default: false,
     },
+
+    // Currency of this transaction (ISO 4217 code, e.g. "INR", "USD")
+    // null means same as user's preferred currency — no conversion needed
+    currency: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -7,7 +7,7 @@
  *
  * Supported API: exchangerate-api.com (free tier supports 1,500 req/month)
  * Fallback: Uses cached rates if API fails (cache is not persisted)
- * 
+ *
  * Design principles:
  * - Always fetch fresh rates
  * - Never modify original transaction amounts
@@ -33,13 +33,71 @@ let exchangeRateCache = {
 // ISO 4217 currency codes. Validated against this list before conversion
 
 const SUPPORTED_CURRENCIES = [
-  "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "CNY", "INR",
-  "MXN", "SGD", "HKD", "NOK", "SEK", "DKK", "AED", "SAR", "QAR", "KWD",
-  "BHD", "OMR", "JOD", "ILS", "TRY", "RUB", "ZAR", "KRW", "THB", "MYR",
-  "PHP", "IDR", "VND", "PKR", "BDT", "LKR", "NGN", "KES", "EGP", "BRL",
-  "ARS", "CLP", "COP", "PEN", "UYU", "VEF", "BGN", "HRK", "CZK", "HUF",
-  "PLN", "RON", "RSD", "UAH", "BYN", "KZK", "UZS", "TJK", "KGS", "AMD",
-  "AZN", "GEL", "BYN", "KZK", "UZS",
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CHF",
+  "CAD",
+  "AUD",
+  "NZD",
+  "CNY",
+  "INR",
+  "MXN",
+  "SGD",
+  "HKD",
+  "NOK",
+  "SEK",
+  "DKK",
+  "AED",
+  "SAR",
+  "QAR",
+  "KWD",
+  "BHD",
+  "OMR",
+  "JOD",
+  "ILS",
+  "TRY",
+  "RUB",
+  "ZAR",
+  "KRW",
+  "THB",
+  "MYR",
+  "PHP",
+  "IDR",
+  "VND",
+  "PKR",
+  "BDT",
+  "LKR",
+  "NGN",
+  "KES",
+  "EGP",
+  "BRL",
+  "ARS",
+  "CLP",
+  "COP",
+  "PEN",
+  "UYU",
+  "VEF",
+  "BGN",
+  "HRK",
+  "CZK",
+  "HUF",
+  "PLN",
+  "RON",
+  "RSD",
+  "UAH",
+  "BYN",
+  "KZK",
+  "UZS",
+  "TJK",
+  "KGS",
+  "AMD",
+  "AZN",
+  "GEL",
+  "BYN",
+  "KZK",
+  "UZS",
 ];
 
 // ─── Fetch Exchange Rates ─────────────────────────────────────────────────────
@@ -87,11 +145,57 @@ const fetchExchangeRates = async (baseCurrency = "USD") => {
       return exchangeRateCache.data[baseCurrency];
     }
 
-    // If no cache and API fails, throw error
     throw new ApiError(
       HTTP_STATUS.SERVICE_UNAVAILABLE,
       "Exchange rate service unavailable. Please try again later."
     );
+  }
+};
+
+/**
+ * Fetches historical exchange rates for a specific date.
+ * Falls back to latest available rate if historical unavailable.
+ *
+ * @param {string} baseCurrency - ISO 4217 code (e.g., "USD")
+ * @param {Date|string} date - The date to fetch rates for
+ * @returns {Promise<object>} - Exchange rates object
+ */
+const fetchHistoricalExchangeRates = async (baseCurrency = "USD", date) => {
+  if (!date) return fetchExchangeRates(baseCurrency);
+
+  const dateStr = new Date(date).toISOString().split("T")[0]; // YYYY-MM-DD
+  const today = new Date().toISOString().split("T")[0];
+
+  // If date is today or future, use latest rates
+  if (dateStr >= today) return fetchExchangeRates(baseCurrency);
+
+  const cacheKey = `${baseCurrency}_${dateStr}`;
+  const now = Date.now();
+  const cacheValid = exchangeRateCache.timestamp && now - exchangeRateCache.timestamp < CACHE_TTL;
+
+  if (cacheValid && exchangeRateCache.data[cacheKey]) {
+    return exchangeRateCache.data[cacheKey];
+  }
+
+  try {
+    const apiKey = process.env.EXCHANGE_RATE_API_KEY || "demo";
+    // exchangerate-api.com historical endpoint
+    const apiUrl = `https://v6.exchangerate-api.com/v6/${apiKey}/history/${baseCurrency}/${dateStr.replace(/-/g, "/")}`;
+
+    const response = await axios.get(apiUrl, { timeout: 5000 });
+
+    if (response.data.result !== "success") {
+      // Historical not available on free tier — fall back to latest
+      return fetchExchangeRates(baseCurrency);
+    }
+
+    const rates = response.data.conversion_rates;
+    exchangeRateCache.data[cacheKey] = rates;
+    exchangeRateCache.timestamp = now;
+    return rates;
+  } catch {
+    // Fall back to latest rates
+    return fetchExchangeRates(baseCurrency);
   }
 };
 
@@ -164,10 +268,7 @@ const convertCurrency = async (amount, fromCurrency, toCurrency) => {
     const rates = await fetchExchangeRates(from);
 
     if (!rates[to]) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        `Conversion from ${from} to ${to} not supported`
-      );
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Conversion from ${from} to ${to} not supported`);
     }
 
     const rate = rates[to];
@@ -232,6 +333,7 @@ const convertBatch = async (transactions, targetCurrency) => {
 
 export {
   fetchExchangeRates,
+  fetchHistoricalExchangeRates,
   convertCurrency,
   convertBatch,
   isValidCurrency,

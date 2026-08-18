@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, ReactNode, useEffect, useState } from 'react'
-import type { Theme, ThemeContextType } from '@types/index'
+import type { Theme, ThemeContextType } from '@/types'
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 

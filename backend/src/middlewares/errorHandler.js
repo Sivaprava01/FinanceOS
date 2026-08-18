@@ -14,13 +14,13 @@ const errorHandler = (err, req, res, next) => {
   const message = err.message || APP_MESSAGES.INTERNAL_ERROR;
 
   // Log error details (in production, use a proper logging service)
- console.error({
-  message,
-  statusCode,
-  path: req.originalUrl,
-  method: req.method,
-  stack: err.stack,
-});
+  console.error({
+    message,
+    statusCode,
+    path: req.originalUrl,
+    method: req.method,
+    stack: err.stack,
+  });
 
   // Send error response
   res.status(statusCode).json({

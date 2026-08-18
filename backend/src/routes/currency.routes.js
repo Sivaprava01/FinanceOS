@@ -14,10 +14,7 @@
 
 import express from "express";
 import * as currencyController from "../controllers/currency.controller.js";
-import {
-  validateConvertCurrency,
-  validateConvertBatch,
-} from "../validations/user.validation.js";
+import { validateConvertCurrency, validateConvertBatch } from "../validations/user.validation.js";
 
 const router = express.Router();
 
@@ -30,17 +27,9 @@ router.get("/", currencyController.getSupportedCurrencies);
 router.get("/rate", currencyController.getExchangeRate);
 
 // Convert single amount
-router.post(
-  "/convert",
-  validateConvertCurrency,
-  currencyController.convertCurrency
-);
+router.post("/convert", validateConvertCurrency, currencyController.convertCurrency);
 
 // Convert batch (multiple amounts)
-router.post(
-  "/convert-batch",
-  validateConvertBatch,
-  currencyController.convertBatch
-);
+router.post("/convert-batch", validateConvertBatch, currencyController.convertBatch);
 
 export default router;

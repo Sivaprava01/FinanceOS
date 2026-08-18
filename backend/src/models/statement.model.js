@@ -100,6 +100,15 @@ const statementSchema = new Schema(
       type: Boolean,
       default: false,
     },
+
+    // Currency of the transactions in this statement (ISO 4217 code)
+    // Set by the user during upload. Defaults to null (frontend defaults to user preferred)
+    currency: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      default: null,
+    },
   },
   {
     timestamps: true,

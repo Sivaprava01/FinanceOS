@@ -49,12 +49,7 @@ router.use(protect);
  *   }
  * }
  */
-router.post(
-  "/upload",
-  uploadSingle,
-  validateStatementFile,
-  uploadStatement
-);
+router.post("/upload", uploadSingle, validateStatementFile, uploadStatement);
 
 // ─── Get Import History ───────────────────────────────────────────────────────
 

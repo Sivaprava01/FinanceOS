@@ -3,11 +3,7 @@
  * Used to throw standardized errors throughout the application.
  */
 class ApiError extends Error {
-  constructor(
-    statusCode,
-    message = "Something went wrong",
-    errors = []
-  ) {
+  constructor(statusCode, message = "Something went wrong", errors = []) {
     super(message);
 
     this.success = false;

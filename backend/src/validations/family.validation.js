@@ -17,7 +17,10 @@ export const validateCreateFamily = (req) => {
   const { familyName, description } = req.body;
 
   if (!familyName || typeof familyName !== "string" || familyName.trim().length === 0) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Family name is required and must be a non-empty string");
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Family name is required and must be a non-empty string"
+    );
   }
 
   if (familyName.length > 100) {
@@ -86,13 +89,7 @@ export const validateSendInvitation = (req) => {
  * @throws {ApiError}
  */
 export const validateUpdateSharing = (req) => {
-  const {
-    shareTransactions,
-    shareAssets,
-    shareLoans,
-    shareNetWorth,
-    shareEverything,
-  } = req.body;
+  const { shareTransactions, shareAssets, shareLoans, shareNetWorth, shareEverything } = req.body;
 
   // All should be booleans if provided
   const fields = {
@@ -111,10 +108,7 @@ export const validateUpdateSharing = (req) => {
 
   // At least one field must be provided
   if (Object.values(fields).every((v) => v === undefined)) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      "At least one sharing preference must be provided"
-    );
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "At least one sharing preference must be provided");
   }
 };
 

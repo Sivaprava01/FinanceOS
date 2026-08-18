@@ -16,6 +16,7 @@ import {
   User,
   Settings,
   X,
+  Search as SearchIcon,
 } from 'lucide-react'
 import { cn } from '@lib/utils'
 import { Button } from '@components/ui/Button'
@@ -35,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Family Finance', href: '/family', icon: Users },
     { name: 'Categories', href: '/categories', icon: Tags },
+    { name: 'Search', href: '/search', icon: SearchIcon },
     { name: 'How It Works', href: '/how-it-works', icon: HelpCircle },
   ]
 

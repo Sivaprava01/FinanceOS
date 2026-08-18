@@ -42,17 +42,17 @@ const buildAssetPayload = (asset) => {
       : null;
 
   return {
-    _id:             doc._id,
-    assetName:       doc.assetName,
-    assetCategory:   doc.assetCategory,
-    currentValue:    doc.currentValue,
-    purchaseValue:   doc.purchaseValue ?? null,
-    purchaseDate:    doc.purchaseDate  ?? null,
-    notes:           doc.notes         ?? null,
+    _id: doc._id,
+    assetName: doc.assetName,
+    assetCategory: doc.assetCategory,
+    currentValue: doc.currentValue,
+    purchaseValue: doc.purchaseValue ?? null,
+    purchaseDate: doc.purchaseDate ?? null,
+    notes: doc.notes ?? null,
     gainLoss,
     gainLossPercent,
-    createdAt:       doc.createdAt,
-    updatedAt:       doc.updatedAt,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
   };
 };
 
@@ -177,14 +177,13 @@ const deleteAsset = async (assetId, userId) => {
 const getAssetSummary = async (userId) => {
   const assets = await Asset.find({ user: userId }).lean();
 
-  const totalAssets    = assets.length;
-  const totalValue     = assets.reduce((sum, a) => sum + a.currentValue, 0);
+  const totalAssets = assets.length;
+  const totalValue = assets.reduce((sum, a) => sum + a.currentValue, 0);
 
   // Group total value by category for the breakdown
   const byCategory = {};
   for (const asset of assets) {
-    byCategory[asset.assetCategory] =
-      (byCategory[asset.assetCategory] ?? 0) + asset.currentValue;
+    byCategory[asset.assetCategory] = (byCategory[asset.assetCategory] ?? 0) + asset.currentValue;
   }
 
   // Round category values to 2 dp
@@ -194,7 +193,7 @@ const getAssetSummary = async (userId) => {
 
   return {
     totalAssets,
-    totalValue:  Math.round(totalValue  * 100) / 100,
+    totalValue: Math.round(totalValue * 100) / 100,
     byCategory,
   };
 };
@@ -241,11 +240,11 @@ const getNetWorth = async (userId) => {
   }
 
   return {
-    totalAssets:       Math.round(totalAssets       * 100) / 100,
-    totalLiabilities:  Math.round(totalLiabilities  * 100) / 100,
-    netWorth:          Math.round(netWorth           * 100) / 100,
-    assetCount:        assets.length,
-    activeLoanCount:   loans.length,
+    totalAssets: Math.round(totalAssets * 100) / 100,
+    totalLiabilities: Math.round(totalLiabilities * 100) / 100,
+    netWorth: Math.round(netWorth * 100) / 100,
+    assetCount: assets.length,
+    activeLoanCount: loans.length,
     assetBreakdown,
   };
 };

@@ -1,6 +1,6 @@
 /**
  * FinanceOS Backend - Server Entry Point
- * 
+ *
  * Initialization Sequence:
  * 1. Load environment variables
  * 2. Connect to MongoDB

@@ -1,6 +1,6 @@
 /**
  * Database Connection Module
- * 
+ *
  * Handles MongoDB connection setup with Mongoose
  * The connection must be successful before the server starts
  */

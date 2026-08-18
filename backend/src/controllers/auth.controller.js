@@ -55,12 +55,12 @@ export const register = asyncHandler(async (req, res) => {
 
   setRefreshTokenCookie(res, refreshToken);
 
-  return res
-    .status(HTTP_STATUS.CREATED)
-    .json(new ApiResponse(HTTP_STATUS.CREATED, AUTH_MESSAGES.REGISTER_SUCCESS, {
+  return res.status(HTTP_STATUS.CREATED).json(
+    new ApiResponse(HTTP_STATUS.CREATED, AUTH_MESSAGES.REGISTER_SUCCESS, {
       user,
       accessToken,
-    }));
+    })
+  );
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -75,12 +75,12 @@ export const login = asyncHandler(async (req, res) => {
 
   setRefreshTokenCookie(res, refreshToken);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.LOGIN_SUCCESS, {
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.LOGIN_SUCCESS, {
       user,
       accessToken,
-    }));
+    })
+  );
 });
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -106,11 +106,11 @@ export const refreshToken = asyncHandler(async (req, res) => {
 
   setRefreshTokenCookie(res, newRefreshToken);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.TOKEN_REFRESHED, {
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.TOKEN_REFRESHED, {
       accessToken,
-    }));
+    })
+  );
 });
 
 // ─── Get Profile ──────────────────────────────────────────────────────────────
@@ -118,9 +118,9 @@ export const refreshToken = asyncHandler(async (req, res) => {
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await authService.getProfile(req.user._id);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.PROFILE_FETCHED, {
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, AUTH_MESSAGES.PROFILE_FETCHED, {
       user,
-    }));
+    })
+  );
 });

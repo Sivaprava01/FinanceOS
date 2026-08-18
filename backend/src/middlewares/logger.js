@@ -1,9 +1,9 @@
 /**
  * HTTP Request Logger Middleware
- * 
+ *
  * Uses Morgan for logging HTTP requests
  * Provides information about incoming requests and responses
- * 
+ *
  * Format: 'dev' - Concise output with colors for development
  */
 

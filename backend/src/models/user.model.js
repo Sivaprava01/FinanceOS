@@ -51,6 +51,12 @@ const preferencesSchema = new Schema(
         default: true,
       },
     },
+
+    dateFormat: {
+      type: String,
+      enum: ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"],
+      default: "DD/MM/YYYY",
+    },
   },
   { _id: false } // No separate _id for this embedded document
 );

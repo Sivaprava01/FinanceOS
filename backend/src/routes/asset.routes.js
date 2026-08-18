@@ -33,12 +33,12 @@ const router = express.Router();
 // All asset routes require a valid access token
 router.use(protect);
 
-router.post("/",          validateCreateAsset, createAsset);
-router.get("/",           getAssets);
-router.get("/summary",    getAssetSummary);
-router.get("/net-worth",  getNetWorth);
-router.get("/:id",        getAssetById);
-router.put("/:id",        validateUpdateAsset, updateAsset);
-router.delete("/:id",     deleteAsset);
+router.post("/", validateCreateAsset, createAsset);
+router.get("/", getAssets);
+router.get("/summary", getAssetSummary);
+router.get("/net-worth", getNetWorth);
+router.get("/:id", getAssetById);
+router.put("/:id", validateUpdateAsset, updateAsset);
+router.delete("/:id", deleteAsset);
 
 export default router;

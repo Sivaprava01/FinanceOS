@@ -107,11 +107,8 @@ const login = async ({ email, password }) => {
 
   // Soft-deleted accounts must not receive new tokens under any circumstances
   if (user.isDeleted) {
-  throw new ApiError(
-    HTTP_STATUS.FORBIDDEN,
-    AUTH_MESSAGES.ACCOUNT_DELETED
-  );
-}
+    throw new ApiError(HTTP_STATUS.FORBIDDEN, AUTH_MESSAGES.ACCOUNT_DELETED);
+  }
 
   // Google-only accounts have no password
   if (user.provider !== AUTH_PROVIDERS.LOCAL || !user.password) {
