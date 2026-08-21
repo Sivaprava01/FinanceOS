@@ -3,6 +3,7 @@ import { Users, UserPlus, LogOut, Trash2, Mail } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
+import { SkeletonLoader, ErrorState } from '@components/ui'
 import {
   useFamilies,
   useFamilyMembers,
@@ -22,9 +23,9 @@ import { useCurrency } from '@hooks/useCurrency'
 import type { Family } from '@services/family.service'
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: 'bg-purple-100 text-purple-700',
-  admin: 'bg-blue-100 text-blue-700',
-  member: 'bg-gray-100 text-gray-700',
+  owner: 'bg-primary/10 text-primary',
+  admin: 'bg-info/10 text-info',
+  member: 'bg-muted text-muted-foreground',
 }
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
@@ -34,11 +35,11 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   const { data: dashboard, isLoading, error } = useFamilyDashboard(familyId)
 
   if (isLoading) {
-    return <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />)}</div>
+    return <div className="space-y-3">{[0, 1, 2].map((i) => <SkeletonLoader key={i} type="row" />)}</div>
   }
 
   if (error) {
-    return <p className="text-sm text-destructive">Failed to load family dashboard.</p>
+    return <ErrorState title="Error" message="Failed to load family dashboard. Please try again." />
   }
 
   if (!dashboard) return null
@@ -46,7 +47,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   return (
     <div className="space-y-6">
       {/* Overview cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground">Members Sharing</p>
@@ -72,7 +73,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-muted-foreground">Family Net Worth</p>
-            <p className={`text-2xl font-bold ${dashboard.sharedCombined.netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-2xl font-bold ${dashboard.sharedCombined.netWorth >= 0 ? 'text-success' : 'text-destructive'}`}>
               {format(dashboard.sharedCombined.netWorth)}
             </p>
           </CardContent>
@@ -109,7 +110,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">{member.transactionCount} transactions</p>
-                    <p className={`text-sm ${member.income - member.expenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-sm ${member.income - member.expenses >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {format(member.income - member.expenses)}
                     </p>
                   </div>
@@ -147,7 +148,7 @@ const SharedTransactionsTab: React.FC<{ familyId: string }> = ({ familyId }) => 
                 <CardDescription>{member.role} · Joined {new Date(member.joinedAt).toLocaleDateString()}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                   <div className="rounded-lg border border-border p-4">
                     <p className="text-sm text-muted-foreground">Role</p>
                     <p className="mt-2 font-semibold capitalize">{member.role}</p>
@@ -158,7 +159,7 @@ const SharedTransactionsTab: React.FC<{ familyId: string }> = ({ familyId }) => 
                   </div>
                   <div className="rounded-lg border border-border p-4">
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <p className="mt-2 font-semibold text-green-600">Active</p>
+                    <p className="mt-2 font-semibold text-success">Active</p>
                   </div>
                 </div>
               </CardContent>
@@ -424,20 +425,21 @@ const InviteTab: React.FC<{ familyId: string }> = ({ familyId }) => {
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium">Email Address</label>
-        <div className="mt-1 flex gap-2">
+        <div className="mt-1 flex flex-col sm:flex-row gap-2">
           <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="friend@example.com"
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            className="flex-1"
           />
-          <Button onClick={handleSend} isLoading={sendInvitation.isPending} disabled={!email.trim()}>
+          <Button onClick={handleSend} isLoading={sendInvitation.isPending} disabled={!email.trim()} className="w-full sm:w-auto">
             <Mail className="mr-2 h-4 w-4" /> Invite
           </Button>
         </div>
       </div>
-      {successMsg && <p className="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">{successMsg}</p>}
+      {successMsg && <p className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">{successMsg}</p>}
       {errorMsg && <p className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">{errorMsg}</p>}
     </div>
   )
@@ -563,8 +565,8 @@ const FamilyFinance: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Family Finance</h1>
-        <p className="text-muted-foreground">Manage shared finances with your household</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Family Finance</h1>
+        <p className="text-muted-foreground text-sm">Manage shared finances with your household</p>
       </div>
 
       <PendingInvitations />
@@ -580,7 +582,7 @@ const FamilyFinance: React.FC = () => {
                 <button
                   key={f._id}
                   onClick={() => { setSelectedFamilyId(f._id); setActiveTab('members') }}
-                  className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all ${
+                  className={`rounded-lg border-2 px-3 sm:px-4 py-2 text-sm font-medium transition-all ${
                     activeFamilyId === f._id ? 'border-primary bg-primary/10' : 'border-border hover:border-primary'
                   }`}
                 >
@@ -602,12 +604,12 @@ const FamilyFinance: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Tabs */}
-                <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1 w-fit">
+                <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1 w-full sm:w-fit overflow-x-auto">
                   {(['dashboard', 'shared', 'members', 'permissions', 'invite'] as FamilyTab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-all ${
+                      className={`rounded-md px-3 sm:px-4 py-1.5 text-sm font-medium capitalize transition-all whitespace-nowrap ${
                         activeTab === tab ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >

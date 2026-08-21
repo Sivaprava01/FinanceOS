@@ -76,6 +76,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={onClose}
+          role="presentation"
+          aria-hidden="true"
         />
       )}
 
@@ -85,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           'fixed inset-y-0 left-0 z-50 w-64 transform bg-card shadow-lg transition-transform duration-300 ease-in-out md:relative md:transform-none md:shadow-none',
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
+        aria-label="Main navigation"
       >
         <div className="flex h-full flex-col">
           {/* Header */}
@@ -93,13 +96,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <button
               onClick={onClose}
               className="rounded-lg p-1 hover:bg-secondary md:hidden"
+              aria-label="Close sidebar navigation"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6" aria-label="Primary navigation">
             {navItems.map((item) => (
               <NavLink
                 key={item.href}
@@ -112,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           {/* Bottom Navigation */}
           <div className="border-t border-border px-4 py-4">
-            <div className="space-y-1">
+            <nav className="space-y-1" aria-label="Secondary navigation">
               {bottomItems.map((item) => (
                 <NavLink
                   key={item.href}
@@ -121,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   icon={item.icon}
                 />
               ))}
-            </div>
+            </nav>
 
             {/* Logout Button */}
             <Button
@@ -132,6 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 localStorage.removeItem('accessToken')
                 window.location.href = '/login'
               }}
+              aria-label="Logout from your account"
             >
               Logout
             </Button>

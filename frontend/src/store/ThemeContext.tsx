@@ -6,6 +6,7 @@
 import React, { createContext, ReactNode, useEffect, useState } from 'react'
 import type { Theme, ThemeContextType } from '@/types'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

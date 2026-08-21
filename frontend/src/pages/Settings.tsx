@@ -89,7 +89,7 @@ const PasswordChangeCard: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && <p className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</p>}
-          {success && <p className="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">Password changed successfully.</p>}
+          {success && <p className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">Password changed successfully.</p>}
 
           <div>
             <label className="block text-sm font-medium">Current Password</label>
@@ -224,8 +224,8 @@ const Settings: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage application preferences</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
+        <p className="text-muted-foreground text-sm">Manage application preferences</p>
       </div>
 
       {/* ── Currency & Format ─────────────────────────────────────────────── */}
@@ -237,9 +237,9 @@ const Settings: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {currError && <p className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">{currError}</p>}
-            {currSuccess && <p className="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">Currency updated successfully.</p>}
-            <div className="flex items-end gap-4">
-              <div className="flex-1 max-w-xs">
+            {currSuccess && <p className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">Currency updated successfully.</p>}
+            <div className="flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
+              <div className="flex-1 w-full sm:max-w-xs">
                 <label className="block text-sm font-medium">Preferred Currency</label>
                 <Input
                   {...currForm.register('preferredCurrency')}
@@ -254,7 +254,7 @@ const Settings: React.FC = () => {
                   Examples: USD, EUR, GBP, INR, JPY, CAD
                 </p>
               </div>
-              <Button type="submit" isLoading={isCurrSubmitting}>Save Currency</Button>
+              <Button type="submit" isLoading={isCurrSubmitting} className="w-full sm:w-auto">Save Currency</Button>
             </div>
           </CardContent>
         </Card>
@@ -266,7 +266,7 @@ const Settings: React.FC = () => {
           <div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">{prefError}</div>
         )}
         {prefSuccess && (
-          <div className="rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">Preferences saved successfully.</div>
+          <div className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">Preferences saved successfully.</div>
         )}
 
         {/* Language */}
@@ -280,7 +280,7 @@ const Settings: React.FC = () => {
               <label className="block text-sm font-medium">Language</label>
               <select
                 {...prefForm.register('language')}
-                className="mt-1 w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                className="mt-1 w-full sm:w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
@@ -304,13 +304,13 @@ const Settings: React.FC = () => {
           <CardContent>
             <div>
               <label className="block text-sm font-medium">Theme</label>
-              <div className="mt-3 flex gap-3">
+              <div className="mt-3 flex flex-wrap gap-2 sm:gap-3">
                 {(['light', 'dark', 'system'] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => prefForm.setValue('theme', t)}
-                    className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all ${
+                    className={`rounded-lg border-2 px-3 sm:px-4 py-2 text-sm font-medium transition-all ${
                       currentTheme === t
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary'
@@ -335,7 +335,7 @@ const Settings: React.FC = () => {
               <label className="block text-sm font-medium">Date Format</label>
               <select
                 {...prefForm.register('dateFormat')}
-                className="mt-1 w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                className="mt-1 w-full sm:w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                 <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -389,8 +389,8 @@ const Settings: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
-          <Button type="submit" isLoading={isPrefSubmitting}>Save Preferences</Button>
+        <div className="flex justify-end pt-2">
+          <Button type="submit" isLoading={isPrefSubmitting} className="w-full sm:w-auto">Save Preferences</Button>
         </div>
       </form>
 

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@comp
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
 import { TransactionRow } from '@components/transactions/TransactionRow'
+import { SkeletonLoader, ErrorState, EmptyState } from '@components/ui'
 import {
   useTransactions,
   useCreateTransaction,
@@ -12,7 +13,8 @@ import {
   useBulkUpdate,
 } from '@hooks/useTransactions'
 import { useCategories } from '@hooks/useCategories'
-import type { Transaction, CreateTransactionInput } from '@/types'
+import CreateCategoryModal from '@components/modals/CreateCategoryModal'
+import type { Transaction, CreateTransactionInput, CreateCategoryInput } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,13 +84,21 @@ const DeleteDialog: React.FC<{
 
 // ─── BulkActionBar ────────────────────────────────────────────────────────────
 
-const BulkActionBar: React.FC<{
+interface BulkActionBarProps {
   selectedCount: number
-  categories: string[]
+  categories: Array<{ _id: string; name: string }>
   onCategorize: (category: string) => void
   onDeleteSelected: () => void
   onClear: () => void
-}> = ({ selectedCount, categories, onCategorize, onDeleteSelected, onClear }) => {
+}
+
+const BulkActionBar: React.FC<BulkActionBarProps> = ({
+  selectedCount,
+  categories,
+  onCategorize,
+  onDeleteSelected,
+  onClear,
+}) => {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const selectRef = useRef<HTMLSelectElement>(null)
 
@@ -102,13 +112,13 @@ const BulkActionBar: React.FC<{
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 sm:p-4 sm:flex-row sm:items-center">
       <span className="text-sm font-medium text-primary">
         {selectedCount} selected
       </span>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         {showCategoryPicker ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2">
             <select
               ref={selectRef}
               autoFocus
@@ -118,10 +128,10 @@ const BulkActionBar: React.FC<{
             >
               <option value="" disabled>Select category…</option>
               {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c._id} value={c.name}>{c.name}</option>
               ))}
             </select>
-            <Button variant="outline" size="sm" onClick={() => setShowCategoryPicker(false)}>
+            <Button variant="outline" size="sm" onClick={() => setShowCategoryPicker(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
           </div>
@@ -129,7 +139,7 @@ const BulkActionBar: React.FC<{
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="w-full sm:w-auto gap-1.5"
             onClick={() => setShowCategoryPicker(true)}
           >
             <Tag className="h-3.5 w-3.5" />
@@ -139,13 +149,13 @@ const BulkActionBar: React.FC<{
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 text-destructive hover:bg-destructive hover:text-white"
+          className="w-full sm:w-auto gap-1.5 text-destructive hover:bg-destructive hover:text-white"
           onClick={onDeleteSelected}
         >
           <Trash2 className="h-3.5 w-3.5" />
           Delete
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClear} aria-label="Clear selection">
+        <Button variant="ghost" size="sm" onClick={onClear} aria-label="Clear selection" className="w-full sm:w-auto">
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -161,6 +171,7 @@ const Transactions: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<CreateTransactionInput>(emptyForm())
   const [showFilters, setShowFilters] = useState(false)
+  const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false)
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>(emptyFilters())
@@ -175,7 +186,7 @@ const Transactions: React.FC = () => {
   })
 
   // Hooks
-  const { data: categories = [] } = useCategories()
+  const { data: categories = [], createCategory, createIsLoading } = useCategories()
   const createTransaction = useCreateTransaction()
   const updateTransaction = useUpdateTransaction()
   const deleteTransaction = useDeleteTransaction()
@@ -287,17 +298,21 @@ const Transactions: React.FC = () => {
     setSelectedIds(new Set())
   }
 
+  const handleCreateCategory = async (data: CreateCategoryInput) => {
+    await createCategory(data)
+  }
+
   const isMutating = createTransaction.isPending || updateTransaction.isPending
 
   return (
     <div className="space-y-6">
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold">Transactions</h1>
-          <p className="text-muted-foreground">View and manage your transactions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Transactions</h1>
+          <p className="text-muted-foreground text-sm">View and manage your transactions</p>
         </div>
-        <Button onClick={() => (showForm ? handleCancel() : setShowForm(true))}>
+        <Button onClick={() => (showForm ? handleCancel() : setShowForm(true))} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           {showForm ? 'Cancel' : 'Add Transaction'}
         </Button>
@@ -311,7 +326,7 @@ const Transactions: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium">Date *</label>
                   <Input
@@ -363,27 +378,28 @@ const Transactions: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium">Category *</label>
-                  {categories.length > 0 ? (
+                  <div className="mt-1 space-y-2">
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                       required
                     >
                       <option value="">Select a category</option>
                       {categories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
+                        <option key={cat._id} value={cat.name}>{cat.name}</option>
                       ))}
                     </select>
-                  ) : (
-                    <Input
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      placeholder="e.g., Food"
-                      className="mt-1"
-                      required
-                    />
-                  )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => setShowCreateCategoryModal(true)}
+                    >
+                      + Create New Category
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
@@ -396,7 +412,7 @@ const Transactions: React.FC = () => {
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="sm:col-span-2 col-span-1">
                   <label className="block text-sm font-medium">Notes</label>
                   <Input
                     value={formData.notes ?? ''}
@@ -422,7 +438,7 @@ const Transactions: React.FC = () => {
       <Card>
         <CardContent className="pt-6">
           {/* Search + toggle row */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -435,7 +451,7 @@ const Transactions: React.FC = () => {
             </div>
             <Button
               variant="outline"
-              className="gap-2 shrink-0"
+              className="gap-2 w-full sm:w-auto sm:shrink-0"
               onClick={() => setShowFilters((v) => !v)}
             >
               <SlidersHorizontal className="h-4 w-4" />
@@ -448,7 +464,7 @@ const Transactions: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="shrink-0 gap-1 text-muted-foreground"
+                className="w-full sm:w-auto sm:shrink-0 gap-1 text-muted-foreground"
                 onClick={() => setFilters(emptyFilters())}
               >
                 <X className="h-3.5 w-3.5" />
@@ -459,7 +475,7 @@ const Transactions: React.FC = () => {
 
           {/* Expanded filter panel */}
           {showFilters && (
-            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 border-t border-border pt-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
                 <select
@@ -482,7 +498,7 @@ const Transactions: React.FC = () => {
                 >
                   <option value="">All Categories</option>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat._id} value={cat.name}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -560,67 +576,133 @@ const Transactions: React.FC = () => {
           {isLoading ? (
             <div className="space-y-3 py-4">
               {[0, 1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />
+                <SkeletonLoader key={i} type="row" />
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-lg bg-destructive/10 p-4">
-              <p className="text-sm text-destructive">Failed to load transactions. Please refresh.</p>
-            </div>
+            <ErrorState
+              title="Failed to Load Transactions"
+              message="There was an error loading your transactions. Please try again."
+              onRetry={() => window.location.reload()}
+            />
           ) : transactions.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground">
-                {hasActiveFilters ? 'No transactions match your filters.' : 'No transactions yet.'}
-              </p>
-              {hasActiveFilters && (
-                <button
-                  onClick={() => setFilters(emptyFilters())}
-                  className="mt-2 text-sm text-primary hover:underline"
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
+            <EmptyState
+              icon={Tag}
+              title={hasActiveFilters ? 'No Transactions Found' : 'No Transactions Yet'}
+              description={
+                hasActiveFilters
+                  ? 'Try adjusting your filters to find transactions.'
+                  : 'Upload a statement or create a transaction to get started.'
+              }
+              action={
+                hasActiveFilters
+                  ? {
+                      label: 'Clear Filters',
+                      onClick: () => setFilters(emptyFilters()),
+                    }
+                  : undefined
+              }
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="px-3 py-3">
+            <div className="space-y-3">
+              {/* Desktop table - hidden on mobile */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === transactions.length && transactions.length > 0}
+                          ref={(el) => {
+                            if (el) {
+                              el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
+                            }
+                          }}
+                          onChange={toggleSelectAll}
+                          className="rounded border-border accent-primary cursor-pointer"
+                          aria-label="Select all"
+                        />
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Date</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Merchant</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Amount</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Type</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((transaction: Transaction) => (
+                      <TransactionRow
+                        key={transaction._id}
+                        transaction={transaction}
+                        onEdit={handleEdit}
+                        onDelete={handleDeleteRequest}
+                        isSelected={selectedIds.has(transaction._id)}
+                        onSelect={toggleSelect}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card layout - shown on mobile */}
+              <div className="md:hidden space-y-3">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === transactions.length && transactions.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded border-border accent-primary cursor-pointer"
+                      aria-label="Select all"
+                    />
+                    <span className="text-sm font-medium">Select all</span>
+                  </label>
+                </div>
+                {transactions.map((transaction: Transaction) => (
+                  <div key={transaction._id} className="rounded-lg border border-border bg-card p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedIds.size === transactions.length && transactions.length > 0}
-                        ref={(el) => {
-                          if (el) {
-                            el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
-                          }
-                        }}
-                        onChange={toggleSelectAll}
-                        className="rounded border-border accent-primary cursor-pointer"
-                        aria-label="Select all"
+                        checked={selectedIds.has(transaction._id)}
+                        onChange={() => toggleSelect(transaction._id)}
+                        className="rounded border-border accent-primary cursor-pointer mt-1"
                       />
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Merchant</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Amount</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((transaction: Transaction) => (
-                    <TransactionRow
-                      key={transaction._id}
-                      transaction={transaction}
-                      onEdit={handleEdit}
-                      onDelete={handleDeleteRequest}
-                      isSelected={selectedIds.has(transaction._id)}
-                      onSelect={toggleSelect}
-                    />
-                  ))}
-                </tbody>
-              </table>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{transaction.merchant}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+                      </div>
+                      <p className={`text-sm font-semibold whitespace-nowrap ${transaction.type === 'Credit' ? 'text-success' : 'text-destructive'}`}>
+                        {transaction.type === 'Credit' ? '+' : '-'}{transaction.amount.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-2">
+                      <span className="rounded-full bg-muted px-2 py-0.5">{transaction.category || '—'}</span>
+                      <span className="capitalize">{transaction.type}</span>
+                    </div>
+                    <div className="flex gap-2 pt-2 border-t border-border">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => handleEdit(transaction)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:bg-destructive hover:text-white"
+                        onClick={() => handleDeleteRequest(transaction._id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -634,6 +716,14 @@ const Transactions: React.FC = () => {
           onCancel={() => setDeleteDialog({ open: false, ids: [] })}
         />
       )}
+
+      {/* ─── Create Category Modal ───────────────────────────────────────────── */}
+      <CreateCategoryModal
+        isOpen={showCreateCategoryModal}
+        onClose={() => setShowCreateCategoryModal(false)}
+        isLoading={createIsLoading}
+        onSubmit={handleCreateCategory}
+      />
     </div>
   )
 }

@@ -34,4 +34,19 @@ api.interceptors.response.use(
   }
 )
 
+// Category API methods
+export const categories = {
+  list: (filters?: { type?: string }) =>
+    api.get('/categories', { params: filters }),
+  
+  create: (data: { name: string; type?: string; color?: string; icon?: string; description?: string }) =>
+    api.post('/categories', data),
+  
+  update: (id: string, data: Partial<{ name: string; type: string; color: string; icon: string; description: string }>) =>
+    api.put(`/categories/${id}`, data),
+  
+  delete: (id: string) =>
+    api.delete(`/categories/${id}`),
+}
+
 export default api

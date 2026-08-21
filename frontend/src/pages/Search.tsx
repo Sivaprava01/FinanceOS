@@ -35,8 +35,8 @@ const Search: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Search Transactions</h1>
-        <p className="text-muted-foreground">Find transactions by merchant, description, or category</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Search Transactions</h1>
+        <p className="text-muted-foreground text-sm">Find transactions by merchant, description, or category</p>
       </div>
 
       <Card>
@@ -54,7 +54,7 @@ const Search: React.FC = () => {
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Category</label>
               <select
@@ -96,6 +96,7 @@ const Search: React.FC = () => {
               setQuery('')
               setFilters({ category: '', fromDate: '', toDate: '' })
             }}
+            className="w-full sm:w-auto"
           >
             Clear Filters
           </Button>
@@ -120,33 +121,57 @@ const Search: React.FC = () => {
               <p className="text-sm text-muted-foreground">No transactions found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="pb-2 font-medium">Date</th>
-                    <th className="pb-2 font-medium">Merchant</th>
-                    <th className="pb-2 font-medium">Category</th>
-                    <th className="pb-2 font-medium">Description</th>
-                    <th className="pb-2 text-right font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((t: Transaction) => (
-                    <tr key={t._id} className="border-b border-border/50">
-                      <td className="py-3">{new Date(t.date).toLocaleDateString()}</td>
-                      <td className="py-3 font-medium">{t.merchant}</td>
-                      <td className="py-3">
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{t.category || '—'}</span>
-                      </td>
-                      <td className="py-3 text-muted-foreground">{t.description}</td>
-                      <td className={`py-3 text-right font-semibold ${t.type === 'Debit' ? 'text-red-600' : 'text-green-600'}`}>
-                        {t.type === 'Debit' ? '-' : '+'}{format(t.amount)}
-                      </td>
+            <div className="space-y-3">
+              {/* Desktop table - hidden on mobile */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="pb-2 font-medium">Date</th>
+                      <th className="pb-2 font-medium">Merchant</th>
+                      <th className="pb-2 font-medium">Category</th>
+                      <th className="pb-2 font-medium">Description</th>
+                      <th className="pb-2 text-right font-medium">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filtered.map((t: Transaction) => (
+                      <tr key={t._id} className="border-b border-border/50">
+                        <td className="py-3">{new Date(t.date).toLocaleDateString()}</td>
+                        <td className="py-3 font-medium">{t.merchant}</td>
+                        <td className="py-3">
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{t.category || '—'}</span>
+                        </td>
+                        <td className="py-3 text-muted-foreground">{t.description}</td>
+                        <td className={`py-3 text-right font-semibold ${t.type === 'Debit' ? 'text-destructive' : 'text-success'}`}>
+                          {t.type === 'Debit' ? '-' : '+'}{format(t.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card layout - shown on mobile */}
+              <div className="md:hidden space-y-3">
+                {filtered.map((t: Transaction) => (
+                  <div key={t._id} className="rounded-lg border border-border bg-card p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{t.merchant}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
+                      </div>
+                      <p className={`text-sm font-semibold whitespace-nowrap ${t.type === 'Debit' ? 'text-destructive' : 'text-success'}`}>
+                        {t.type === 'Debit' ? '-' : '+'}{format(t.amount)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                      <span className="rounded-full bg-muted px-2 py-0.5">{t.category || '—'}</span>
+                      <span className="text-xs">{t.description}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>

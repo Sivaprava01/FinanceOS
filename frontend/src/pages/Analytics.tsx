@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, PiggyBank } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
-import { Button } from '@components/ui/Button'
+import { SkeletonLoader, ErrorState } from '@components/ui'
 import { useSpendingAnalysis, useMonthlyComparison } from '@hooks/useDashboard'
 import { useCurrency } from '@hooks/useCurrency'
 
@@ -13,10 +13,6 @@ const CHART_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#e
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 type Tab = 'overview' | 'expenses' | 'categories' | 'cashflow'
-
-const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div className={`animate-pulse rounded bg-muted ${className}`} />
-)
 
 const Analytics: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -31,27 +27,31 @@ const Analytics: React.FC = () => {
     return (
       <div className="space-y-6">
         <div>
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="mt-2 h-4 w-64" />
+          <SkeletonLoader type="text" height="h-8" width="w-40" />
+          <SkeletonLoader type="text" height="h-4" width="w-64" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="mt-3 h-8 w-32" />
-            </div>
+            <SkeletonLoader key={i} type="card" />
           ))}
         </div>
-        <Skeleton className="h-80 w-full rounded-xl" />
+        <SkeletonLoader type="chart" />
       </div>
     )
   }
 
   if (hasError) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-destructive">Failed to load analytics data.</p>
-        <Button variant="outline" onClick={() => { refetchA(); refetchC() }}>Retry</Button>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics</h1>
+          <p className="text-muted-foreground">Detailed breakdown of your financial activity</p>
+        </div>
+        <ErrorState
+          title="Failed to Load Analytics"
+          message="There was an error loading your analytics data. Please try again."
+          onRetry={() => { refetchA(); refetchC() }}
+        />
       </div>
     )
   }
@@ -75,17 +75,17 @@ const Analytics: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Analytics</h1>
-        <p className="text-muted-foreground">Detailed breakdown of your financial activity</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Analytics</h1>
+        <p className="text-muted-foreground text-sm">Detailed breakdown of your financial activity</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1 w-fit">
+      <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1 w-full sm:w-fit overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
+            className={`rounded-md px-3 sm:px-4 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -100,12 +100,12 @@ const Analytics: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* KPI row */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-green-100 p-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
+                  <div className="rounded-lg bg-success/10 p-2">
+                    <TrendingUp className="h-5 w-5 text-success" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Income</p>
@@ -117,8 +117,8 @@ const Analytics: React.FC = () => {
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-red-100 p-2">
-                    <TrendingDown className="h-5 w-5 text-red-600" />
+                  <div className="rounded-lg bg-destructive/10 p-2">
+                    <TrendingDown className="h-5 w-5 text-destructive" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Expenses</p>
@@ -130,8 +130,8 @@ const Analytics: React.FC = () => {
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-blue-100 p-2">
-                    <PiggyBank className="h-5 w-5 text-blue-600" />
+                  <div className="rounded-lg bg-info/10 p-2">
+                    <PiggyBank className="h-5 w-5 text-info" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Savings</p>
@@ -143,8 +143,8 @@ const Analytics: React.FC = () => {
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-purple-100 p-2">
-                    <DollarSign className="h-5 w-5 text-purple-600" />
+                  <div className="rounded-lg bg-warning/10 p-2">
+                    <DollarSign className="h-5 w-5 text-warning" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Savings Rate</p>
@@ -166,7 +166,7 @@ const Analytics: React.FC = () => {
               <CardDescription>{comparison.previousMonth.label} vs {comparison.currentMonth.label}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                 {[
                   { label: 'Income', current: comparison.currentMonth.income, prev: comparison.previousMonth.income, diff: comparison.comparison.incomeDiff, pct: comparison.comparison.incomeChangePercent },
                   { label: 'Expenses', current: comparison.currentMonth.expenses, prev: comparison.previousMonth.expenses, diff: comparison.comparison.expenseDiff, pct: comparison.comparison.expenseChangePercent },
@@ -176,7 +176,7 @@ const Analytics: React.FC = () => {
                     <p className="text-sm font-medium text-muted-foreground">{row.label}</p>
                     <p className="text-2xl font-bold">{format(row.current)}</p>
                     <p className="text-xs text-muted-foreground">Prev: {format(row.prev)}</p>
-                    <p className={`text-sm font-medium ${row.pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-sm font-medium ${row.pct >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {row.pct >= 0 ? '+' : ''}{row.pct}% ({row.diff >= 0 ? '+' : ''}{format(row.diff)})
                     </p>
                   </div>
@@ -234,7 +234,7 @@ const Analytics: React.FC = () => {
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => format(v)} />
                     <Legend />
-                    <Line type="monotone" dataKey="total" stroke="#ef4444" strokeWidth={2} dot={false} name="Expenses" />
+                    <Line type="monotone" dataKey="total" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} name="Expenses" />
                   </LineChart>
                 </ResponsiveContainer>
               )}
@@ -257,7 +257,7 @@ const Analytics: React.FC = () => {
                         <p className="text-sm font-medium">{e.merchant}</p>
                         <p className="text-xs text-muted-foreground">{e.category} · {new Date(e.date).toLocaleDateString()}</p>
                       </div>
-                      <p className="font-semibold text-red-600">{format(e.amount)}</p>
+                      <p className="font-semibold text-destructive">{format(e.amount)}</p>
                     </div>
                   ))}
                 </div>
@@ -270,7 +270,7 @@ const Analytics: React.FC = () => {
       {/* Categories Tab */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Spending by Category</CardTitle>
@@ -309,7 +309,7 @@ const Analytics: React.FC = () => {
                       <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: number) => format(v)} />
-                      <Bar dataKey="amount" fill="#10b981" name="Amount" />
+                      <Bar dataKey="amount" fill="hsl(var(--success))" name="Amount" />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -343,7 +343,7 @@ const Analytics: React.FC = () => {
                           <td className="py-2">{c.category}</td>
                           <td className="py-2 text-right">{format(c.currentAmount)}</td>
                           <td className="py-2 text-right text-muted-foreground">{format(c.previousAmount)}</td>
-                          <td className={`py-2 text-right font-medium ${c.changePercent >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          <td className={`py-2 text-right font-medium ${c.changePercent >= 0 ? 'text-destructive' : 'text-success'}`}>
                             {c.changePercent >= 0 ? '+' : ''}{c.changePercent}%
                           </td>
                         </tr>
@@ -360,23 +360,23 @@ const Analytics: React.FC = () => {
       {/* Cash Flow Tab */}
       {activeTab === 'cashflow' && (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-1">Money In</p>
-                <p className="text-3xl font-bold text-green-600">{format(analysis.incomeVsExpense.income)}</p>
+                <p className="text-3xl font-bold text-success">{format(analysis.incomeVsExpense.income)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-1">Money Out</p>
-                <p className="text-3xl font-bold text-red-600">{format(analysis.incomeVsExpense.expenses)}</p>
+                <p className="text-3xl font-bold text-destructive">{format(analysis.incomeVsExpense.expenses)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-1">Net Flow</p>
-                <p className={`text-3xl font-bold ${analysis.incomeVsExpense.savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-3xl font-bold ${analysis.incomeVsExpense.savings >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {analysis.incomeVsExpense.savings >= 0 ? '+' : ''}{format(analysis.incomeVsExpense.savings)}
                 </p>
               </CardContent>
@@ -398,7 +398,7 @@ const Analytics: React.FC = () => {
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => format(v)} />
-                    <Bar dataKey="total" fill="#3b82f6" name="Total" />
+                    <Bar dataKey="total" fill="hsl(var(--destructive))" name="Expenses" />
                   </BarChart>
                 </ResponsiveContainer>
               )}

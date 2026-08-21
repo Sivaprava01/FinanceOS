@@ -1,5 +1,5 @@
 import React from 'react'
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
+import { TrendingUp, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 import {
   LineChart,
   Line,
@@ -10,26 +10,18 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
+import { SkeletonLoader, ErrorState } from '@components/ui'
 import { KPICard } from '@components/dashboard/KPICard'
 import { useOverview, useSpendingAnalysis } from '@hooks/useDashboard'
 import { useCurrency } from '@hooks/useCurrency'
 import { useNavigate } from 'react-router-dom'
 
-const CHART_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4']
+const CHART_COLORS = ['#264DE4', '#8B5CF6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899']
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-const SkeletonCard: React.FC = () => (
-  <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-    <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-    <div className="mt-3 h-8 w-32 animate-pulse rounded bg-muted" />
-  </div>
-)
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
@@ -48,16 +40,11 @@ const Dashboard: React.FC = () => {
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <div>
-          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
-          <div className="mt-2 h-4 w-64 animate-pulse rounded bg-muted" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="h-80 animate-pulse rounded-xl bg-muted" />
-          <div className="h-80 animate-pulse rounded-xl bg-muted" />
+        <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonLoader key={i} type="card" />
+          ))}
         </div>
       </div>
     )
@@ -65,12 +52,11 @@ const Dashboard: React.FC = () => {
 
   if (hasError) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-destructive">Failed to load dashboard data.</p>
-        <Button onClick={handleRetry} variant="outline">
-          Retry
-        </Button>
-      </div>
+      <ErrorState
+        title="Failed to Load Dashboard"
+        message="There was an error loading your dashboard data."
+        onRetry={handleRetry}
+      />
     )
   }
 
@@ -89,97 +75,107 @@ const Dashboard: React.FC = () => {
   }))
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Your financial overview</p>
+    <div className="space-y-16">
+      {/* Editorial Header */}
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-tight">
+            Your Finances,
+            <br />
+            at a Glance.
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-lg">
+            A real-time overview of your financial position and spending patterns.
+          </p>
         </div>
-        <Button onClick={() => navigate('/transactions')}>New Transaction</Button>
+
+        <div className="flex gap-3">
+          <Button onClick={() => navigate('/transactions')} size="sm" className="gap-2">
+            <ArrowUpRight className="w-4 h-4" />
+            New Transaction
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate('/analytics')}>
+            View Analytics
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Primary Metrics - Clean Grid */}
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-2 pb-4 border-b border-border">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Net Worth</p>
+          <p className="text-4xl font-bold">{format(overview.netWorth.netWorth)}</p>
+          <p className="text-sm text-green-600">+6.4% this month</p>
+        </div>
+
         <KPICard
-          title="Total Income"
+          title="Monthly Income"
           value={overview.totalIncome}
-          icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+          icon={<ArrowDownLeft className="h-5 w-5 text-green-600" />}
           trend="up"
         />
         <KPICard
-          title="Total Expenses"
+          title="Monthly Expenses"
           value={overview.totalExpenses}
-          icon={<TrendingDown className="h-5 w-5 text-red-600" />}
+          icon={<ArrowUpRight className="h-5 w-5 text-red-600" />}
           trend="down"
         />
         <KPICard
           title="Net Balance"
           value={overview.netBalance}
-          icon={<DollarSign className="h-5 w-5 text-primary" />}
+          icon={<TrendingUp className="h-5 w-5 text-primary" />}
           trend={overview.netBalance >= 0 ? 'up' : 'down'}
-        />
-        <KPICard
-          title="Net Worth"
-          value={overview.netWorth.netWorth}
-          icon={<Wallet className="h-5 w-5 text-blue-600" />}
-          trend="neutral"
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Spending Trend</CardTitle>
-            <CardDescription>Total spending over time</CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* Analytics Grid */}
+      <div className="grid gap-12 lg:grid-cols-2">
+        {/* Spending Trend */}
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-sm uppercase tracking-wide font-semibold">Spending Trend</h2>
+            <p className="text-sm text-muted-foreground">Monthly spending over time</p>
+          </div>
+          <div className="bg-card rounded-lg border border-border p-6">
             {monthlyTrendData.length === 0 ? (
               <div className="flex h-64 items-center justify-center">
-                <p className="text-sm text-muted-foreground">No trend data available</p>
+                <p className="text-sm text-muted-foreground">No trend data</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={monthlyTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
                   <Tooltip />
-                  <Legend />
                   <Line
                     type="monotone"
                     dataKey="total"
-                    stroke="#10b981"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     dot={false}
-                    name="Spending"
                   />
                 </LineChart>
               </ResponsiveContainer>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Spending by Category</CardTitle>
-            <CardDescription>Distribution across categories</CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Category Breakdown */}
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-sm uppercase tracking-wide font-semibold">Category Breakdown</h2>
+            <p className="text-sm text-muted-foreground">Where your money goes</p>
+          </div>
+          <div className="bg-card rounded-lg border border-border p-6">
             {categoryPieData.length === 0 ? (
               <div className="flex h-64 items-center justify-center">
-                <p className="text-sm text-muted-foreground">No category data available</p>
+                <p className="text-sm text-muted-foreground">No category data</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
-                  <Pie
-                    data={categoryPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name }) => name}
-                  >
+                  <Pie data={categoryPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100}>
                     {categoryPieData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
@@ -188,86 +184,46 @@ const Dashboard: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Your latest activity</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/transactions')}>
-                View All
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {overview.recentTransactions.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground">No recent transactions</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {overview.recentTransactions.map((txn) => (
-                  <div
-                    key={txn._id}
-                    className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted/50"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium">{txn.merchant}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {txn.category} · {new Date(txn.date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <p
-                      className={`ml-4 text-sm font-semibold ${
-                        txn.type === 'Credit' ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {txn.type === 'Credit' ? '+' : '-'}{format(txn.amount)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Transactions List */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-sm uppercase tracking-wide font-semibold">Recent Activity</h2>
+            <p className="text-sm text-muted-foreground">Your latest transactions</p>
+          </div>
+          <Button variant="ghost" onClick={() => navigate('/transactions')}>
+            View All
+          </Button>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Spending Categories</CardTitle>
-            <CardDescription>Highest spend categories</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {overview.topSpendingCategories.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground">No spending data available</p>
+        <div className="space-y-px border border-border rounded-lg divide-y divide-border overflow-hidden">
+          {overview.recentTransactions.length === 0 ? (
+            <div className="p-6 text-center">
+              <p className="text-sm text-muted-foreground">No transactions</p>
+            </div>
+          ) : (
+            overview.recentTransactions.slice(0, 5).map((txn) => (
+              <div key={txn._id} className="flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{txn.merchant}</p>
+                  <p className="text-xs text-muted-foreground">{txn.category} · {new Date(txn.date).toLocaleDateString()}</p>
+                </div>
+                <p className={`text-sm font-semibold ml-4 flex items-center gap-1 ${txn.type === 'Credit' ? 'text-green-600' : 'text-red-600'}`}>
+                  {txn.type === 'Credit' ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                  {txn.type === 'Credit' ? '+' : '-'}{format(txn.amount)}
+                </p>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {overview.topSpendingCategories.map((cat, index) => (
-                  <div key={cat._id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                      />
-                      <span className="text-sm">{cat._id}</span>
-                    </div>
-                    <span className="text-sm font-semibold">{format(cat.total)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            ))
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 export default Dashboard
+

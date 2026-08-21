@@ -49,14 +49,12 @@ export const getFamily = asyncHandler(async (req, res) => {
 export const listFamilies = asyncHandler(async (req, res) => {
   const families = await familyService.listFamilies(req.user._id);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(
-      new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_LIST_FETCHED, {
-        families,
-        count: families.length,
-      })
-    );
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.FAMILY_LIST_FETCHED, {
+      families,
+      count: families.length,
+    })
+  );
 });
 
 export const updateFamily = asyncHandler(async (req, res) => {
@@ -103,14 +101,12 @@ export const sendInvitation = asyncHandler(async (req, res) => {
 export const listInvitations = asyncHandler(async (req, res) => {
   const invitations = await familyService.listInvitations(req.user._id, req.user.email);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(
-      new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.INVITATIONS_FETCHED, {
-        invitations,
-        count: invitations.length,
-      })
-    );
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.INVITATIONS_FETCHED, {
+      invitations,
+      count: invitations.length,
+    })
+  );
 });
 
 export const acceptInvitation = asyncHandler(async (req, res) => {
@@ -166,14 +162,12 @@ export const listMembers = asyncHandler(async (req, res) => {
 
   const members = await familyService.listMembers(familyId, req.user._id);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(
-      new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.MEMBER_LIST_FETCHED, {
-        members,
-        count: members.length,
-      })
-    );
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, FAMILY_MESSAGES.MEMBER_LIST_FETCHED, {
+      members,
+      count: members.length,
+    })
+  );
 });
 
 // ─── Sharing Preferences ───────────────────────────────────────────────────────
