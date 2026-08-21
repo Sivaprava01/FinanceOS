@@ -22,6 +22,7 @@ import { getFileTypeFromMime } from "../validations/statement.validation.js";
 /**
  * Creates a new statement record in MongoDB after file upload.
  * The file itself is already on disk; this records metadata.
+ * Immediately triggers async processing of the statement.
  *
  * @param {string} userId - The user's ID
  * @param {object} file - Multer file object
@@ -49,8 +50,107 @@ const uploadStatement = async (userId, file) => {
     status: "Uploaded",
   });
 
+  // Trigger async processing WITHOUT awaiting (fire and forget)
+  // This allows the upload endpoint to return immediately while processing happens in background
+  processStatementAsync(statement._id.toString(), userId).catch((err) => {
+    console.error(`[Statement Processing] Error processing statement ${statement._id}:`, err);
+  });
+
   // Return public view (no sensitive data)
   return formatStatementResponse(statement);
+};
+
+/**
+ * Asynchronously processes a statement.
+ * Updates statement status during processing.
+ * Extracts transactions and persists them.
+ * Called as a fire-and-forget background task.
+ *
+ * @param {string} statementId - The statement's ID
+ * @param {string} userId - The user's ID
+ * @returns {Promise<void>}
+ */
+const processStatementAsync = async (statementId, userId) => {
+  try {
+    // Update status to Processing
+    let statement = await Statement.findOne({
+      _id: statementId,
+      user: userId,
+    });
+
+    if (!statement) {
+      throw new Error("Statement not found");
+    }
+
+    statement.status = "Processing";
+    await statement.save();
+
+    // Import parser service
+    const { parserService } = await import("./parser.service.js");
+    const { transactionService } = await import("./transaction.service.js");
+
+    // Parse file based on type
+    let transactions = [];
+
+    try {
+      const fullFilePath = statement.filePath.startsWith("/")
+        ? `.${statement.filePath}`
+        : statement.filePath;
+
+      switch (statement.fileType) {
+        case "PDF":
+          transactions = await parserService.parsePDF(fullFilePath);
+          break;
+        case "CSV":
+          transactions = await parserService.parseCSV(fullFilePath);
+          break;
+        case "XLSX":
+          transactions = await parserService.parseExcel(fullFilePath);
+          break;
+        default:
+          throw new Error("Unsupported file type: " + statement.fileType);
+      }
+
+      if (!Array.isArray(transactions) || transactions.length === 0) {
+        throw new Error("No transactions extracted from file");
+      }
+
+      // Persist transactions
+      const persistedTransactions = await transactionService.createBulkTransactions(
+        userId,
+        transactions.map((t) => ({
+          ...t,
+          statementId: statementId,
+        }))
+      );
+
+      // Update statement as Completed
+      statement.status = "Completed";
+      statement.transactionCount = persistedTransactions.length;
+      statement.processedAt = new Date();
+      await statement.save();
+
+      console.log(
+        `[Statement Processing] Successfully processed ${statementId}: ${persistedTransactions.length} transactions`
+      );
+    } catch (parseErr) {
+      // Mark as Failed with reason
+      statement.status = "Failed";
+      statement.failureReason =
+        parseErr instanceof Error
+          ? parseErr.message
+          : "Unknown parsing error";
+      statement.processedAt = new Date();
+      await statement.save();
+
+      console.error(
+        `[Statement Processing] Failed to parse ${statementId}:`,
+        parseErr instanceof Error ? parseErr.message : parseErr
+      );
+    }
+  } catch (err) {
+    console.error(`[Statement Processing] Fatal error processing ${statementId}:`, err);
+  }
 };
 
 // ─── Get Import History ────────────────────────────────────────────────────────

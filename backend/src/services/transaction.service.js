@@ -429,7 +429,7 @@ const getUserTransactions = async (userId, options = {}) => {
   }
 
   if (category) {
-    query.category = category;
+    query.category = { $regex: `^${category}$`, $options: "i" };
   }
 
   if (type) {

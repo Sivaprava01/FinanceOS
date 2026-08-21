@@ -245,7 +245,14 @@ const Transactions: React.FC = () => {
     })
     setEditingId(t._id)
     setShowForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Scroll the main content area to top, not the window
+    // This allows the form to be visible in the current scrollable viewport
+    setTimeout(() => {
+      const mainContent = document.getElementById('main-content')
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }, 0)
   }
 
   const handleCancel = () => {
