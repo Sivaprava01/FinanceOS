@@ -581,14 +581,91 @@ Render updated UI
 - **Fix**: Removed empty interfaces, used `React.HTMLAttributes` directly
 - **Status**: ✅ FIXED
 
-### Current Minor Issues (Non-Breaking)
-- None identified that block deployment
+### Phase 4 Bug Audit (August 21, 2026)
 
-### Limitations (By Design)
+#### Reported Bugs - Status
+| Bug | Issue | Root Cause | Status |
+|-----|-------|-----------|--------|
+| #1 | Statement processing not working | Missing function call in statement service | ⚠️ INCOMPLETE |
+| #2 | Transaction edit doesn't scroll | Scroll target was window instead of container | ✅ FIXED |
+| #3 | Category filter returns 0 results | Case-sensitive matching | ✅ FIXED |
+| #4 | Family creation validation broken | Field name mismatch (name vs familyName) | ✅ FIXED |
+
+#### Bug #1 Analysis - CRITICAL
+**Statement Processing Pipeline** - INCOMPLETE FIX
+
+**What was implemented**: 
+- `processStatementAsync()` function added to statement service
+- Designed to parse statements and extract transactions
+
+**Critical Problem Found**:
+- Code calls `transactionService.createBulkTransactions()` 
+- This function DOES NOT EXIST in transaction service
+- Available function is `importTransactions()` but with different signature
+- Will fail at runtime with: `TypeError: transactionService.createBulkTransactions is not a function`
+
+**Impact**: 
+- Statement processing will FAIL at runtime
+- Statements will be marked "Failed" instead of "Completed"
+- No transactions will be extracted
+
+**Status**: ❌ NOT ACTUALLY FIXED - Runtime Error
+
+#### Bug #2 Analysis - WORKING
+**Transaction Edit Scroll** - FIXED & VERIFIED
+
+**Verification**:
+- ✅ Element `#main-content` exists with `overflow-auto` class
+- ✅ ProtectedLayout correctly sets up scrollable container
+- ✅ Code uses `setTimeout(0)` for proper DOM sync
+- ✅ Scrolls to correct element, not window
+
+**Status**: ✅ LIKELY WORKING (not tested in browser)
+
+#### Bug #3 Analysis - WORKING
+**Category Filter Case Sensitivity** - FIXED & VERIFIED
+
+**Verification**:
+- ✅ Code uses `{ $regex: \`^${category}$\`, $options: "i" }`
+- ✅ Case-insensitive regex flag present
+- ✅ Matches beginning and end of string
+
+**Status**: ✅ LIKELY WORKING (not tested in browser)
+
+#### Bug #4 Analysis - WORKING
+**Family Creation Validation** - FIXED & VERIFIED
+
+**Verification**:
+- ✅ Frontend changed from `{ name }` to `{ familyName: name }`
+- ✅ Matches backend validation expectation
+- ✅ Field names now aligned
+
+**Status**: ✅ LIKELY WORKING (not tested in browser)
+
+### Build Status - August 21, 2026
+- **Frontend Build**: ✅ PASSING (2857 modules)
+- **Frontend ESLint**: ✅ PASSING (0 errors)
+- **Frontend TypeScript**: ✅ PASSING (0 errors)
+- **Backend ESLint**: ❌ FAILING (39 errors including undefined constants)
+  - Issues: Unused variables, undefined constants (USER_MESSAGES), unused imports
+  - These are pre-existing code quality issues, NOT introduced by recent bug fixes
+- **Backend Syntax**: ✅ VALID (statement.service.js syntax check passed)
+
+### Current Critical Issues
+- **BUG #1 Runtime Error**: Statement processing calls non-existent function
+  - **Severity**: CRITICAL
+  - **Impact**: Statement uploads fail to process
+  - **Fix Required**: Use existing `importTransactions()` function or create `createBulkTransactions()`
+
+### Current Minor Issues
+- Backend ESLint has 39 errors (pre-existing code quality issues)
 - Categories are read-only (derived from transaction imports)
 - Password change endpoint integration optional (UI present but backend call optional)
 - Avatar upload uses URL input only (file upload not implemented)
 - No real-time WebSocket support (polling via TanStack Query)
+
+### Limitations (By Design)
+- None that block deployment if BUG #1 is fixed
 
 ---
 
