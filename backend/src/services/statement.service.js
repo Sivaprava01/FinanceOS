@@ -115,23 +115,17 @@ const processStatementAsync = async (statementId, userId) => {
         throw new Error("No transactions extracted from file");
       }
 
-      // Persist transactions
-      const persistedTransactions = await transactionService.createBulkTransactions(
+      // Use existing importTransactions to persist data
+      // importTransactions handles: DB session, statement update, file cleanup, transaction count
+      const result = await transactionService.importTransactions(
+        statementId,
         userId,
-        transactions.map((t) => ({
-          ...t,
-          statementId: statementId,
-        }))
+        transactions,
+        fullFilePath
       );
 
-      // Update statement as Completed
-      statement.status = "Completed";
-      statement.transactionCount = persistedTransactions.length;
-      statement.processedAt = new Date();
-      await statement.save();
-
       console.log(
-        `[Statement Processing] Successfully processed ${statementId}: ${persistedTransactions.length} transactions`
+        `[Statement Processing] Successfully processed ${statementId}: ${result.transactionCount} transactions`
       );
     } catch (parseErr) {
       // Mark as Failed with reason
