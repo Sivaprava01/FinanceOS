@@ -31,4 +31,12 @@ export const statementService = {
     const response = await api.get<{ success: boolean; message: string; data: Statement }>(`/statements/${id}`)
     return response.data.data
   },
+
+  retryWithPassword: async (statementId: string, password: string): Promise<{ _id: string; status: string }> => {
+    const response = await api.post<{ success: boolean; message: string; data: { _id: string; status: string } }>(
+      `/statements/${statementId}/retry-with-password`,
+      { password }
+    )
+    return response.data.data
+  },
 }

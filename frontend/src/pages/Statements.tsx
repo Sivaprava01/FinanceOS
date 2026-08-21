@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Upload } from 'lucide-react'
+import { Upload, Eye, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
-import { useStatements, useUploadStatement } from '@hooks/useStatements'
+import { useStatements, useUploadStatement, useRetryWithPassword } from '@hooks/useStatements'
 import { useAuth } from '@hooks/useAuth'
 import type { Statement } from '@/types'
 
@@ -27,10 +27,14 @@ const Statements: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [selectedStatement, setSelectedStatement] = useState<Statement | null>(null)
   const [statementCurrency, setStatementCurrency] = useState<string>('')
+  const [passwordStatementId, setPasswordStatementId] = useState<string | null>(null)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [passwordError, setPasswordError] = useState('')
 
   const { user } = useAuth()
   const { data, isLoading, error } = useStatements()
   const uploadStatement = useUploadStatement()
+  const retryWithPassword = useRetryWithPassword()
 
   // Default to user's preferred currency
   React.useEffect(() => {
@@ -96,6 +100,30 @@ const Statements: React.FC = () => {
           : 'Upload failed. Please try again.'
       setUploadError(message)
     }
+  }
+
+  const handlePasswordSubmit = async () => {
+    if (!passwordStatementId || !passwordInput.trim()) {
+      setPasswordError('Password is required')
+      return
+    }
+
+    setPasswordError('')
+    try {
+      await retryWithPassword.mutateAsync({ statementId: passwordStatementId, password: passwordInput })
+      setPasswordInput('')
+      setPasswordStatementId(null)
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : 'Failed to process password'
+      setPasswordError(message)
+    }
+  }
+
+  const handleViewTransactions = (statementId: string) => {
+    window.location.href = `/transactions?statementId=${statementId}`
   }
 
   return (
@@ -202,55 +230,124 @@ const Statements: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {statements.map((statement: Statement) => (
-                <div
-                  key={statement._id}
-                  onClick={() => setSelectedStatement(selectedStatement?._id === statement._id ? null : statement)}
-                  className="cursor-pointer rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium truncate">{statement.originalFileName}</p>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            STATUS_STYLES[statement.status]
-                          }`}
-                        >
-                          {statement.status}
-                        </span>
+                <div key={statement._id}>
+                  <div
+                    onClick={() => setSelectedStatement(selectedStatement?._id === statement._id ? null : statement)}
+                    className="cursor-pointer rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium truncate">{statement.originalFileName}</p>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              STATUS_STYLES[statement.status]
+                            }`}
+                          >
+                            {statement.status}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{statement.fileType}</span>
+                          <span>{formatFileSize(statement.fileSize)}</span>
+                          <span>{statement.transactionCount} transactions</span>
+                          <span>{new Date(statement.uploadedAt).toLocaleDateString()}</span>
+                        </div>
+                        {statement.failureReason && (
+                          <div className="mt-2 flex items-start gap-2 rounded-lg bg-destructive/10 p-2">
+                            <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-destructive">{statement.failureReason}</p>
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{statement.fileType}</span>
-                        <span>{formatFileSize(statement.fileSize)}</span>
-                        <span>{statement.transactionCount} transactions</span>
-                        <span>{new Date(statement.uploadedAt).toLocaleDateString()}</span>
+                      <div className="ml-4 flex gap-2">
+                        {statement.status === 'Completed' && statement.transactionCount > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleViewTransactions(statement._id)
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Transactions
+                          </Button>
+                        )}
+                        {statement.status === 'Failed' && statement.failureReason?.includes('password') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPasswordStatementId(statement._id)
+                              setPasswordInput('')
+                              setPasswordError('')
+                            }}
+                          >
+                            Provide Password
+                          </Button>
+                        )}
                       </div>
-                      {statement.failureReason && (
-                        <p className="mt-2 text-xs text-destructive">{statement.failureReason}</p>
-                      )}
                     </div>
+
+                    {selectedStatement?._id === statement._id && (
+                      <div className="mt-4 border-t border-border pt-4 text-sm space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">ID</span>
+                          <span className="font-mono text-xs">{statement._id}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Status</span>
+                          <span>{statement.status}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Transactions</span>
+                          <span>{statement.transactionCount}</span>
+                        </div>
+                        {statement.processedAt && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Processed</span>
+                            <span>{new Date(statement.processedAt).toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {selectedStatement?._id === statement._id && (
-                    <div className="mt-4 border-t border-border pt-4 text-sm space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">ID</span>
-                        <span className="font-mono text-xs">{statement._id}</span>
+                  {/* Password Modal */}
+                  {passwordStatementId === statement._id && (
+                    <div className="mt-3 rounded-lg bg-info/10 p-4 space-y-3">
+                      <p className="text-sm text-info font-medium">This PDF is password protected</p>
+                      <input
+                        type="password"
+                        placeholder="Enter PDF password"
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      />
+                      {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handlePasswordSubmit}
+                          disabled={retryWithPassword.isPending || !passwordInput.trim()}
+                        >
+                          {retryWithPassword.isPending ? 'Processing...' : 'Submit Password'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPasswordStatementId(null)
+                            setPasswordInput('')
+                            setPasswordError('')
+                          }}
+                        >
+                          Cancel
+                        </Button>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Status</span>
-                        <span>{statement.status}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Transactions</span>
-                        <span>{statement.transactionCount}</span>
-                      </div>
-                      {statement.processedAt && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Processed</span>
-                          <span>{new Date(statement.processedAt).toLocaleString()}</span>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

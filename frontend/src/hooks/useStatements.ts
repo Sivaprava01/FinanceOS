@@ -8,7 +8,10 @@ export const useStatements = () => {
   return useQuery({
     queryKey: STATEMENTS_KEY,
     queryFn: () => statementService.getStatements(),
-    staleTime: 5 * 60 * 1000,
+    // For statements in Processing, keep data fresh more often
+    // Otherwise use standard 5-minute stale time
+    staleTime: 0, // Data is immediately stale when any Processing exists
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes though
     // Poll every 2 seconds while any statement is in "Processing" status
     // This ensures we detect completion as soon as it happens
     refetchInterval: (query) => {
@@ -25,6 +28,17 @@ export const useUploadStatement = () => {
   return useMutation({
     mutationFn: ({ file, currency }: { file: File; currency?: string }) =>
       statementService.uploadStatement(file, currency),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STATEMENTS_KEY })
+    },
+  })
+}
+
+export const useRetryWithPassword = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ statementId, password }: { statementId: string; password: string }) =>
+      statementService.retryWithPassword(statementId, password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STATEMENTS_KEY })
     },

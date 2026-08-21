@@ -175,6 +175,7 @@ const Transactions: React.FC = () => {
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>(emptyFilters())
+  const [statementId, setStatementId] = useState<string | null>(null)
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -184,6 +185,15 @@ const Transactions: React.FC = () => {
     open: false,
     ids: [],
   })
+
+  // Load statementId from URL on mount
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('statementId')
+    if (id) {
+      setStatementId(id)
+    }
+  }, [])
 
   // Hooks
   const { data: categories = [], createCategory, createIsLoading } = useCategories()
@@ -201,13 +211,14 @@ const Transactions: React.FC = () => {
     toDate: filters.toDate || undefined,
     minAmount: filters.minAmount ? parseFloat(filters.minAmount) : undefined,
     maxAmount: filters.maxAmount ? parseFloat(filters.maxAmount) : undefined,
+    statementId: statementId || undefined,
   }
 
   const { data, isLoading, error } = useTransactions(queryParams)
   const transactions = data?.transactions ?? []
   const count = data?.count ?? 0
 
-  const hasActiveFilters = Object.values(filters).some(Boolean)
+  const hasActiveFilters = Object.values(filters).some(Boolean) || !!statementId
 
   // ─── Form handlers ───────────────────────────────────────────────────────────
 
@@ -472,11 +483,23 @@ const Transactions: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 className="w-full sm:w-auto sm:shrink-0 gap-1 text-muted-foreground"
-                onClick={() => setFilters(emptyFilters())}
+                onClick={() => {
+                  setFilters(emptyFilters())
+                  if (statementId) {
+                    setStatementId(null)
+                    window.history.replaceState({}, '', '/transactions')
+                  }
+                }}
               >
                 <X className="h-3.5 w-3.5" />
-                Clear
+                Clear {statementId ? 'All Filters' : 'Filters'}
               </Button>
+            )}
+            {statementId && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-info/10 text-info text-xs font-medium">
+                <Tag className="h-3 w-3" />
+                Statement Filter Active
+              </div>
             )}
           </div>
 

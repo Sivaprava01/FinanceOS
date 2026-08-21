@@ -12,6 +12,7 @@ export interface GetTransactionsParams {
   search?: string
   minAmount?: number
   maxAmount?: number
+  statementId?: string
 }
 
 export interface GetTransactionsResult {

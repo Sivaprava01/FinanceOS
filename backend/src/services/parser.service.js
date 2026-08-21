@@ -38,10 +38,38 @@ import { HTTP_STATUS } from "../constants/index.js";
  * @returns {Promise<Array>} Array of extracted transactions
  * @throws {ApiError} If PDF is invalid or cannot be parsed
  */
-const parsePDF = async (filePath) => {
+const parsePDF = async (filePath, password = "") => {
   try {
     const fileBuffer = fs.readFileSync(filePath);
-    const pdfData = await pdfParse(fileBuffer);
+    
+    // pdfParse options: https://github.com/modiiied/pdf-parse
+    // If PDF is password protected and password is provided, it will be used
+    const options = {};
+    if (password) {
+      options.password = password;
+    }
+    
+    let pdfData;
+    try {
+      pdfData = await pdfParse(fileBuffer, options);
+    } catch (parseErr) {
+      // Check if this is a password/encryption error
+      const errMsg = parseErr.message || String(parseErr);
+      if (errMsg.includes('password') || errMsg.includes('encrypted')) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          "PDF_PASSWORD_REQUIRED"
+        );
+      }
+      if (errMsg.includes('incorrect') || errMsg.includes('invalid')) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          "PDF_INCORRECT_PASSWORD"
+        );
+      }
+      throw parseErr;
+    }
+    
     const text = pdfData.text;
 
     if (!text || text.trim().length === 0) {

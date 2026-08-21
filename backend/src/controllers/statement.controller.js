@@ -110,3 +110,68 @@ export const getStatement = asyncHandler(async (req, res) => {
     .status(HTTP_STATUS.OK)
     .json(new ApiResponse(HTTP_STATUS.OK, "Statement retrieved", statement));
 });
+
+// ─── Submit Password for Encrypted PDF ─────────────────────────────────────────
+
+/**
+ * POST /api/v1/statements/:id/retry-with-password
+ *
+ * Reprocesses a failed statement with a provided password.
+ * Only works for statements that failed with password errors.
+ *
+ * Request:
+ * {
+ *   "password": "pdf_password"
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "message": "Statement reprocessing started",
+ *   "data": {
+ *     "_id": "...",
+ *     "status": "Processing"
+ *   }
+ * }
+ */
+export const retryStatementWithPassword = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { id } = req.params;
+  const { password } = req.body;
+
+  if (!password) {
+    throw new Error("Password is required");
+  }
+
+  // Verify statement exists and belongs to user
+  const statement = await statementService.getStatementById(id, user._id);
+
+  if (!statement) {
+    throw new Error("Statement not found");
+  }
+
+  // Should have failed with password error
+  if (statement.status !== "Failed" || !statement.failureReason?.includes("password")) {
+    throw new Error("This statement is not waiting for a password");
+  }
+
+  // Reset to Processing and trigger async processing with password
+  statement.status = "Processing";
+  statement.failureReason = null;
+  await statement.save();
+
+  // Trigger reprocessing with password (fire-and-forget)
+  // Password is NOT persisted - only used in this call
+  statementService.processStatementAsync(id, user._id, password).catch((err) => {
+    console.error("[Statement] Error reprocessing with password:", err);
+  });
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(
+      new ApiResponse(HTTP_STATUS.OK, "Statement reprocessing started", {
+        _id: id,
+        status: "Processing",
+      })
+    );
+});

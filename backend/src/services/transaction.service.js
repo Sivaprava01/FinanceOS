@@ -415,6 +415,7 @@ const getUserTransactions = async (userId, options = {}) => {
     search,
     minAmount,
     maxAmount,
+    statementId,
   } = options;
 
   const query = {
@@ -438,6 +439,10 @@ const getUserTransactions = async (userId, options = {}) => {
 
   if (type) {
     query.type = type;
+  }
+
+  if (statementId) {
+    query.statementId = statementId;
   }
 
   if (minAmount !== undefined || maxAmount !== undefined) {

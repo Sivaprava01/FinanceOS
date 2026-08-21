@@ -70,7 +70,7 @@ const uploadStatement = async (userId, file) => {
  * @param {string} userId - The user's ID
  * @returns {Promise<void>}
  */
-const processStatementAsync = async (statementId, userId) => {
+const processStatementAsync = async (statementId, userId, password = "") => {
   try {
     // Update status to Processing
     const statement = await Statement.findOne({
@@ -103,7 +103,7 @@ const processStatementAsync = async (statementId, userId) => {
 
       switch (statement.fileType) {
       case "PDF":
-        transactions = await parserService.parsePDF(fullFilePath);
+        transactions = await parserService.parsePDF(fullFilePath, password);
         break;
       case "CSV":
         transactions = await parserService.parseCSV(fullFilePath);
@@ -160,10 +160,20 @@ const processStatementAsync = async (statementId, userId) => {
       // Mark as Failed with reason if not already failed by importTransactions
       if (statement.status !== "Failed") {
         statement.status = "Failed";
-        statement.failureReason =
-          parseErr instanceof Error
-            ? parseErr.message
-            : "Unknown parsing error";
+        
+        // Determine user-friendly error message
+        let failureReason = "Failed to process statement";
+        if (parseErr instanceof Error) {
+          if (parseErr.message === "PDF_PASSWORD_REQUIRED") {
+            failureReason = "This PDF is password protected. Please provide the password.";
+          } else if (parseErr.message === "PDF_INCORRECT_PASSWORD") {
+            failureReason = "Incorrect PDF password. Please try again.";
+          } else {
+            failureReason = parseErr.message;
+          }
+        }
+        
+        statement.failureReason = failureReason;
         statement.processedAt = new Date();
         await statement.save();
       }
