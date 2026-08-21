@@ -317,12 +317,16 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
   session.startTransaction();
 
   try {
-    // Verify statement exists and belongs to user
-    const statement = await Statement.findOne({
-      _id: statementId,
-      user: userId,
-      isDeleted: false,
-    });
+    // Verify statement exists and belongs to user (use session to avoid deadlock)
+    const statement = await Statement.findOne(
+      {
+        _id: statementId,
+        user: userId,
+        isDeleted: false,
+      },
+      null,
+      { session }
+    );
 
     if (!statement) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
@@ -353,7 +357,7 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     // Commit transaction
     await session.commitTransaction();
 
-    // Delete temporary file after successful import
+    // Delete temporary file after successful import (outside session)
     try {
       // Use stored filePath from statement if not provided
       const pathToDelete =

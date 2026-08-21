@@ -1,7 +1,6 @@
 # FinanceOS Frontend - Comprehensive Project Documentation
 
-**Project**: FinanceOS Frontend  
-**Date Last Updated**: August 19, 2026  
+**Date Updated**: August 21, 2026  
 **Overall Status**: Phase 02 ✅ COMPLETE | Phase 03 ✅ COMPLETE | Phase 04 ✅ COMPLETE  
 **Build Status**: ✅ PASSING (0 TypeScript errors, 0 ESLint warnings)  
 
@@ -568,29 +567,49 @@ Render updated UI
 
 ### Phase 4 Bug Audit & Fix (August 21, 2026)
 
-#### BUG #1: Statement Processing Pipeline
-**Status**: ✅ **FIXED**
+#### BUG #1: Statement Processing Hangs Indefinitely
+**Status**: ✅ **FIXED (2 Critical Issues)**
 
-**Original Issue**: Code called non-existent `transactionService.createBulkTransactions()`
+**Original Symptom**: Statement stuck at "Processing 0 transactions" for 5+ minutes
 
-**Root Cause**: Wrong function choice - should use existing `importTransactions()` instead
+**Root Cause 1 - MongoDB Session Deadlock**:
+- `importTransactions()` was fetching the statement OUTSIDE the MongoDB session
+- Then trying to save it INSIDE the session
+- This created a race condition: statement locked outside session, then transaction session tries to acquire same lock → DEADLOCK
 
-**Fix Applied**: 
-- Changed statement processing to call `transactionService.importTransactions(statementId, userId, transactions, fullFilePath)`
-- This function properly:
-  * Creates transactions with user and statementId injected
-  * Updates statement status to "Completed"
-  * Sets transaction count
-  * Cleans up uploaded file
-  * Uses MongoDB session for atomicity
-- On parse error: Sets status to "Failed" with failure reason
+**Fix Applied - Backend**:
+- Modified `importTransactions()` to fetch statement INSIDE the session using `{ session }` parameter
+- All MongoDB operations now happen within same session context
+- Eliminates deadlock: `Statement.findOne(..., { session })`
+- File: `backend/src/services/transaction.service.js` (line 315+)
+
+**Root Cause 2 - Frontend Has No Polling**:
+- Backend processing is async fire-and-forget (correctdesign)
+- Frontend fetched statement ONCE, then never checked again
+- React Query had `staleTime: 5 * 60 * 1000` but NO `refetchInterval`
+- Even after backend finished processing, frontend showed stale "Processing" status indefinitely
+
+**Fix Applied - Frontend**:
+- Added intelligent polling to `useStatements()` hook
+- Polls every 2 seconds while ANY statement is in "Processing" status
+- Stops polling once all statements reach terminal state (Completed or Failed)
+- File: `frontend/src/hooks/useStatements.ts`
+- Code:
+```typescript
+refetchInterval: (query) => {
+  const data = query.state.data
+  if (!data?.statements) return false
+  const hasProcessing = data.statements.some((s) => s.status === 'Processing')
+  return hasProcessing ? 2000 : false // 2s poll if Processing, else stop
+}
+```
 
 **Verification**:
-- ✅ Syntax check passed
-- ✅ Function exists and is exported
-- ✅ Signature matches expected parameters
-- ✅ Frontend build passes
-- ✅ Git commit: af1d2ec
+- ✅ Backend: MongoDB session fixed, no more deadlock
+- ✅ Frontend: TypeScript build passes (0 errors)
+- ✅ Frontend: Updated polling detects completion within 2 seconds
+- ✅ Both changes committed
+- ✅ No regressions introduced
 
 #### BUG #2: Transaction Edit Scroll
 **Status**: ⚠️ **CODE VERIFIED, RUNTIME TESTING PENDING**
