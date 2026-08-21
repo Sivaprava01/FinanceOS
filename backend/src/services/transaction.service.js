@@ -150,6 +150,7 @@ const getTransactionsForReview = async (statementId, userId) => {
 const createTransaction = async (userId, transactionData) => {
   const transaction = await Transaction.create({
     user: userId,
+    source: "manual",
     ...transactionData,
   });
 
@@ -332,7 +333,7 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
     }
 
-    // Create all transactions
+    // Create all transactions with source="statement"
     const createdTransactions = [];
     for (const txData of transactions) {
       const tx = await Transaction.create(
@@ -340,6 +341,7 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
           {
             user: userId,
             statementId,
+            source: "statement",
             ...txData,
           },
         ],
@@ -416,6 +418,7 @@ const getUserTransactions = async (userId, options = {}) => {
     minAmount,
     maxAmount,
     statementId,
+    source,
   } = options;
 
   const query = {
@@ -443,6 +446,10 @@ const getUserTransactions = async (userId, options = {}) => {
 
   if (statementId) {
     query.statementId = statementId;
+  }
+
+  if (source) {
+    query.source = source;
   }
 
   if (minAmount !== undefined || maxAmount !== undefined) {

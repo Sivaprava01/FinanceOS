@@ -48,6 +48,7 @@ export interface Transaction {
   category: string
   notes: string
   currency: string | null
+  source: 'manual' | 'statement'
   isEdited: boolean
   editedAt: string | null
   createdAt: string

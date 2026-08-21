@@ -199,11 +199,18 @@ const processStatementAsync = async (statementId, userId, password = "") => {
  * @param {number} skip - Number of records to skip (for pagination)
  * @returns {Promise<Array>} Array of statement records
  */
-const getImportHistory = async (userId, limit = 10, skip = 0) => {
-  const statements = await Statement.find({
+const getImportHistory = async (userId, limit = 10, skip = 0, excludeStatus = null) => {
+  const query = {
     user: userId,
     isDeleted: false,
-  })
+  };
+
+  // Filter out completed statements from active import history
+  if (excludeStatus) {
+    query.status = { $ne: excludeStatus };
+  }
+
+  const statements = await Statement.find(query)
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip)

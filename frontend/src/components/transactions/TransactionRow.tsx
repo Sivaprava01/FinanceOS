@@ -57,9 +57,16 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
       </td>
 
       <td className="px-4 py-3">
-        <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-          {transaction.category}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+            {transaction.category}
+          </span>
+          {transaction.source === 'statement' && (
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+              Imported
+            </span>
+          )}
+        </div>
       </td>
 
       <td className="px-4 py-3 text-right">

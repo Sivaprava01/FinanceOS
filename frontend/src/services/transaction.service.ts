@@ -13,6 +13,7 @@ export interface GetTransactionsParams {
   minAmount?: number
   maxAmount?: number
   statementId?: string
+  source?: 'manual' | 'statement'
 }
 
 export interface GetTransactionsResult {

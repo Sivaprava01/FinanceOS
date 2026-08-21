@@ -26,6 +26,7 @@ interface FilterState {
   toDate: string
   minAmount: string
   maxAmount: string
+  source: '' | 'manual' | 'statement'
 }
 
 const emptyFilters = (): FilterState => ({
@@ -36,6 +37,7 @@ const emptyFilters = (): FilterState => ({
   toDate: '',
   minAmount: '',
   maxAmount: '',
+  source: '',
 })
 
 const emptyForm = (): CreateTransactionInput => ({
@@ -187,11 +189,14 @@ const Transactions: React.FC = () => {
   })
 
   // Load statementId from URL on mount
+  // When viewing statement transactions, automatically set source filter to "statement"
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const id = params.get('statementId')
     if (id) {
       setStatementId(id)
+      // Automatically set source filter to "statement" when viewing statement transactions
+      setFilters((f) => ({ ...f, source: "statement" as any }))
     }
   }, [])
 
@@ -212,6 +217,7 @@ const Transactions: React.FC = () => {
     minAmount: filters.minAmount ? parseFloat(filters.minAmount) : undefined,
     maxAmount: filters.maxAmount ? parseFloat(filters.maxAmount) : undefined,
     statementId: statementId || undefined,
+    source: (filters.source || undefined) as 'manual' | 'statement' | undefined,
   }
 
   const { data, isLoading, error } = useTransactions(queryParams)
@@ -530,6 +536,19 @@ const Transactions: React.FC = () => {
                   {categories.map((cat) => (
                     <option key={cat._id} value={cat.name}>{cat.name}</option>
                   ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Source</label>
+                <select
+                  value={filters.source}
+                  onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value as FilterState['source'] }))}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">All Sources</option>
+                  <option value="manual">Manual</option>
+                  <option value="statement">Imported</option>
                 </select>
               </div>
 

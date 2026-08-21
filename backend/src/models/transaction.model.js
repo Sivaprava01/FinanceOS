@@ -158,6 +158,16 @@ const transactionSchema = new Schema(
       trim: true,
       default: null,
     },
+
+    // Source of this transaction: "manual" or "statement"
+    // "manual" = user-created transaction with statementId = null
+    // "statement" = parsed from bank statement import with statementId set
+    source: {
+      type: String,
+      enum: ["manual", "statement"],
+      default: "manual",
+      index: true,
+    },
   },
   {
     timestamps: true,

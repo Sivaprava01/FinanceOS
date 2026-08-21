@@ -77,7 +77,7 @@ export const getImportHistory = asyncHandler(async (req, res) => {
     throw new Error("Invalid pagination parameters");
   }
 
-  const statements = await statementService.getImportHistory(user._id, limit, skip);
+  const statements = await statementService.getImportHistory(user._id, limit, skip, "Completed");
 
   return res.status(HTTP_STATUS.OK).json(
     new ApiResponse(HTTP_STATUS.OK, "Import history retrieved", {

@@ -88,6 +88,16 @@ router.post("/upload", uploadSingle, validateStatementFile, uploadStatement);
  */
 router.get("/", getImportHistory);
 
+// ─── Retry with Password ──────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/statements/:id/retry-with-password
+ *
+ * Reprocess a failed statement with a password.
+ * Password is never persisted, only used for processing.
+ */
+router.post("/:id/retry-with-password", retryStatementWithPassword);
+
 // ─── Get Single Statement ─────────────────────────────────────────────────────
 
 /**
@@ -115,15 +125,5 @@ router.get("/", getImportHistory);
  * }
  */
 router.get("/:id", getStatement);
-
-// ─── Retry with Password ──────────────────────────────────────────────────────
-
-/**
- * POST /api/v1/statements/:id/retry-with-password
- *
- * Reprocess a failed statement with a password.
- * Password is never persisted, only used for processing.
- */
-router.post("/:id/retry-with-password", retryStatementWithPassword);
 
 export default router;
