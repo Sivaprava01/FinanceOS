@@ -85,6 +85,8 @@ const processStatementAsync = async (statementId, userId) => {
     statement.status = "Processing";
     await statement.save();
 
+    console.log(`[Statement Processing] Started processing ${statementId}`);
+
     // Import parser service
     const { parserService } = await import("./parser.service.js");
     const { transactionService } = await import("./transaction.service.js");
@@ -96,6 +98,8 @@ const processStatementAsync = async (statementId, userId) => {
       const fullFilePath = statement.filePath.startsWith("/")
         ? `.${statement.filePath}`
         : statement.filePath;
+
+      console.log(`[Statement Processing] Parsing file: ${fullFilePath}, type: ${statement.fileType}`);
 
       switch (statement.fileType) {
       case "PDF":
@@ -111,34 +115,61 @@ const processStatementAsync = async (statementId, userId) => {
         throw new Error("Unsupported file type: " + statement.fileType);
       }
 
+      console.log(`[Statement Processing] Parser returned ${transactions.length} transactions for ${statementId}`);
+
       if (!Array.isArray(transactions) || transactions.length === 0) {
-        throw new Error("No transactions extracted from file");
+        // No transactions extracted - this is not necessarily an error
+        console.warn(`[Statement Processing] No transactions extracted from ${statementId}, marking as completed with 0 transactions`);
+        
+        // Update statement as Completed with 0 transactions
+        statement.status = "Completed";
+        statement.transactionCount = 0;
+        statement.processedAt = new Date();
+        await statement.save();
+        
+        console.log(`[Statement Processing] Marked ${statementId} as Completed with 0 transactions`);
+        return;
       }
 
       // Use existing importTransactions to persist data
-      // importTransactions handles: DB session, statement update, file cleanup, transaction count
-      const result = await transactionService.importTransactions(
-        statementId,
-        userId,
-        transactions,
-        fullFilePath
-      );
+      console.log(`[Statement Processing] Calling importTransactions for ${statementId} with ${transactions.length} transactions`);
+      
+      try {
+        const result = await transactionService.importTransactions(
+          statementId,
+          userId,
+          transactions,
+          fullFilePath
+        );
 
-      console.log(
-        `[Statement Processing] Successfully processed ${statementId}: ${result.transactionCount} transactions`
-      );
+        console.log(
+          `[Statement Processing] Successfully processed ${statementId}: ${result.transactionCount} transactions`
+        );
+      } catch (importErr) {
+        console.error(`[Statement Processing] importTransactions failed for ${statementId}:`, importErr);
+        
+        // Mark as Failed
+        statement.status = "Failed";
+        statement.failureReason = `Import failed: ${importErr instanceof Error ? importErr.message : String(importErr)}`;
+        statement.processedAt = new Date();
+        await statement.save();
+        
+        throw importErr;
+      }
     } catch (parseErr) {
-      // Mark as Failed with reason
-      statement.status = "Failed";
-      statement.failureReason =
-        parseErr instanceof Error
-          ? parseErr.message
-          : "Unknown parsing error";
-      statement.processedAt = new Date();
-      await statement.save();
+      // Mark as Failed with reason if not already failed by importTransactions
+      if (statement.status !== "Failed") {
+        statement.status = "Failed";
+        statement.failureReason =
+          parseErr instanceof Error
+            ? parseErr.message
+            : "Unknown parsing error";
+        statement.processedAt = new Date();
+        await statement.save();
+      }
 
       console.error(
-        `[Statement Processing] Failed to parse ${statementId}:`,
+        `[Statement Processing] Failed to process ${statementId}:`,
         parseErr instanceof Error ? parseErr.message : parseErr
       );
     }
