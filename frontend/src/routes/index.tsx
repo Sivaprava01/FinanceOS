@@ -1,32 +1,36 @@
 /**
  * Route Configuration
- * Centralized routing for the application.
+ * Centralized routing for the application with lazy loading for performance optimization.
  */
 
-import { Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import PublicLayout from '../layouts/PublicLayout'
 import ProtectedLayout from '../layouts/ProtectedLayout'
 import NotFound from '../pages/NotFound'
+import Landing from '../pages/Landing'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ForgotPassword from '../pages/auth/ForgotPassword'
 import ResetPassword from '../pages/auth/ResetPassword'
-import Onboarding from '../pages/Onboarding'
 import Dashboard from '../pages/Dashboard'
 import Transactions from '../pages/Transactions'
 import Statements from '../pages/Statements'
-import Analytics from '../pages/Analytics'
-import FamilyFinance from '../pages/FamilyFinance'
 import Categories from '../pages/Categories'
-import HowItWorks from '../pages/HowItWorks'
 import Profile from '../pages/Profile'
 import Settings from '../pages/Settings'
 import Search from '../pages/Search'
+import { LazyPageFallback } from '../components/LazyPageFallback'
+
+// Lazy load heavy pages to reduce initial bundle size
+const Analytics = lazy(() => import('../pages/Analytics'))
+const FamilyFinance = lazy(() => import('../pages/FamilyFinance'))
+const HowItWorks = lazy(() => import('../pages/HowItWorks'))
+const Onboarding = lazy(() => import('../pages/Onboarding'))
 
 export const routes = [
   {
     path: '/',
-    element: <Navigate to="/dashboard" replace />,
+    element: <Landing />,
   },
   {
     path: '/',
@@ -50,7 +54,11 @@ export const routes = [
       },
       {
         path: 'onboarding',
-        element: <Onboarding />,
+        element: (
+          <Suspense fallback={<LazyPageFallback />}>
+            <Onboarding />
+          </Suspense>
+        ),
       },
     ],
   },
@@ -72,11 +80,19 @@ export const routes = [
       },
       {
         path: 'analytics',
-        element: <Analytics />,
+        element: (
+          <Suspense fallback={<LazyPageFallback />}>
+            <Analytics />
+          </Suspense>
+        ),
       },
       {
         path: 'family',
-        element: <FamilyFinance />,
+        element: (
+          <Suspense fallback={<LazyPageFallback />}>
+            <FamilyFinance />
+          </Suspense>
+        ),
       },
       {
         path: 'categories',
@@ -84,7 +100,11 @@ export const routes = [
       },
       {
         path: 'how-it-works',
-        element: <HowItWorks />,
+        element: (
+          <Suspense fallback={<LazyPageFallback />}>
+            <HowItWorks />
+          </Suspense>
+        ),
       },
       {
         path: 'profile',
@@ -105,3 +125,4 @@ export const routes = [
     element: <NotFound />,
   },
 ]
+

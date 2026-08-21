@@ -4,63 +4,73 @@
 
 @layer base {
   :root {
-    /* Light theme - Emerald first */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.6%;
+    /* Light theme - Minimal, clean, premium */
+    --background: 0 0% 100%;           /* #FFFFFF */
+    --foreground: 222.2 84% 4.9%;      /* #0F172A */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.6%;
+    --card: 0 0% 100%;                 /* #FFFFFF */
+    --card-foreground: 222.2 84% 4.9%; /* #0F172A */
 
-    --primary: 156 100% 40%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 100% 52%;           /* #264DE4 - Electric Blue (used sparingly) */
+    --primary-foreground: 0 0% 100%;   /* White */
 
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 218 14% 96%;          /* #F1F5F9 */
+    --secondary-foreground: 222 47% 11%; /* #1E293B */
 
-    --accent: 0 0% 9%;
+    --accent: 217 100% 52%;            /* #264DE4 */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
+    --muted: 218 14% 96%;              /* #F1F5F9 */
+    --muted-foreground: 215 16% 46.9%; /* #64748B */
 
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 156 100% 40%;
+    --border: 0 0% 0% / 0.08;          /* rgba(15, 23, 42, 0.08) */
+    --input: 218 14% 96%;              /* #F1F5F9 */
+    --ring: 217 100% 52%;              /* #264DE4 */
 
-    --radius: 12px;
-    --font-heading: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
-    --font-body: 'General Sans', system-ui, -apple-system, sans-serif;
+    /* Semantic colors */
+    --success: 142 76% 36%;            /* Green */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    
+    --info: 217 100% 52%;              /* #264DE4 */
+    --info-foreground: 0 0% 100%;
+
+    --radius: 6px;
+    --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   .dark {
-    /* Dark theme - Purple first */
-    --background: 270 15% 8%;
-    --foreground: 0 0% 98%;
+    /* Dark theme - Sophisticated, minimal, editorial */
+    --background: 222.2 84% 5%;        /* #0F172A */
+    --foreground: 210 40% 96%;         /* #F3E8FF */
 
-    --card: 270 12% 12%;
-    --card-foreground: 0 0% 98%;
+    --card: 222.2 84% 10%;             /* #1A1F3A */
+    --card-foreground: 210 40% 96%;    /* #F3E8FF */
 
-    --primary: 270 100% 60%;
-    --primary-foreground: 270 15% 8%;
+    --primary: 280 100% 53%;           /* #8B5CF6 (Purple for dark) */
+    --primary-foreground: 222.2 84% 5%;
 
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 88%;
+    --secondary: 222.2 84% 15%;        /* #262D48 */
+    --secondary-foreground: 210 40% 88%;
 
-    --accent: 0 0% 98%;
-    --accent-foreground: 270 15% 8%;
+    --accent: 280 100% 53%;            /* #8B5CF6 */
+    --accent-foreground: 222.2 84% 5%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 270 15% 8%;
+    --destructive-foreground: 222.2 84% 5%;
 
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 222.2 84% 20%;            /* #323D54 */
+    --muted-foreground: 210 40% 65%;   /* #94A3B8 */
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 270 100% 60%;
+    --border: 280 100% 53% / 0.1;      /* subtle purple border */
+    --input: 222.2 84% 15%;            /* #262D48 */
+    --ring: 280 100% 53%;              /* #8B5CF6 */
   }
 }
 
@@ -83,41 +93,49 @@
   }
 
   h1 {
-    @apply text-4xl;
+    @apply text-2xl sm:text-4xl tracking-tighter;
   }
 
   h2 {
-    @apply text-3xl;
+    @apply text-xl sm:text-3xl tracking-tighter;
   }
 
   h3 {
-    @apply text-2xl;
+    @apply text-lg sm:text-2xl tracking-tight;
   }
 
   h4 {
-    @apply text-xl;
+    @apply text-base sm:text-xl tracking-tight;
   }
 
   h5 {
-    @apply text-lg;
+    @apply text-base sm:text-lg;
   }
 
   h6 {
-    @apply text-base;
+    @apply text-sm sm:text-base;
   }
 
   body {
-    @apply font-body;
+    @apply font-body leading-[1.65];
   }
 
   button {
-    @apply focus-visible:outline-none;
+    @apply focus-visible:outline-none min-h-[44px] min-w-[44px];
+  }
+
+  /* Responsive input touch targets */
+  input,
+  select,
+  textarea {
+    @apply min-h-[44px];
   }
 }
 
 /* Smooth theme transition */
 html {
   color-scheme: light dark;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .dark {
@@ -158,4 +176,30 @@ a,
 /* Remove default focus outline on buttons */
 button:focus-visible {
   @apply outline-2 outline-offset-2 outline-ring;
+}
+
+
+/* Prefers Reduced Motion Support - WCAG 2.1 AA Compliance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep instant feedback - don't disable interactions */
+  button,
+  input,
+  textarea,
+  select {
+    transition: none !important;
+  }
+
+  /* Smooth theme transition still respects user preference */
+  html {
+    transition: none !important;
+  }
 }

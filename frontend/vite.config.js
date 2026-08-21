@@ -29,6 +29,7 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         sourcemap: false,
+        minify: 'esbuild',
         rollupOptions: {
             output: {
                 manualChunks: {
@@ -36,6 +37,7 @@ export default defineConfig({
                     'ui-vendor': ['framer-motion', 'lucide-react'],
                     'form-vendor': ['react-hook-form', 'zod'],
                     'query-vendor': ['@tanstack/react-query'],
+                    'charts-vendor': ['recharts'],
                 },
             },
         },

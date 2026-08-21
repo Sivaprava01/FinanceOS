@@ -70,11 +70,9 @@ export const convertBatch = asyncHandler(async (req, res) => {
 
   const results = await currencyService.convertMultiple(amounts, to);
 
-  return res
-    .status(HTTP_STATUS.OK)
-    .json(
-      new ApiResponse(HTTP_STATUS.OK, SETTINGS_MESSAGES.CURRENCY_CONVERTED, {
-        conversions: results,
-      })
-    );
+  return res.status(HTTP_STATUS.OK).json(
+    new ApiResponse(HTTP_STATUS.OK, SETTINGS_MESSAGES.CURRENCY_CONVERTED, {
+      conversions: results,
+    })
+  );
 });

@@ -16,10 +16,8 @@ import { HTTP_STATUS, AUTH_MESSAGES, AUTH_PROVIDERS } from "../constants/index.j
 
 /**
  * Builds the auth-scoped public user payload.
- * Auth responses only need identity and auth-state fields —
- * profile fields (country, preferences, etc.) are the user module's concern.
- * Keeping this here avoids a cross-module dependency for a shape that
- * belongs to the auth context.
+ * Auth responses return identity, auth-state, and user preferences
+ * so they persist across session refreshes.
  *
  * @param {import("../models/user.model.js").default} user
  * @returns {object}
@@ -32,6 +30,13 @@ const buildUserPayload = (user) => ({
   provider: user.provider,
   isEmailVerified: user.isEmailVerified,
   createdAt: user.createdAt,
+  preferredCurrency: user.preferredCurrency || 'USD',
+  preferences: user.preferences || {
+    language: 'en',
+    theme: 'system',
+    dateFormat: 'DD/MM/YYYY',
+    notifications: { email: true, push: false },
+  },
 });
 
 /**

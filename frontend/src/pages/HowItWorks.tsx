@@ -17,7 +17,7 @@ const steps: Step[] = [
     title: 'Upload Your Bank Statement',
     description:
       'Export your bank statement as PDF, CSV, or Excel. Upload it to FinanceOS using the Statements page. We support most major bank formats.',
-    color: 'bg-blue-100 text-blue-600',
+    color: 'bg-primary/10 text-primary',
   },
   {
     number: 2,
@@ -25,7 +25,7 @@ const steps: Step[] = [
     title: 'Automatic Transaction Processing',
     description:
       'FinanceOS reads your statement and extracts every transaction automatically. Merchants, amounts, and dates are all captured and normalized.',
-    color: 'bg-yellow-100 text-yellow-600',
+    color: 'bg-warning/10 text-warning',
   },
   {
     number: 3,
@@ -33,7 +33,7 @@ const steps: Step[] = [
     title: 'Review and Categorize',
     description:
       'Browse your extracted transactions. FinanceOS suggests categories based on merchant names. You can edit merchant names, categories, and add personal notes.',
-    color: 'bg-green-100 text-green-600',
+    color: 'bg-success/10 text-success',
   },
   {
     number: 4,
@@ -41,7 +41,7 @@ const steps: Step[] = [
     title: 'Understand Your Dashboard',
     description:
       'Your dashboard shows this month\'s income, expenses, net balance, and net worth. Charts update automatically every time new transactions are added.',
-    color: 'bg-purple-100 text-purple-600',
+    color: 'bg-info/10 text-info',
   },
   {
     number: 5,
@@ -49,7 +49,7 @@ const steps: Step[] = [
     title: 'Analyze Your Spending',
     description:
       'The Analytics section breaks down spending by category, tracks monthly trends, compares income vs expenses, and highlights your top merchants.',
-    color: 'bg-orange-100 text-orange-600',
+    color: 'bg-accent/10 text-accent',
   },
   {
     number: 6,
@@ -57,7 +57,7 @@ const steps: Step[] = [
     title: 'Manage Family Finances',
     description:
       'Create a family workspace and invite household members. Manage roles, send invitations, and get a combined financial view for your family.',
-    color: 'bg-pink-100 text-pink-600',
+    color: 'bg-destructive/10 text-destructive',
   },
 ]
 

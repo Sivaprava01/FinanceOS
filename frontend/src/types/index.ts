@@ -157,3 +157,34 @@ export interface ThemeContextType {
   setTheme: (theme: Theme) => void
   isDark: boolean
 }
+
+export type CategoryType = 'Expense' | 'Income' | 'Asset' | 'Liability'
+
+export interface Category {
+  _id: string
+  user: string
+  name: string
+  type: CategoryType
+  color?: string
+  icon?: string
+  description?: string
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCategoryInput {
+  name: string
+  type?: CategoryType
+  color?: string
+  icon?: string
+  description?: string
+}
+
+export interface UpdateCategoryInput {
+  name?: string
+  type?: CategoryType
+  color?: string
+  icon?: string
+  description?: string
+}

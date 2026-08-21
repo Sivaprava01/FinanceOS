@@ -9,10 +9,10 @@ import type { Statement } from '@/types'
 const COMMON_CURRENCIES = ['USD','EUR','GBP','INR','AUD','CAD','SGD','JPY','AED','NZD','CHF','CNY','MYR','THB','PHP','ZAR','BRL','TRY','KRW','SEK']
 
 const STATUS_STYLES: Record<Statement['status'], string> = {
-  Uploaded: 'bg-yellow-100 text-yellow-800',
-  Processing: 'bg-blue-100 text-blue-800',
-  Completed: 'bg-green-100 text-green-800',
-  Failed: 'bg-red-100 text-red-800',
+  Uploaded: 'bg-warning/10 text-warning',
+  Processing: 'bg-info/10 text-info',
+  Completed: 'bg-success/10 text-success',
+  Failed: 'bg-destructive/10 text-destructive',
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -173,7 +173,7 @@ const Statements: React.FC = () => {
             )}
 
             {uploadSuccess && !uploadStatement.isPending && (
-              <p className="mt-4 text-sm text-green-600">Statement uploaded successfully!</p>
+              <p className="mt-4 text-sm text-success">Statement uploaded successfully!</p>
             )}
           </div>
         </CardContent>

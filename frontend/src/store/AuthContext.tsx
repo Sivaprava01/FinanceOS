@@ -2,6 +2,7 @@ import React, { createContext, useEffect, useState } from 'react'
 import type { User, AuthContextType } from '@/types'
 import { authService } from '@services/auth.service'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 interface AuthProviderProps {

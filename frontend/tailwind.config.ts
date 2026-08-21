@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Light theme - Emerald first
+        // Light theme - Electric Blue primary (updated per ui.md)
         background: 'hsl(var(--background) / <alpha-value>)',
         foreground: 'hsl(var(--foreground) / <alpha-value>)',
         card: 'hsl(var(--card) / <alpha-value>)',
@@ -28,6 +28,13 @@ const config: Config = {
         border: 'hsl(var(--border) / <alpha-value>)',
         input: 'hsl(var(--input) / <alpha-value>)',
         ring: 'hsl(var(--ring) / <alpha-value>)',
+        // Semantic colors
+        success: 'hsl(var(--success) / <alpha-value>)',
+        'success-foreground': 'hsl(var(--success-foreground) / <alpha-value>)',
+        warning: 'hsl(var(--warning) / <alpha-value>)',
+        'warning-foreground': 'hsl(var(--warning-foreground) / <alpha-value>)',
+        info: 'hsl(var(--info) / <alpha-value>)',
+        'info-foreground': 'hsl(var(--info-foreground) / <alpha-value>)',
       },
       borderRadius: {
         lg: 'var(--radius)',
