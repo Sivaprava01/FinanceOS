@@ -644,9 +644,9 @@ const getFamilyDashboard = async (familyId, requestingUserId) => {
   // Aggregate shared data
   let totalSharedAssets = 0;
   let totalSharedLiabilities = 0;
-  let sharedTransactions = [];
+  const sharedTransactions = [];
   let sharedExpenses = 0;
-  let spendingByMember = [];
+  const spendingByMember = [];
 
   // Get transactions from members who share
   if (memberIds.length > 0) {

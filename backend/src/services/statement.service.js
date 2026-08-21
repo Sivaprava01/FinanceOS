@@ -73,7 +73,7 @@ const uploadStatement = async (userId, file) => {
 const processStatementAsync = async (statementId, userId) => {
   try {
     // Update status to Processing
-    let statement = await Statement.findOne({
+    const statement = await Statement.findOne({
       _id: statementId,
       user: userId,
     });
@@ -98,17 +98,17 @@ const processStatementAsync = async (statementId, userId) => {
         : statement.filePath;
 
       switch (statement.fileType) {
-        case "PDF":
-          transactions = await parserService.parsePDF(fullFilePath);
-          break;
-        case "CSV":
-          transactions = await parserService.parseCSV(fullFilePath);
-          break;
-        case "XLSX":
-          transactions = await parserService.parseExcel(fullFilePath);
-          break;
-        default:
-          throw new Error("Unsupported file type: " + statement.fileType);
+      case "PDF":
+        transactions = await parserService.parsePDF(fullFilePath);
+        break;
+      case "CSV":
+        transactions = await parserService.parseCSV(fullFilePath);
+        break;
+      case "XLSX":
+        transactions = await parserService.parseExcel(fullFilePath);
+        break;
+      default:
+        throw new Error("Unsupported file type: " + statement.fileType);
       }
 
       if (!Array.isArray(transactions) || transactions.length === 0) {

@@ -24,7 +24,7 @@ import { HTTP_STATUS } from "../constants/index.js";
 // This is a local cache, not a database
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
-let exchangeRateCache = {
+const exchangeRateCache = {
   data: {},
   timestamp: 0,
 };
