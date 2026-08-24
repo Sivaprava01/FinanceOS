@@ -1,18 +1,20 @@
+
 import React, { useState } from 'react'
-import { FolderOpen, Plus, Trash2, AlertCircle } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card'
+import { FolderOpen, Plus, Trash2, AlertCircle, Lock, Check } from 'lucide-react'
+import { Card, CardContent } from '@components/ui/Card'
 import { SkeletonLoader, ErrorState, EmptyState } from '@components/ui'
 import { Button } from '@components/ui/Button'
+import { Badge } from '@components/ui/Badge'
 import { useCategories } from '@hooks/useCategories'
 import CreateCategoryModal from '@components/modals/CreateCategoryModal'
 import type { CreateCategoryInput } from '@/types'
 
 const CATEGORY_COLORS = [
-  '#264DE4', '#8B5CF6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#f97316', '#84cc16', '#d946ef',
+  '#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#f97316', '#84cc16', '#d946ef',
 ]
 
 const Categories: React.FC = () => {
-  const { data: categories = [], isLoading, error, createCategory, createIsLoading, deleteCategory, deleteIsLoading } = useCategories()
+  const { data: categories = [], isLoading, error, createCategory, createIsLoading, deleteCategory } = useCategories()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string>('')
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -51,30 +53,31 @@ const Categories: React.FC = () => {
   const defaultCategories = categories.filter((cat) => cat.isDefault)
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h1 className="text-5xl font-bold tracking-tight">Categories</h1>
-            <p className="text-muted-foreground">Organize your transactions</p>
-          </div>
-          <Button onClick={() => setIsCreateModalOpen(true)} size="sm" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Category
-          </Button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Categories</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Organize transactions into custom and system categories
+          </p>
         </div>
-
-        {successMessage && (
-          <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 p-3 text-sm text-green-700 dark:text-green-400">
-            {successMessage}
-          </div>
-        )}
+        <Button onClick={() => setIsCreateModalOpen(true)} size="sm" className="gap-1.5 text-xs shadow-xs">
+          <Plus className="h-3.5 w-3.5" />
+          Create Category
+        </Button>
       </div>
+
+      {successMessage && (
+        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3.5 py-2 text-xs font-medium text-success">
+          <Check className="h-4 w-4 shrink-0" />
+          {successMessage}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
             <SkeletonLoader key={i} type="card" />
           ))}
         </div>
@@ -87,72 +90,91 @@ const Categories: React.FC = () => {
       ) : categories.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
-          title="No Categories Yet"
-          description="Create a new category to get started."
+          title="No Categories Configured"
+          description="Create your first custom category to organize transactions."
+          action={{
+            label: 'Create Category',
+            onClick: () => setIsCreateModalOpen(true),
+          }}
         />
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-6">
           {/* Custom Categories */}
           {customCategories.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-sm uppercase tracking-widest font-semibold">Custom Categories</h2>
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Custom Categories ({customCategories.length})
+                </h2>
+              </div>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {customCategories.map((cat) => (
-                  <div key={cat._id} className="group">
-                    <Card className="h-full hover:shadow-sm transition-shadow border border-border/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div
-                            className="h-12 w-12 flex-shrink-0 rounded-md"
-                            style={{ backgroundColor: cat.color || CATEGORY_COLORS[0] }}
-                          />
-                          <button
-                            onClick={() => handleDeleteClick(cat._id)}
-                            className="opacity-0 group-hover:opacity-100 p-2 text-destructive hover:bg-destructive/10 rounded transition-all"
-                            disabled={deleteIsLoading}
-                            aria-label={`Delete ${cat.name} category`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                  <Card key={cat._id} className="group overflow-hidden hover:border-border/80 transition-all">
+                    <CardContent className="p-4 flex flex-col justify-between h-full">
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full shrink-0 shadow-xs"
+                              style={{ backgroundColor: cat.color || CATEGORY_COLORS[0] }}
+                            />
+                            <span className="font-semibold text-xs text-foreground truncate">{cat.name}</span>
+                          </div>
+                          <Badge variant={cat.type === 'Income' ? 'success' : 'secondary'} size="sm">
+                            {cat.type === 'Income' ? 'Income' : 'Expense'}
+                          </Badge>
                         </div>
-                        <p className="font-semibold text-sm">{cat.name}</p>
-                        <p className="text-xs text-muted-foreground">{cat.type}</p>
                         {cat.description && (
-                          <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{cat.description}</p>
+                          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            {cat.description}
+                          </p>
                         )}
+                      </div>
 
-                        {/* Delete Confirmation */}
-                        {deleteConfirm === cat._id && (
-                          <div className="mt-3 pt-3 border-t border-border space-y-2">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                              <p className="text-xs text-destructive">Delete this category?</p>
+                      {/* Delete Confirmation / Trigger */}
+                      <div className="mt-3 pt-2.5 border-t border-border/50">
+                        {deleteConfirm === cat._id ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1.5 text-[11px] text-destructive font-medium">
+                              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                              <span>Delete this category?</span>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                               <Button
                                 variant="destructive"
-                                size="sm"
+                                size="xs"
                                 onClick={() => handleConfirmDelete(cat._id)}
                                 disabled={deletingId === cat._id}
-                                className="flex-1 text-xs"
+                                className="flex-1"
                               >
-                                {deletingId === cat._id ? 'Deleting...' : 'Delete'}
+                                {deletingId === cat._id ? 'Deleting…' : 'Confirm'}
                               </Button>
                               <Button
                                 variant="outline"
-                                size="sm"
+                                size="xs"
                                 onClick={() => setDeleteConfirm(null)}
                                 disabled={deletingId === cat._id}
-                                className="flex-1 text-xs"
+                                className="flex-1"
                               >
                                 Cancel
                               </Button>
                             </div>
                           </div>
+                        ) : (
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => handleDeleteClick(cat._id)}
+                              className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                              aria-label={`Delete ${cat.name} category`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         )}
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
@@ -160,43 +182,46 @@ const Categories: React.FC = () => {
 
           {/* Default Categories */}
           {defaultCategories.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-sm uppercase tracking-widest font-semibold text-muted-foreground">Default Categories</h2>
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Default System Categories ({defaultCategories.length})
+                </h2>
+              </div>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {defaultCategories.map((cat) => (
-                  <div key={cat._id}>
-                    <Card className="h-full opacity-60 pointer-events-none border border-border/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3 mb-3">
-                          <div
-                            className="h-12 w-12 flex-shrink-0 rounded-md"
-                            style={{ backgroundColor: cat.color || CATEGORY_COLORS[0] }}
-                          />
+                  <Card key={cat._id} className="bg-card/70 border-border/60">
+                    <CardContent className="p-4 flex flex-col justify-between h-full">
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full shrink-0 shadow-xs"
+                              style={{ backgroundColor: cat.color || CATEGORY_COLORS[0] }}
+                            />
+                            <span className="font-semibold text-xs text-foreground truncate">{cat.name}</span>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                            <Lock className="h-2.5 w-2.5" /> System
+                          </span>
                         </div>
-                        <p className="font-semibold text-sm">{cat.name}</p>
-                        <p className="text-xs text-muted-foreground">{cat.type}</p>
                         {cat.description && (
-                          <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{cat.description}</p>
+                          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            {cat.description}
+                          </p>
                         )}
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-border/30 text-[10px] text-muted-foreground capitalize">
+                        {cat.type} Category
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
           )}
         </div>
       )}
-
-      {/* Info Card */}
-      <Card className="border border-border/50 bg-secondary/30">
-        <CardHeader>
-          <CardTitle className="text-base">About Categories</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Create custom categories to organize your transactions. Default categories are read-only and cannot be deleted.
-        </CardContent>
-      </Card>
 
       <CreateCategoryModal
         isOpen={isCreateModalOpen}

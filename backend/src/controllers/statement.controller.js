@@ -13,6 +13,7 @@
  */
 
 import { statementService } from "../services/statement.service.js";
+import Statement from "../models/statement.model.js";
 import { ApiResponse, asyncHandler } from "../utils/index.js";
 import { HTTP_STATUS } from "../constants/index.js";
 
@@ -67,7 +68,7 @@ export const uploadStatement = asyncHandler(async (req, res) => {
  */
 export const getImportHistory = asyncHandler(async (req, res) => {
   const { user } = req;
-  let { limit, skip } = req.query;
+  let { limit, skip, status } = req.query;
 
   // Validate and parse pagination params
   limit = Math.min(parseInt(limit || 10), 100);
@@ -77,7 +78,9 @@ export const getImportHistory = asyncHandler(async (req, res) => {
     throw new Error("Invalid pagination parameters");
   }
 
-  const statements = await statementService.getImportHistory(user._id, limit, skip, "Completed");
+  // Default status filter is "active" (non-completed statements) unless specified
+  const statusFilter = status || "active";
+  const statements = await statementService.getImportHistory(user._id, limit, skip, statusFilter);
 
   return res.status(HTTP_STATUS.OK).json(
     new ApiResponse(HTTP_STATUS.OK, "Import history retrieved", {
@@ -143,15 +146,19 @@ export const retryStatementWithPassword = asyncHandler(async (req, res) => {
     throw new Error("Password is required");
   }
 
-  // Verify statement exists and belongs to user
-  const statement = await statementService.getStatementById(id, user._id);
+  // Get raw Mongoose document (not formatted response) so we can call .save()
+  const statement = await Statement.findOne({
+    _id: id,
+    user: user._id,
+    isDeleted: false,
+  });
 
   if (!statement) {
     throw new Error("Statement not found");
   }
 
-  // Should have failed with password error
-  if (statement.status !== "Failed" || !statement.failureReason?.includes("password")) {
+  // Should have failed with password error or be in Password Required status
+  if (statement.status !== "Failed" && statement.status !== "Password Required") {
     throw new Error("This statement is not waiting for a password");
   }
 
@@ -174,4 +181,57 @@ export const retryStatementWithPassword = asyncHandler(async (req, res) => {
         status: "Processing",
       })
     );
+});
+
+// ─── Delete Statement ──────────────────────────────────────────────────────────
+
+/**
+ * DELETE /api/v1/statements/:id
+ *
+ * Soft deletes a statement and all its imported transactions.
+ */
+export const deleteStatement = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { id } = req.params;
+
+  const result = await statementService.deleteStatement(id, user._id);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Statement and imported transactions deleted", result));
+});
+
+// ─── Clear Failed Imports ──────────────────────────────────────────────────────
+
+/**
+ * DELETE /api/v1/statements/failed
+ *
+ * Soft deletes all failed import records for the user.
+ */
+export const clearFailedImports = asyncHandler(async (req, res) => {
+  const { user } = req;
+
+  const result = await statementService.clearFailedImports(user._id);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, result.message, result));
+});
+
+// ─── Retry Statement Processing ────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/statements/:id/retry
+ *
+ * Reprocesses a failed or stuck statement import.
+ */
+export const retryStatement = asyncHandler(async (req, res) => {
+  const { user } = req;
+  const { id } = req.params;
+
+  const statement = await statementService.retryStatement(id, user._id);
+
+  return res
+    .status(HTTP_STATUS.OK)
+    .json(new ApiResponse(HTTP_STATUS.OK, "Statement reprocessing started", statement));
 });

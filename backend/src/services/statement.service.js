@@ -12,6 +12,8 @@
  * - Never handle file storage/deletion (that's the middleware's job)
  */
 
+import fs from "fs";
+import crypto from "crypto";
 import Statement from "../models/statement.model.js";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
@@ -35,23 +37,70 @@ const uploadStatement = async (userId, file) => {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Unsupported file type");
   }
 
+  // Calculate cryptographic hash (SHA-256) of uploaded file content to prevent duplicate imports
+  let fileHash = null;
+  if (file.path && fs.existsSync(file.path)) {
+    const fileBuffer = fs.readFileSync(file.path);
+    fileHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+  }
+
+  if (fileHash) {
+    // Check if user has already uploaded the exact same statement file
+    const existingDuplicate = await Statement.findOne({
+      user: userId,
+      fileHash,
+      isDeleted: false,
+      status: { $in: ["Uploaded", "Processing", "Completed"] },
+    });
+
+    if (existingDuplicate) {
+      // Clean up newly uploaded file to avoid disk clutter
+      try {
+        if (file.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      } catch (e) {
+        // ignore cleanup error
+      }
+      throw new ApiError(
+        HTTP_STATUS.CONFLICT,
+        "This statement has already been imported."
+      );
+    }
+  }
+
   // Construct the relative file path from Multer's output
-  // Multer stores files with absolute path in file.path, we need relative
-  // file.filename is the name Multer created (e.g., "6a70c36467f97cca9679e475-1722678600000-123456.pdf")
-  // We store it relative to project root as /uploads/filename
   const relativePath = `/uploads/${file.filename}`;
 
-  const statement = await Statement.create({
-    user: userId,
-    originalFileName: file.originalname,
-    filePath: relativePath,
-    fileType,
-    fileSize: file.size,
-    status: "Uploaded",
-  });
+  let statement;
+  try {
+    statement = await Statement.create({
+      user: userId,
+      originalFileName: file.originalname,
+      filePath: relativePath,
+      fileType,
+      fileSize: file.size,
+      fileHash,
+      status: "Uploaded",
+    });
+  } catch (err) {
+    try {
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    } catch (e) {
+      // ignore cleanup error
+    }
+    if (err.code === 11000 || String(err.message).includes("E11000")) {
+      throw new ApiError(
+        HTTP_STATUS.CONFLICT,
+        "This statement has already been imported."
+      );
+    }
+    throw err;
+  }
 
   // Trigger async processing WITHOUT awaiting (fire and forget)
-  // This allows the upload endpoint to return immediately while processing happens in background
   processStatementAsync(statement._id.toString(), userId).catch((err) => {
     console.error(`[Statement Processing] Error processing statement ${statement._id}:`, err);
   });
@@ -71,9 +120,11 @@ const uploadStatement = async (userId, file) => {
  * @returns {Promise<void>}
  */
 const processStatementAsync = async (statementId, userId, password = "") => {
+  let statement = null;
+  
   try {
     // Update status to Processing
-    const statement = await Statement.findOne({
+    statement = await Statement.findOne({
       _id: statementId,
       user: userId,
     });
@@ -157,26 +208,26 @@ const processStatementAsync = async (statementId, userId, password = "") => {
         throw importErr;
       }
     } catch (parseErr) {
-      // Mark as Failed with reason if not already failed by importTransactions
-      if (statement.status !== "Failed") {
-        statement.status = "Failed";
-        
-        // Determine user-friendly error message
-        let failureReason = "Failed to process statement";
-        if (parseErr instanceof Error) {
-          if (parseErr.message === "PDF_PASSWORD_REQUIRED") {
-            failureReason = "This PDF is password protected. Please provide the password.";
-          } else if (parseErr.message === "PDF_INCORRECT_PASSWORD") {
-            failureReason = "Incorrect PDF password. Please try again.";
-          } else {
-            failureReason = parseErr.message;
-          }
+      // Mark as Failed or Password Required with reason
+      let failureReason = "Failed to process statement";
+      let status = "Failed";
+
+      if (parseErr instanceof Error) {
+        if (parseErr.message === "PDF_PASSWORD_REQUIRED") {
+          status = "Password Required";
+          failureReason = "This PDF is password protected. Please provide the password.";
+        } else if (parseErr.message === "PDF_INCORRECT_PASSWORD") {
+          status = "Password Required";
+          failureReason = "Incorrect PDF password. Please try again.";
+        } else {
+          failureReason = parseErr.message;
         }
-        
-        statement.failureReason = failureReason;
-        statement.processedAt = new Date();
-        await statement.save();
       }
+
+      statement.status = status;
+      statement.failureReason = failureReason;
+      statement.processedAt = new Date();
+      await statement.save();
 
       console.error(
         `[Statement Processing] Failed to process ${statementId}:`,
@@ -185,6 +236,18 @@ const processStatementAsync = async (statementId, userId, password = "") => {
     }
   } catch (err) {
     console.error(`[Statement Processing] Fatal error processing ${statementId}:`, err);
+    
+    // Attempt to mark as Failed if we have a statement reference
+    if (statement) {
+      try {
+        statement.status = "Failed";
+        statement.failureReason = "An unexpected error occurred during processing";
+        statement.processedAt = new Date();
+        await statement.save();
+      } catch (saveErr) {
+        console.error(`[Statement Processing] Could not update statement status:`, saveErr);
+      }
+    }
   }
 };
 
@@ -199,15 +262,21 @@ const processStatementAsync = async (statementId, userId, password = "") => {
  * @param {number} skip - Number of records to skip (for pagination)
  * @returns {Promise<Array>} Array of statement records
  */
-const getImportHistory = async (userId, limit = 10, skip = 0, excludeStatus = null) => {
+const getImportHistory = async (userId, limit = 10, skip = 0, statusFilter = null) => {
   const query = {
     user: userId,
     isDeleted: false,
   };
 
-  // Filter out completed statements from active import history
-  if (excludeStatus) {
-    query.status = { $ne: excludeStatus };
+  if (statusFilter) {
+    const s = String(statusFilter).toLowerCase();
+    if (s === "active") {
+      query.status = { $ne: "Completed" };
+    } else if (s === "completed") {
+      query.status = "Completed";
+    } else if (s !== "all") {
+      query.status = statusFilter;
+    }
   }
 
   const statements = await Statement.find(query)
@@ -312,6 +381,141 @@ const getStatementForProcessing = async (statementId, userId) => {
   return statement.toObject();
 };
 
+// ─── Delete Statement ──────────────────────────────────────────────────────────
+
+/**
+ * Soft deletes a statement record and all associated imported transactions.
+ * Unlinks the file from disk if present.
+ *
+ * @param {string} statementId - The statement's ID
+ * @param {string} userId - The user's ID
+ * @returns {Promise<object>} Summary of deleted statement and transactions
+ */
+const deleteStatement = async (statementId, userId) => {
+  const statement = await Statement.findOne({
+    _id: statementId,
+    user: userId,
+    isDeleted: false,
+  });
+
+  if (!statement) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
+  }
+
+  // Soft delete statement
+  statement.isDeleted = true;
+  await statement.save();
+
+  // Soft delete all imported transactions linked to this statement
+  const Transaction = (await import("../models/transaction.model.js")).default;
+  const txResult = await Transaction.updateMany(
+    { statementId, user: userId },
+    { isDeleted: true }
+  );
+
+  // Clean up disk file if present
+  try {
+    const fullFilePath = statement.filePath?.startsWith("/")
+      ? `.${statement.filePath}`
+      : statement.filePath;
+    if (fullFilePath && fs.existsSync(fullFilePath)) {
+      fs.unlinkSync(fullFilePath);
+    }
+  } catch (err) {
+    // ignore disk cleanup error
+  }
+
+  return {
+    _id: statement._id,
+    deletedTransactionsCount: txResult.modifiedCount || 0,
+    message: `Statement and ${txResult.modifiedCount || 0} imported transactions deleted`,
+  };
+};
+
+// ─── Clear Failed Imports ──────────────────────────────────────────────────────
+
+/**
+ * Soft deletes all failed and password-required statement records for a user.
+ * Soft deletes any orphaned transactions linked to them and cleans up files.
+ *
+ * @param {string} userId - The user's ID
+ * @returns {Promise<object>} Summary of cleared records
+ */
+const clearFailedImports = async (userId) => {
+  const failedStatements = await Statement.find({
+    user: userId,
+    status: { $in: ["Failed", "Password Required"] },
+    isDeleted: false,
+  });
+
+  if (failedStatements.length === 0) {
+    return { count: 0, message: "No failed imports to clear" };
+  }
+
+  const ids = failedStatements.map((s) => s._id);
+
+  // Soft delete failed statements
+  await Statement.updateMany(
+    { _id: { $in: ids }, user: userId },
+    { isDeleted: true }
+  );
+
+  // Soft delete any transactions linked to these statements
+  const Transaction = (await import("../models/transaction.model.js")).default;
+  await Transaction.updateMany(
+    { statementId: { $in: ids }, user: userId },
+    { isDeleted: true }
+  );
+
+  // Unlink disk files
+  for (const s of failedStatements) {
+    try {
+      const fullFilePath = s.filePath?.startsWith("/") ? `.${s.filePath}` : s.filePath;
+      if (fullFilePath && fs.existsSync(fullFilePath)) {
+        fs.unlinkSync(fullFilePath);
+      }
+    } catch (e) {
+      // ignore unlink error
+    }
+  }
+
+  return {
+    count: failedStatements.length,
+    message: `Successfully cleared ${failedStatements.length} failed import records`,
+  };
+};
+
+// ─── Retry Statement Processing ────────────────────────────────────────────────
+
+/**
+ * Retries background processing for a failed or stuck statement.
+ *
+ * @param {string} statementId - The statement's ID
+ * @param {string} userId - The user's ID
+ * @returns {Promise<object>} Formatted statement record
+ */
+const retryStatement = async (statementId, userId) => {
+  const statement = await Statement.findOne({
+    _id: statementId,
+    user: userId,
+    isDeleted: false,
+  });
+
+  if (!statement) {
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
+  }
+
+  statement.status = "Processing";
+  statement.failureReason = null;
+  await statement.save();
+
+  processStatementAsync(statementId, userId).catch((err) => {
+    console.error(`[Statement Retry] Error processing statement ${statementId}:`, err);
+  });
+
+  return formatStatementResponse(statement);
+};
+
 // ─── Helper: Format Response ───────────────────────────────────────────────────
 
 /**
@@ -346,4 +550,8 @@ export const statementService = {
   getStatementById,
   updateStatementStatus,
   getStatementForProcessing,
+  processStatementAsync,
+  deleteStatement,
+  clearFailedImports,
+  retryStatement,
 };

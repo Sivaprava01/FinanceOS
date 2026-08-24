@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Transaction } from '@/types'
-import { useCurrency } from '@hooks/useCurrency'
+import { useCurrencyConversion } from '@hooks/useCurrencyConversion'
 
 interface TransactionRowProps {
   transaction: Transaction
@@ -17,92 +17,111 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
   isSelected = false,
   onSelect,
 }) => {
-  const { format, currency: userCurrency } = useCurrency()
+  const { convertTransaction } = useCurrencyConversion()
   const isCredit = transaction.type === 'Credit'
+  const isImported = transaction.source === 'statement' || !!transaction.statementId
 
-  // Show foreign currency badge if this transaction has a different currency
-  const isForeignCurrency =
-    transaction.currency !== null &&
-    transaction.currency !== undefined &&
-    transaction.currency.toUpperCase() !== userCurrency.toUpperCase()
+  const { primaryFormatted, preferredFormatted, inrFormatted, isForeign } = convertTransaction(
+    transaction.amount,
+    transaction.currency
+  )
 
   return (
     <tr
-      className={`border-b border-border hover:bg-muted/50 transition-colors ${
+      className={`group border-b border-border/60 hover:bg-secondary/40 transition-colors ${
         isSelected ? 'bg-primary/5' : ''
       }`}
     >
       {/* Checkbox column */}
       {onSelect && (
-        <td className="px-3 py-3">
+        <td className="w-10 px-3 py-2.5">
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect(transaction._id)}
-            className="rounded border-border accent-primary cursor-pointer"
+            className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
             aria-label={`Select ${transaction.merchant}`}
           />
         </td>
       )}
 
-      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-        {new Date(transaction.date).toLocaleDateString()}
+      {/* Date */}
+      <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap font-numeric">
+        {new Date(transaction.date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
       </td>
 
-      <td className="px-4 py-3">
-        <p className="text-sm font-medium truncate max-w-[180px]">{transaction.merchant}</p>
-        {transaction.description && (
-          <p className="text-xs text-muted-foreground truncate max-w-[180px]">{transaction.description}</p>
-        )}
-      </td>
-
-      <td className="px-4 py-3">
+      {/* Merchant / Description */}
+      <td className="px-3 py-2.5 min-w-[200px]">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-            {transaction.category}
-          </span>
-          {transaction.source === 'statement' && (
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-              Imported
-            </span>
-          )}
+          <span
+            className={`h-1.5 w-1.5 rounded-full shrink-0 ${isImported ? 'bg-primary' : 'bg-muted-foreground/50'}`}
+            title={isImported ? 'Imported from statement' : 'Manually created'}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-foreground truncate max-w-[220px]">
+              {transaction.merchant}
+            </p>
+            {transaction.description && (
+              <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
+                {transaction.description}
+              </p>
+            )}
+          </div>
         </div>
       </td>
 
-      <td className="px-4 py-3 text-right">
-        <div className="flex flex-col items-end gap-0.5">
-          <span className={`text-sm font-semibold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
-            {isCredit ? '+' : '-'}{format(transaction.amount)}
-          </span>
-          {isForeignCurrency && (
-            <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              {transaction.currency}
-            </span>
-          )}
-        </div>
-      </td>
-
-      <td className="px-4 py-3 text-right">
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-            isCredit ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-          }`}
-        >
-          {isCredit ? 'Income' : 'Expense'}
+      {/* Category */}
+      <td className="px-3 py-2.5">
+        <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium bg-secondary text-muted-foreground">
+          {transaction.category || 'Uncategorized'}
         </span>
       </td>
 
-      <td className="px-4 py-3 text-right">
-        <div className="flex items-center justify-end gap-3">
+      {/* Amount */}
+      <td className="px-3 py-2.5 text-right font-numeric">
+        <div className="flex flex-col items-end gap-0.5">
+          <span
+            className={`text-xs font-bold tabular-nums ${
+              isCredit ? 'text-success' : 'text-foreground'
+            }`}
+          >
+            {isCredit ? '+' : '-'}{primaryFormatted}
+          </span>
+          {isForeign && preferredFormatted && (
+            <span
+              className="text-[11px] font-medium text-muted-foreground tabular-nums"
+              title="Converted to your preferred currency"
+            >
+              ≈ {isCredit ? '+' : ''}{preferredFormatted}
+            </span>
+          )}
+          {inrFormatted && (
+            <span
+              className="text-[10px] font-normal text-muted-foreground/80 tabular-nums"
+              title="Secondary INR reference amount"
+            >
+              ≈ {isCredit ? '+' : ''}{inrFormatted}
+            </span>
+          )}
+        </div>
+      </td>
+
+      {/* Actions */}
+      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+        <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onEdit(transaction)}
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors px-1.5 py-0.5 rounded hover:bg-secondary"
           >
             Edit
           </button>
           <button
             onClick={() => onDelete(transaction._id)}
-            className="text-xs font-medium text-destructive hover:underline"
+            className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded hover:bg-destructive/10"
           >
             Delete
           </button>

@@ -26,130 +26,127 @@ import { HTTP_STATUS } from "../constants/index.js";
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 const exchangeRateCache = {
   data: {},
-  timestamp: 0,
+  timestamps: {},
+  meta: {},
 };
 
 // ─── Supported Currencies ─────────────────────────────────────────────────────
 // ISO 4217 currency codes. Validated against this list before conversion
 
 const SUPPORTED_CURRENCIES = [
-  "USD",
-  "EUR",
-  "GBP",
-  "JPY",
-  "CHF",
-  "CAD",
-  "AUD",
-  "NZD",
-  "CNY",
-  "INR",
-  "MXN",
-  "SGD",
-  "HKD",
-  "NOK",
-  "SEK",
-  "DKK",
-  "AED",
-  "SAR",
-  "QAR",
-  "KWD",
-  "BHD",
-  "OMR",
-  "JOD",
-  "ILS",
-  "TRY",
-  "RUB",
-  "ZAR",
-  "KRW",
-  "THB",
-  "MYR",
-  "PHP",
-  "IDR",
-  "VND",
-  "PKR",
-  "BDT",
-  "LKR",
-  "NGN",
-  "KES",
-  "EGP",
-  "BRL",
-  "ARS",
-  "CLP",
-  "COP",
-  "PEN",
-  "UYU",
-  "VEF",
-  "BGN",
-  "HRK",
-  "CZK",
-  "HUF",
-  "PLN",
-  "RON",
-  "RSD",
-  "UAH",
-  "BYN",
-  "KZK",
-  "UZS",
-  "TJK",
-  "KGS",
-  "AMD",
-  "AZN",
-  "GEL",
-  "BYN",
-  "KZK",
-  "UZS",
+  "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD", "CNY", "INR",
+  "MXN", "SGD", "HKD", "NOK", "SEK", "DKK", "AED", "SAR", "QAR", "KWD",
+  "BHD", "OMR", "JOD", "ILS", "TRY", "RUB", "ZAR", "KRW", "THB", "MYR",
+  "PHP", "IDR", "VND", "PKR", "BDT", "LKR", "NGN", "KES", "EGP", "BRL",
+  "ARS", "CLP", "COP", "PEN", "UYU", "VEF", "BGN", "HRK", "CZK", "HUF",
+  "PLN", "RON", "RSD", "UAH", "BYN", "KZT", "UZS", "TJK", "KGS", "AMD",
+  "AZN", "GEL",
 ];
 
 // ─── Fetch Exchange Rates ─────────────────────────────────────────────────────
 
 /**
- * Fetches live exchange rates from an external API.
- * Uses in-memory cache to avoid repeated API calls within 1 hour.
- *
- * @param {string} baseCurrency - ISO 4217 code (e.g., "USD")
- * @returns {Promise<object>} - Exchange rates object: { "EUR": 0.92, "GBP": 0.79, ... }
- * @throws {ApiError} - If API fails and no cache available
+ * Fetches live exchange rates with full metadata.
  */
-const fetchExchangeRates = async (baseCurrency = "USD") => {
+const fetchExchangeRatesDetails = async (baseCurrency = "USD") => {
+  const base = baseCurrency.toUpperCase();
   const now = Date.now();
-  const cacheValid = exchangeRateCache.timestamp && now - exchangeRateCache.timestamp < CACHE_TTL;
+  const lastFetch = exchangeRateCache.timestamps[base];
+  const cacheValid = lastFetch && now - lastFetch < CACHE_TTL;
 
-  // Return cached rates if still valid
-  if (cacheValid && exchangeRateCache.data[baseCurrency]) {
-    return exchangeRateCache.data[baseCurrency];
+  // Return cached rates if still valid for this specific base currency
+  if (cacheValid && exchangeRateCache.data[base]) {
+    const cachedINR = exchangeRateCache.data[base]["INR"];
+    const cacheAgeSeconds = Math.round((now - lastFetch) / 1000);
+    return {
+      rates: exchangeRateCache.data[base],
+      provider: exchangeRateCache.meta[base]?.provider || "in-memory-cache",
+      providerUpdatedAt: exchangeRateCache.meta[base]?.providerUpdatedAt || new Date(lastFetch).toISOString(),
+      fetchedAt: new Date(lastFetch).toISOString(),
+      cached: true,
+      cacheAgeSeconds,
+      inrRate: cachedINR,
+    };
   }
 
-  try {
-    // Using exchangerate-api.com free tier
-    const apiKey = process.env.EXCHANGE_RATE_API_KEY || "demo"; // demo key has limited rates
-    const apiUrl = `https://v6.exchangerate-api.com/v6/${apiKey}/latest/${baseCurrency}`;
+  const apiKey = process.env.EXCHANGE_RATE_API_KEY;
+  const urls = [];
 
-    const response = await axios.get(apiUrl, {
-      timeout: 5000, // 5-second timeout
-    });
-
-    if (response.data.result !== "success") {
-      throw new Error(`API error: ${response.data["error-type"]}`);
-    }
-
-    const rates = response.data.conversion_rates;
-
-    // Update cache
-    exchangeRateCache.data[baseCurrency] = rates;
-    exchangeRateCache.timestamp = now;
-
-    return rates;
-  } catch (error) {
-    // If cache exists, return it even if expired
-    if (exchangeRateCache.data[baseCurrency]) {
-      return exchangeRateCache.data[baseCurrency];
-    }
-
-    throw new ApiError(
-      HTTP_STATUS.SERVICE_UNAVAILABLE,
-      "Exchange rate service unavailable. Please try again later."
-    );
+  if (apiKey && apiKey !== "demo") {
+    urls.push({ url: `https://v6.exchangerate-api.com/v6/${apiKey}/latest/${base}`, name: "exchangerate-api.com" });
   }
+  urls.push({ url: `https://open.er-api.com/v6/latest/${base}`, name: "open.er-api.com" });
+  urls.push({ url: `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${base.toLowerCase()}.json`, name: "jsdelivr-currency-api" });
+
+  for (const item of urls) {
+    try {
+      const response = await axios.get(item.url, { timeout: 8000 });
+
+      let rates = null;
+      let providerUpdatedAt = null;
+
+      if (response.data?.result === "success" && response.data?.conversion_rates) {
+        rates = response.data.conversion_rates;
+        providerUpdatedAt = response.data?.time_last_update_utc || new Date().toISOString();
+      } else if (response.data?.rates) {
+        rates = { ...response.data.rates, [base]: 1 };
+        providerUpdatedAt = response.data?.time_last_update_utc || new Date().toISOString();
+      } else if (response.data?.[base.toLowerCase()]) {
+        const rawRates = response.data[base.toLowerCase()];
+        rates = {};
+        for (const [key, val] of Object.entries(rawRates)) {
+          rates[key.toUpperCase()] = val;
+        }
+        rates[base] = 1;
+        providerUpdatedAt = response.data?.date ? new Date(response.data.date).toISOString() : new Date().toISOString();
+      }
+
+      if (rates && Object.keys(rates).length > 0) {
+        exchangeRateCache.data[base] = rates;
+        exchangeRateCache.timestamps[base] = now;
+        exchangeRateCache.meta[base] = {
+          provider: item.name,
+          providerUpdatedAt,
+        };
+
+        return {
+          rates,
+          provider: item.name,
+          providerUpdatedAt,
+          fetchedAt: new Date(now).toISOString(),
+          cached: false,
+          cacheAgeSeconds: 0,
+          inrRate: rates["INR"],
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  // If external endpoints fail, return stale cache if available
+  if (exchangeRateCache.data[base]) {
+    const lastTime = exchangeRateCache.timestamps[base] || now;
+    return {
+      rates: exchangeRateCache.data[base],
+      provider: `${exchangeRateCache.meta[base]?.provider || "unknown"} (stale)`,
+      providerUpdatedAt: exchangeRateCache.meta[base]?.providerUpdatedAt || new Date(lastTime).toISOString(),
+      fetchedAt: new Date(lastTime).toISOString(),
+      cached: true,
+      cacheAgeSeconds: Math.round((now - lastTime) / 1000),
+      inrRate: exchangeRateCache.data[base]["INR"],
+    };
+  }
+
+  throw new ApiError(
+    HTTP_STATUS.SERVICE_UNAVAILABLE,
+    "Exchange rate service unavailable. Please try again later."
+  );
+};
+
+const fetchExchangeRates = async (baseCurrency = "USD") => {
+  const details = await fetchExchangeRatesDetails(baseCurrency);
+  return details.rates;
 };
 
 /**
@@ -333,6 +330,7 @@ const convertBatch = async (transactions, targetCurrency) => {
 
 export {
   fetchExchangeRates,
+  fetchExchangeRatesDetails,
   fetchHistoricalExchangeRates,
   convertCurrency,
   convertBatch,

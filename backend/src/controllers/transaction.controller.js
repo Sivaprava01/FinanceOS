@@ -225,6 +225,8 @@ export const getUserTransactions = asyncHandler(async (req, res) => {
     search,
     minAmount,
     maxAmount,
+    statementId,
+    source,
   } = req.query;
 
   const { transactions, count } = await transactionService.getUserTransactions(user._id, {
@@ -238,6 +240,8 @@ export const getUserTransactions = asyncHandler(async (req, res) => {
     search,
     minAmount,
     maxAmount,
+    statementId,
+    source,
   });
 
   return res.status(HTTP_STATUS.OK).json(

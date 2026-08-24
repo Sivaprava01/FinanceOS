@@ -22,18 +22,6 @@ const preferencesSchema = z.object({
 
 type PreferencesFormData = z.infer<typeof preferencesSchema>
 
-// ─── Currency form (preferredCurrency — stored on profile) ───────────────────
-
-const currencySchema = z.object({
-  preferredCurrency: z
-    .string()
-    .length(3, 'Must be a 3-letter ISO code')
-    .regex(/^[A-Za-z]{3}$/, 'Must be letters only')
-    .transform((v) => v.toUpperCase()),
-})
-
-type CurrencyFormData = z.infer<typeof currencySchema>
-
 // ─── Password Change form ──────────────────────────────────────────────────────
 
 const passwordSchema = z.object({
@@ -149,11 +137,6 @@ const Settings: React.FC = () => {
   const [prefError, setPrefError] = useState('')
   const [isPrefSubmitting, setIsPrefSubmitting] = useState(false)
 
-  // Currency form state
-  const [currSuccess, setCurrSuccess] = useState(false)
-  const [currError, setCurrError] = useState('')
-  const [isCurrSubmitting, setIsCurrSubmitting] = useState(false)
-
   const prefForm = useForm<PreferencesFormData>({
     resolver: zodResolver(preferencesSchema),
     defaultValues: {
@@ -164,13 +147,6 @@ const Settings: React.FC = () => {
         email: user?.preferences?.notifications?.email ?? true,
         push: user?.preferences?.notifications?.push ?? false,
       },
-    },
-  })
-
-  const currForm = useForm<CurrencyFormData>({
-    resolver: zodResolver(currencySchema),
-    defaultValues: {
-      preferredCurrency: user?.preferredCurrency ?? 'USD',
     },
   })
 
@@ -191,6 +167,7 @@ const Settings: React.FC = () => {
       })
       updateUser(updated)
       setPrefSuccess(true)
+      setTimeout(() => setPrefSuccess(false), 3000)
     } catch (err) {
       setPrefError(
         err && typeof err === 'object' && 'message' in err
@@ -202,195 +179,136 @@ const Settings: React.FC = () => {
     }
   }
 
-  const onCurrSubmit = async (data: CurrencyFormData) => {
-    setIsCurrSubmitting(true)
-    setCurrError('')
-    setCurrSuccess(false)
-    try {
-      const updated = await userService.updateProfile({ preferredCurrency: data.preferredCurrency })
-      updateUser(updated)
-      setCurrSuccess(true)
-    } catch (err) {
-      setCurrError(
-        err && typeof err === 'object' && 'message' in err
-          ? String((err as { message: string }).message)
-          : 'Failed to save currency.'
-      )
-    } finally {
-      setIsCurrSubmitting(false)
-    }
-  }
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground text-sm">Manage application preferences</p>
+    <div className="space-y-6 max-w-4xl">
+      {/* Header */}
+      <div className="pb-2 border-b border-border">
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Settings & Preferences</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Manage interface appearance, regional preferences, and security</p>
       </div>
-
-      {/* ── Currency & Format ─────────────────────────────────────────────── */}
-      <form onSubmit={currForm.handleSubmit(onCurrSubmit)}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Currency</CardTitle>
-            <CardDescription>Set your preferred display currency (ISO 4217 code)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {currError && <p className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">{currError}</p>}
-            {currSuccess && <p className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">Currency updated successfully.</p>}
-            <div className="flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
-              <div className="flex-1 w-full sm:max-w-xs">
-                <label className="block text-sm font-medium">Preferred Currency</label>
-                <Input
-                  {...currForm.register('preferredCurrency')}
-                  placeholder="USD"
-                  maxLength={3}
-                  className="mt-1 uppercase"
-                />
-                {currForm.formState.errors.preferredCurrency && (
-                  <p className="mt-1 text-sm text-destructive">{currForm.formState.errors.preferredCurrency.message}</p>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Examples: USD, EUR, GBP, INR, JPY, CAD
-                </p>
-              </div>
-              <Button type="submit" isLoading={isCurrSubmitting} className="w-full sm:w-auto">Save Currency</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </form>
 
       {/* ── Preferences form ──────────────────────────────────────────────── */}
       <form onSubmit={prefForm.handleSubmit(onPrefSubmit)} className="space-y-6">
         {prefError && (
-          <div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">{prefError}</div>
+          <div className="rounded-lg bg-destructive/10 px-3.5 py-2 text-xs text-destructive">{prefError}</div>
         )}
         {prefSuccess && (
-          <div className="rounded-lg bg-success/10 px-4 py-2 text-sm text-success">Preferences saved successfully.</div>
+          <div className="rounded-lg bg-success/10 px-3.5 py-2 text-xs text-success">Preferences saved successfully.</div>
         )}
 
-        {/* Language */}
+        {/* Language & Date Format */}
         <Card>
-          <CardHeader>
-            <CardTitle>Language</CardTitle>
-            <CardDescription>Choose your preferred language</CardDescription>
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle>Regional & Formatting</CardTitle>
+            <CardDescription>Language and calendar presentation</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium">Language</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Language</label>
               <select
                 {...prefForm.register('language')}
-                className="mt-1 w-full sm:w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
+                <option value="en">English (US)</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
                 <option value="hi">Hindi</option>
               </select>
-              {prefForm.formState.errors.language && (
-                <p className="mt-1 text-sm text-destructive">{prefForm.formState.errors.language.message}</p>
-              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Date Format</label>
+              <select
+                {...prefForm.register('dateFormat')}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 31/12/2026)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 12/31/2026)</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO standard)</option>
+              </select>
             </div>
           </CardContent>
         </Card>
 
         {/* Appearance */}
         <Card>
-          <CardHeader>
-            <CardTitle>Appearance</CardTitle>
-            <CardDescription>Customize how FinanceOS looks</CardDescription>
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle>Theme & Appearance</CardTitle>
+            <CardDescription>Select color mode preference</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div>
-              <label className="block text-sm font-medium">Theme</label>
-              <div className="mt-3 flex flex-wrap gap-2 sm:gap-3">
-                {(['light', 'dark', 'system'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => prefForm.setValue('theme', t)}
-                    className={`rounded-lg border-2 px-3 sm:px-4 py-2 text-sm font-medium transition-all ${
-                      currentTheme === t
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary'
-                    }`}
-                  >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Date Format */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Date Format</CardTitle>
-            <CardDescription>How dates are displayed across the app</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <label className="block text-sm font-medium">Date Format</label>
-              <select
-                {...prefForm.register('dateFormat')}
-                className="mt-1 w-full sm:w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-              </select>
+          <CardContent className="pt-4">
+            <div className="flex flex-wrap gap-2">
+              {(['light', 'dark', 'system'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => prefForm.setValue('theme', t)}
+                  className={`rounded-lg border px-4 py-2 text-xs font-semibold capitalize transition-all ${
+                    currentTheme === t
+                      ? 'border-primary bg-primary/10 text-primary shadow-xs'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                  }`}
+                >
+                  {t} Theme
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>
 
         {/* Notifications */}
         <Card>
-          <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Manage notification preferences</CardDescription>
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle>Notification Preferences</CardTitle>
+            <CardDescription>Configure alerts and system updates</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+          <CardContent className="divide-y divide-border p-0">
+            <div className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
               <div>
-                <p className="font-medium">Email Notifications</p>
-                <p className="text-sm text-muted-foreground">Receive updates via email</p>
+                <p className="text-xs font-semibold text-foreground">Email Notifications</p>
+                <p className="text-[11px] text-muted-foreground">Receive digest statements and transaction summaries</p>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={emailNotif}
                 onClick={() => prefForm.setValue('notifications.email', !emailNotif)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  emailNotif ? 'bg-primary' : 'bg-muted'
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
+                  emailNotif ? 'bg-primary' : 'bg-secondary border border-border'
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${emailNotif ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
+                  emailNotif ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`} />
               </button>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
               <div>
-                <p className="font-medium">Push Notifications</p>
-                <p className="text-sm text-muted-foreground">Receive push notifications</p>
+                <p className="text-xs font-semibold text-foreground">Push Notifications</p>
+                <p className="text-[11px] text-muted-foreground">Real-time alerts for imports and budget limits</p>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={pushNotif}
                 onClick={() => prefForm.setValue('notifications.push', !pushNotif)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  pushNotif ? 'bg-primary' : 'bg-muted'
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
+                  pushNotif ? 'bg-primary' : 'bg-secondary border border-border'
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${pushNotif ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
+                  pushNotif ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`} />
               </button>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-end pt-2">
-          <Button type="submit" isLoading={isPrefSubmitting} className="w-full sm:w-auto">Save Preferences</Button>
+        <div className="flex justify-end pt-1">
+          <Button type="submit" size="sm" isLoading={isPrefSubmitting} className="text-xs">
+            Save Preferences
+          </Button>
         </div>
       </form>
 
@@ -398,13 +316,19 @@ const Settings: React.FC = () => {
       <PasswordChangeCard />
 
       {/* Account */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-          <CardDescription>Account management</CardDescription>
+      <Card className="border-destructive/20 bg-destructive/5">
+        <CardHeader className="pb-3 border-b border-border/60">
+          <CardTitle className="text-sm text-destructive">Account Session</CardTitle>
+          <CardDescription>Sign out of your active workspace</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="destructive" onClick={() => logout()}>Logout</Button>
+        <CardContent className="pt-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-foreground">Signed in as <span className="font-semibold">{user?.email}</span></p>
+            <p className="text-[11px] text-muted-foreground">Terminate session tokens on this browser</p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={() => logout()} className="text-xs">
+            Log Out
+          </Button>
         </CardContent>
       </Card>
     </div>

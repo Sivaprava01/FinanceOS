@@ -14,7 +14,8 @@ import { HTTP_STATUS } from "../constants/index.js";
  * @throws {ApiError}
  */
 export const validateCreateFamily = (req) => {
-  const { familyName, description } = req.body;
+  const familyName = req.body.familyName || req.body.name;
+  const description = req.body.description;
 
   if (!familyName || typeof familyName !== "string" || familyName.trim().length === 0) {
     throw new ApiError(

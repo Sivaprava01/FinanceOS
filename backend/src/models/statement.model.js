@@ -67,7 +67,7 @@ const statementSchema = new Schema(
     // Processing status
     status: {
       type: String,
-      enum: ["Uploaded", "Processing", "Completed", "Failed"],
+      enum: ["Uploaded", "Processing", "Completed", "Failed", "Password Required"],
       default: "Uploaded",
     },
 
@@ -109,6 +109,13 @@ const statementSchema = new Schema(
       trim: true,
       default: null,
     },
+
+    // Cryptographic hash (SHA-256) of uploaded file content to prevent duplicate imports
+    fileHash: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -119,6 +126,12 @@ const statementSchema = new Schema(
 
 // Query import history for a specific user
 statementSchema.index({ user: 1, createdAt: -1 });
+
+// Concurrency-safe unique index to prevent duplicate file imports per user
+statementSchema.index(
+  { user: 1, fileHash: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false, fileHash: { $type: "string" } } }
+);
 
 // Find non-deleted records
 statementSchema.index({ isDeleted: 1 });

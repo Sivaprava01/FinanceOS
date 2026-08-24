@@ -13,6 +13,8 @@ import {
   useBulkUpdate,
 } from '@hooks/useTransactions'
 import { useCategories } from '@hooks/useCategories'
+import { useStatement } from '@hooks/useStatements'
+import { useCurrencyConversion } from '@hooks/useCurrencyConversion'
 import CreateCategoryModal from '@components/modals/CreateCategoryModal'
 import type { Transaction, CreateTransactionInput, CreateCategoryInput } from '@/types'
 
@@ -168,6 +170,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const Transactions: React.FC = () => {
+  const formRef = useRef<HTMLDivElement>(null)
   // Form state
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -189,19 +192,20 @@ const Transactions: React.FC = () => {
   })
 
   // Load statementId from URL on mount
-  // When viewing statement transactions, automatically set source filter to "statement"
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const id = params.get('statementId')
     if (id) {
       setStatementId(id)
-      // Automatically set source filter to "statement" when viewing statement transactions
-      setFilters((f) => ({ ...f, source: "statement" as any }))
+      // Note: statementId alone is sufficient to isolate transactions
+      // No need to also filter by source, as that may exclude old transactions
+      // that don't have the source field set
     }
   }, [])
 
   // Hooks
   const { data: categories = [], createCategory, createIsLoading } = useCategories()
+  const { convertTransaction } = useCurrencyConversion()
   const createTransaction = useCreateTransaction()
   const updateTransaction = useUpdateTransaction()
   const deleteTransaction = useDeleteTransaction()
@@ -220,6 +224,7 @@ const Transactions: React.FC = () => {
     source: (filters.source || undefined) as 'manual' | 'statement' | undefined,
   }
 
+  const { data: statement } = useStatement(statementId)
   const { data, isLoading, error } = useTransactions(queryParams)
   const transactions = data?.transactions ?? []
   const count = data?.count ?? 0
@@ -262,14 +267,15 @@ const Transactions: React.FC = () => {
     })
     setEditingId(t._id)
     setShowForm(true)
-    // Scroll the main content area to top, not the window
-    // This allows the form to be visible in the current scrollable viewport
     setTimeout(() => {
+      if (formRef.current) {
+        formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
       const mainContent = document.getElementById('main-content')
       if (mainContent) {
         mainContent.scrollTo({ top: 0, behavior: 'smooth' })
       }
-    }, 0)
+    }, 50)
   }
 
   const handleCancel = () => {
@@ -331,82 +337,131 @@ const Transactions: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Transactions</h1>
-          <p className="text-muted-foreground text-sm">View and manage your transactions</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Transactions</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isLoading ? 'Loading records…' : `${count} total recorded transaction${count !== 1 ? 's' : ''}${hasActiveFilters ? ' (filtered)' : ''}`}
+          </p>
         </div>
-        <Button onClick={() => (showForm ? handleCancel() : setShowForm(true))} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button
+          onClick={() => (showForm ? handleCancel() : setShowForm(true))}
+          size="sm"
+          className="gap-1.5 text-xs shadow-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
           {showForm ? 'Cancel' : 'Add Transaction'}
         </Button>
       </div>
 
+      {/* ─── Statement View Banner ────────────────────────────────────────────── */}
+      {statementId && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold bg-primary text-primary-foreground">
+                  Statement Filter
+                </span>
+                {statement?._id && (
+                  <span className="text-[11px] text-muted-foreground font-mono">{statement._id}</span>
+                )}
+              </div>
+              <h2 className="mt-1 text-sm font-bold text-foreground">
+                From: {statement?.originalFileName || 'Statement Import'}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Viewing {count} transactions imported from this statement file
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="xs"
+              className="self-start sm:self-auto gap-1 text-xs"
+              onClick={() => {
+                setStatementId(null)
+                setFilters((f) => ({ ...f, source: '' }))
+                window.history.replaceState({}, '', '/transactions')
+              }}
+            >
+              <X className="h-3 w-3" /> Clear Statement View
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ─── Add / Edit Form ────────────────────────────────────────────────── */}
       {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingId ? 'Edit Transaction' : 'New Transaction'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium">Date *</label>
-                  <Input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="mt-1"
-                    required
-                  />
-                </div>
+        <div ref={formRef}>
+          <Card className="border-primary/30 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle>{editingId ? 'Edit Transaction' : 'Create Transaction'}</CardTitle>
+              <CardDescription>Enter transaction details below</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Date *</label>
+                    <Input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium">Amount *</label>
-                  <Input
-                    type="number"
-                    value={formData.amount === 0 ? '' : formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0.01"
-                    className="mt-1"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount *</label>
+                    <Input
+                      type="number"
+                      value={formData.amount === 0 ? '' : formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0.01"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium">Type *</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as 'Debit' | 'Credit' })}
-                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    required
-                  >
-                    <option value="Debit">Expense (Debit)</option>
-                    <option value="Credit">Income (Credit)</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Type *</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value as 'Debit' | 'Credit' })}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      required
+                    >
+                      <option value="Debit">Expense (Debit)</option>
+                      <option value="Credit">Income (Credit)</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium">Merchant *</label>
-                  <Input
-                    value={formData.merchant}
-                    onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                    placeholder="e.g., Amazon"
-                    className="mt-1"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Merchant / Payee *</label>
+                    <Input
+                      value={formData.merchant}
+                      onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
+                      placeholder="e.g., Apple Store, Payroll"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium">Category *</label>
-                  <div className="mt-1 space-y-2">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground">Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateCategoryModal(true)}
+                        className="text-[11px] text-primary hover:underline"
+                      >
+                        + New
+                      </button>
+                    </div>
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       required
                     >
                       <option value="">Select a category</option>
@@ -414,110 +469,95 @@ const Transactions: React.FC = () => {
                         <option key={cat._id} value={cat.name}>{cat.name}</option>
                       ))}
                     </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-xs"
-                      onClick={() => setShowCreateCategoryModal(true)}
-                    >
-                      + Create New Category
-                    </Button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+                    <Input
+                      value={formData.description ?? ''}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Optional memo"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+                    <Input
+                      value={formData.notes ?? ''}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Additional notes"
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium">Description</label>
-                  <Input
-                    value={formData.description ?? ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Optional"
-                    className="mt-1"
-                  />
+                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" type="button" onClick={handleCancel}>Cancel</Button>
+                  <Button size="sm" type="submit" isLoading={isMutating}>
+                    {editingId ? 'Update' : 'Save'} Transaction
+                  </Button>
                 </div>
-
-                <div className="sm:col-span-2 col-span-1">
-                  <label className="block text-sm font-medium">Notes</label>
-                  <Input
-                    value={formData.notes ?? ''}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Optional"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" type="button" onClick={handleCancel}>Cancel</Button>
-                <Button type="submit" isLoading={isMutating}>
-                  {editingId ? 'Update' : 'Create'} Transaction
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* ─── Filters ────────────────────────────────────────────────────────── */}
+      {/* ─── Filter Bar ────────────────────────────────────────────────────────── */}
       <Card>
-        <CardContent className="pt-6">
-          {/* Search + toggle row */}
-          <div className="flex flex-col gap-3 sm:flex-row">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="transaction-search"
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
                 placeholder="Search merchant or description…"
-                className="pl-9"
+                className="pl-8 text-xs h-8"
               />
             </div>
-            <Button
-              variant="outline"
-              className="gap-2 w-full sm:w-auto sm:shrink-0"
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              {hasActiveFilters && (
-                <span className="flex h-2 w-2 rounded-full bg-primary" />
-              )}
-            </Button>
-            {hasActiveFilters && (
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
+                variant={showFilters ? 'secondary' : 'outline'}
                 size="sm"
-                className="w-full sm:w-auto sm:shrink-0 gap-1 text-muted-foreground"
-                onClick={() => {
-                  setFilters(emptyFilters())
-                  if (statementId) {
-                    setStatementId(null)
-                    window.history.replaceState({}, '', '/transactions')
-                  }
-                }}
+                className="gap-1.5 text-xs h-8"
+                onClick={() => setShowFilters((v) => !v)}
               >
-                <X className="h-3.5 w-3.5" />
-                Clear {statementId ? 'All Filters' : 'Filters'}
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filters
+                {hasActiveFilters && (
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />
+                )}
               </Button>
-            )}
-            {statementId && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-info/10 text-info text-xs font-medium">
-                <Tag className="h-3 w-3" />
-                Statement Filter Active
-              </div>
-            )}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs h-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setFilters(emptyFilters())
+                    if (statementId) {
+                      setStatementId(null)
+                      window.history.replaceState({}, '', '/transactions')
+                    }
+                  }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Reset
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Expanded filter panel */}
+          {/* Expanded filter options */}
           {showFilters && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 border-t border-border pt-4">
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 border-t border-border pt-3">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Type</label>
                 <select
                   value={filters.type}
                   onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value as FilterState['type'] }))}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Types</option>
                   <option value="Credit">Income</option>
@@ -526,11 +566,11 @@ const Transactions: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Category</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Category</label>
                 <select
                   value={filters.category}
                   onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Categories</option>
                   {categories.map((cat) => (
@@ -540,11 +580,11 @@ const Transactions: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Source</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Source</label>
                 <select
                   value={filters.source}
                   onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value as FilterState['source'] }))}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Sources</option>
                   <option value="manual">Manual</option>
@@ -553,46 +593,34 @@ const Transactions: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">From Date</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">From Date</label>
                 <Input
                   type="date"
                   value={filters.fromDate}
                   onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
-                  className="text-sm"
+                  className="text-xs h-7"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">To Date</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">To Date</label>
                 <Input
                   type="date"
                   value={filters.toDate}
                   onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
-                  className="text-sm"
+                  className="text-xs h-7"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Min Amount</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Min Amount</label>
                 <Input
                   type="number"
                   value={filters.minAmount}
                   onChange={(e) => setFilters((f) => ({ ...f, minAmount: e.target.value }))}
-                  placeholder="0"
+                  placeholder="0.00"
                   min="0"
-                  className="text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Max Amount</label>
-                <Input
-                  type="number"
-                  value={filters.maxAmount}
-                  onChange={(e) => setFilters((f) => ({ ...f, maxAmount: e.target.value }))}
-                  placeholder="Any"
-                  min="0"
-                  className="text-sm"
+                  className="text-xs h-7"
                 />
               </div>
             </div>
@@ -610,56 +638,53 @@ const Transactions: React.FC = () => {
       />
 
       {/* ─── Transactions Table ──────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Transaction History</CardTitle>
-              <CardDescription>
-                {isLoading ? 'Loading…' : `${count} transaction${count !== 1 ? 's' : ''}${hasActiveFilters ? ' (filtered)' : ''}`}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-3 py-4">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <SkeletonLoader key={i} type="row" />
+            <div className="py-2">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <SkeletonLoader key={i} type="table-row" />
               ))}
             </div>
           ) : error ? (
-            <ErrorState
-              title="Failed to Load Transactions"
-              message="There was an error loading your transactions. Please try again."
-              onRetry={() => window.location.reload()}
-            />
+            <div className="p-6">
+              <ErrorState
+                title="Failed to Load Transactions"
+                message="There was an error loading your transactions. Please try again."
+                onRetry={() => window.location.reload()}
+              />
+            </div>
           ) : transactions.length === 0 ? (
-            <EmptyState
-              icon={Tag}
-              title={hasActiveFilters ? 'No Transactions Found' : 'No Transactions Yet'}
-              description={
-                hasActiveFilters
-                  ? 'Try adjusting your filters to find transactions.'
-                  : 'Upload a statement or create a transaction to get started.'
-              }
-              action={
-                hasActiveFilters
-                  ? {
-                      label: 'Clear Filters',
-                      onClick: () => setFilters(emptyFilters()),
-                    }
-                  : undefined
-              }
-            />
+            <div className="p-8">
+              <EmptyState
+                icon={Tag}
+                title={hasActiveFilters ? 'No Transactions Found' : 'No Transactions Recorded'}
+                description={
+                  hasActiveFilters
+                    ? 'Try adjusting your search query or filters to find records.'
+                    : 'Add a manual transaction or import a statement to get started.'
+                }
+                action={
+                  hasActiveFilters
+                    ? {
+                        label: 'Clear Filters',
+                        onClick: () => setFilters(emptyFilters()),
+                      }
+                    : {
+                        label: 'Add Transaction',
+                        onClick: () => setShowForm(true),
+                      }
+                }
+              />
+            </div>
           ) : (
-            <div className="space-y-3">
-              {/* Desktop table - hidden on mobile */}
+            <div>
+              {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-collapse text-left">
                   <thead>
-                    <tr className="border-b border-border">
-                      <th className="px-3 py-3">
+                    <tr className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="w-10 px-3 py-2.5">
                         <input
                           type="checkbox"
                           checked={selectedIds.size === transactions.length && transactions.length > 0}
@@ -669,19 +694,18 @@ const Transactions: React.FC = () => {
                             }
                           }}
                           onChange={toggleSelectAll}
-                          className="rounded border-border accent-primary cursor-pointer"
+                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
                           aria-label="Select all"
                         />
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Merchant</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Amount</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Type</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
+                      <th className="px-3 py-2.5">Date</th>
+                      <th className="px-3 py-2.5">Merchant / Description</th>
+                      <th className="px-3 py-2.5">Category</th>
+                      <th className="px-3 py-2.5 text-right">Amount</th>
+                      <th className="px-3 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-border/60">
                     {transactions.map((transaction: Transaction) => (
                       <TransactionRow
                         key={transaction._id}
@@ -697,60 +721,57 @@ const Transactions: React.FC = () => {
               </div>
 
               {/* Mobile card layout - shown on mobile */}
-              <div className="md:hidden space-y-3">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === transactions.length && transactions.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-border accent-primary cursor-pointer"
-                      aria-label="Select all"
-                    />
-                    <span className="text-sm font-medium">Select all</span>
-                  </label>
-                </div>
-                {transactions.map((transaction: Transaction) => (
-                  <div key={transaction._id} className="rounded-lg border border-border bg-card p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(transaction._id)}
-                        onChange={() => toggleSelect(transaction._id)}
-                        className="rounded border-border accent-primary cursor-pointer mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{transaction.merchant}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+              <div className="md:hidden divide-y divide-border border-t border-border">
+                {transactions.map((transaction: Transaction) => {
+                  const isCredit = transaction.type === 'Credit'
+                  const { isForeign, primaryFormatted, convertedFormatted } = convertTransaction(
+                    transaction.amount,
+                    transaction.currency
+                  )
+                  return (
+                    <div key={transaction._id} className="p-3.5 space-y-2.5 hover:bg-secondary/30 transition-colors">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(transaction._id)}
+                          onChange={() => toggleSelect(transaction._id)}
+                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant}</p>
+                          <p className="text-[11px] text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 shrink-0">
+                          <p className={`text-xs font-bold tabular-nums font-numeric ${isCredit ? 'text-success' : 'text-foreground'}`}>
+                            {isCredit ? '+' : '-'}{primaryFormatted}
+                          </p>
+                          {isForeign && convertedFormatted && (
+                            <p className="text-[11px] font-medium text-muted-foreground tabular-nums font-numeric" title="Converted using the latest available exchange rate">
+                              ≈ {isCredit ? '+' : ''}{convertedFormatted}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <p className={`text-sm font-semibold whitespace-nowrap ${transaction.type === 'Credit' ? 'text-success' : 'text-destructive'}`}>
-                        {transaction.type === 'Credit' ? '+' : '-'}{transaction.amount.toFixed(2)}
-                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pl-6">
+                        <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-medium">{transaction.category || 'General'}</span>
+                        <div className="flex gap-2">
+                          <button
+                            className="text-[11px] font-medium text-muted-foreground hover:text-primary"
+                            onClick={() => handleEdit(transaction)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteRequest(transaction._id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-2">
-                      <span className="rounded-full bg-muted px-2 py-0.5">{transaction.category || '—'}</span>
-                      <span className="capitalize">{transaction.type}</span>
-                    </div>
-                    <div className="flex gap-2 pt-2 border-t border-border">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => handleEdit(transaction)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:bg-destructive hover:text-white"
-                        onClick={() => handleDeleteRequest(transaction._id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}

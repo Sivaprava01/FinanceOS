@@ -105,7 +105,8 @@ const getSharing = async (familyId, userId) => {
  * @returns {Promise<object>}
  */
 const createFamily = async (userId, data) => {
-  const { familyName, description } = data;
+  const familyName = data.familyName || data.name;
+  const description = data.description;
 
   const family = await Family.create({
     familyHead: userId,

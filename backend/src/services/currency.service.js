@@ -14,6 +14,7 @@
 
 import {
   fetchExchangeRates,
+  fetchExchangeRatesDetails,
   convertCurrency,
   convertBatch,
   isValidCurrency,
@@ -107,11 +108,37 @@ const convertMultiple = async (amounts, targetCurrency) => {
   return convertBatch(amounts, targetCurrency);
 };
 
+/**
+ * Get all current exchange rates for a base currency
+ *
+ * @param {string} baseCurrency - ISO 4217 code
+ * @returns {Promise<object>}
+ */
+const getRates = async (baseCurrency = "USD") => {
+  const base = baseCurrency?.toUpperCase() || "USD";
+  if (!isValidCurrency(base)) {
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Invalid base currency: ${base}`);
+  }
+  const details = await fetchExchangeRatesDetails(base);
+  return {
+    baseCurrency: base,
+    rates: details.rates,
+    provider: details.provider,
+    providerUpdatedAt: details.providerUpdatedAt,
+    fetchedAt: details.fetchedAt,
+    cached: details.cached,
+    cacheAgeSeconds: details.cacheAgeSeconds,
+    inrRate: details.inrRate,
+    lastUpdated: details.fetchedAt,
+  };
+};
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const currencyService = {
   getSupportedCurrencies,
   getExchangeRate,
+  getRates,
   convert,
   convertMultiple,
 };

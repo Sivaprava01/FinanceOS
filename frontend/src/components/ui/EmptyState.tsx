@@ -24,24 +24,24 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`flex flex-col items-center justify-center gap-4 rounded-lg border border-border bg-muted/30 px-6 py-12 text-center ${className}`}>
+    <div className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 px-6 py-12 text-center ${className}`}>
       {Icon && (
-        <div className="flex items-center justify-center rounded-full bg-muted p-3">
-          <Icon className="h-6 w-6 text-muted-foreground" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-muted-foreground mb-3">
+          <Icon className="h-5 w-5" />
         </div>
       )}
       
-      <div>
-        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+      <div className="max-w-sm space-y-1">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
         )}
       </div>
 
       {action && (
         <button
           onClick={action.onClick}
-          className="mt-2 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-all shadow-sm active:scale-[0.98]"
         >
           {action.label}
         </button>

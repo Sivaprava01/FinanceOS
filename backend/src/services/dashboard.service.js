@@ -32,30 +32,54 @@ const r2 = (n) => Math.round(n * 100) / 100;
 
 // ─── Shared Aggregation Helpers ───────────────────────────────────────────────
 
+import User from "../models/user.model.js";
+import { convertCurrency } from "../utils/currency.js";
+
+/** Returns user target currency */
+const getUserTargetCurrency = async (userId) => {
+  const user = await User.findById(userId).select("preferredCurrency").lean();
+  return user?.preferredCurrency || "USD";
+};
+
+/** Helper to convert transaction amount to user preferred currency */
+const getConvertedAmount = async (amount, fromCurrency, targetCurrency) => {
+  if (!fromCurrency || fromCurrency.toUpperCase() === targetCurrency.toUpperCase()) {
+    return amount;
+  }
+  try {
+    const res = await convertCurrency(amount, fromCurrency, targetCurrency);
+    return res.converted;
+  } catch (err) {
+    console.warn(`[Currency Warning] Failed to convert ${fromCurrency} to ${targetCurrency}: ${err.message}`);
+    return 0;
+  }
+};
+
 /**
- * Sums income and expenses for a user within a date range.
+ * Sums income and expenses for a user within a date range with currency conversion.
  * Returns { income, expenses }.
  */
 const sumIncomeExpenses = async (userId, start, end) => {
-  const result = await Transaction.aggregate([
-    {
-      $match: {
-        user: new Types.ObjectId(userId),
-        isDeleted: false,
-        date: { $gte: start, $lte: end },
-      },
-    },
-    {
-      $group: {
-        _id: "$type",
-        total: { $sum: "$amount" },
-      },
-    },
-  ]);
+  const targetCurrency = await getUserTargetCurrency(userId);
+  const transactions = await Transaction.find({
+    user: userId,
+    isDeleted: false,
+    date: { $gte: start, $lte: end },
+  }).select("amount type currency").lean();
 
-  const income = result.find((r) => r._id === "Credit")?.total ?? 0;
-  const expenses = result.find((r) => r._id === "Debit")?.total ?? 0;
-  return { income: r2(income), expenses: r2(expenses) };
+  let income = 0;
+  let expenses = 0;
+
+  for (const tx of transactions) {
+    const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+    if (tx.type === "Credit") {
+      income += converted;
+    } else {
+      expenses += converted;
+    }
+  }
+
+  return { income: r2(income), expenses: r2(expenses), currency: targetCurrency };
 };
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
@@ -68,30 +92,24 @@ const sumIncomeExpenses = async (userId, start, end) => {
  * @returns {Promise<object>}
  */
 const getOverview = async (userId) => {
+  const targetCurrency = await getUserTargetCurrency(userId);
   const now = new Date();
   const { start, end } = monthBounds(now.getFullYear(), now.getMonth());
 
-  const [monthlyTotals, recentTransactions, topCategories, loans, assets] = await Promise.all([
+  const [monthlyTotals, recentTransactions, rawTopCategoryTx, loans, assets] = await Promise.all([
     // Income and expenses for current month
     sumIncomeExpenses(userId, start, end),
 
     // Latest 10 transactions
     Transaction.find({ user: userId, isDeleted: false }).sort({ date: -1 }).limit(10).lean(),
 
-    // Top 5 spending categories this month
-    Transaction.aggregate([
-      {
-        $match: {
-          user: new Types.ObjectId(userId),
-          isDeleted: false,
-          type: "Debit",
-          date: { $gte: start, $lte: end },
-        },
-      },
-      { $group: { _id: "$category", total: { $sum: "$amount" } } },
-      { $sort: { total: -1 } },
-      { $limit: 5 },
-    ]),
+    // Top spending categories this month
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: "Debit",
+      date: { $gte: start, $lte: end },
+    }).select("amount currency category").lean(),
 
     // Active loans
     Loan.find({ user: userId, loanStatus: LOAN_STATUS.ACTIVE }).lean(),
@@ -99,6 +117,19 @@ const getOverview = async (userId) => {
     // All assets
     Asset.find({ user: userId }).lean(),
   ]);
+
+  // Aggregate top spending categories with currency conversion
+  const categoryMap = {};
+  for (const tx of rawTopCategoryTx) {
+    const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+    const cat = tx.category || "Uncategorized";
+    categoryMap[cat] = (categoryMap[cat] || 0) + converted;
+  }
+
+  const topSpendingCategories = Object.entries(categoryMap)
+    .map(([_id, total]) => ({ _id, total: r2(total) }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
 
   const totalAssets = r2(assets.reduce((s, a) => s + a.currentValue, 0));
   const totalLiabilities = r2(loans.reduce((s, l) => s + l.outstandingBalance, 0));
@@ -108,6 +139,7 @@ const getOverview = async (userId) => {
     totalIncome: monthlyTotals.income,
     totalExpenses: monthlyTotals.expenses,
     netBalance: r2(monthlyTotals.income - monthlyTotals.expenses),
+    currency: targetCurrency,
     netWorth: {
       totalAssets,
       totalLiabilities,
@@ -119,11 +151,13 @@ const getOverview = async (userId) => {
       _id: t._id,
       date: t.date,
       amount: t.amount,
+      currency: t.currency || targetCurrency,
       type: t.type,
       merchant: t.merchant,
       category: t.category,
+      source: t.source,
     })),
-    topSpendingCategories: topCategories,
+    topSpendingCategories,
   };
 };
 
@@ -136,6 +170,7 @@ const getOverview = async (userId) => {
  * @returns {Promise<object>}
  */
 const getSpendingAnalysis = async (userId) => {
+  const targetCurrency = await getUserTargetCurrency(userId);
   const now = new Date();
   const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -144,62 +179,35 @@ const getSpendingAnalysis = async (userId) => {
     prevMonth.getMonth()
   );
 
-  const uid = new Types.ObjectId(userId);
-  const baseMatch = { user: uid, isDeleted: false };
-
   const [
-    byCategory,
-    prevByCategory,
-    monthlyTrend,
-    incomeVsExpense,
-    topMerchants,
+    curTx,
+    prevTx,
+    trendTx,
     highestExpenses,
     highestIncome,
   ] = await Promise.all([
-    // Category-wise spending — current month
-    Transaction.aggregate([
-      { $match: { ...baseMatch, type: "Debit", date: { $gte: curStart, $lte: curEnd } } },
-      { $group: { _id: "$category", total: { $sum: "$amount" }, count: { $sum: 1 } } },
-      { $sort: { total: -1 } },
-    ]),
+    // Current month transactions (Debit + Credit)
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      date: { $gte: curStart, $lte: curEnd },
+    }).select("amount type currency category merchant date").lean(),
 
-    // Category-wise spending — previous month (for comparison)
-    Transaction.aggregate([
-      { $match: { ...baseMatch, type: "Debit", date: { $gte: prevStart, $lte: prevEnd } } },
-      { $group: { _id: "$category", total: { $sum: "$amount" } } },
-    ]),
+    // Previous month debit transactions
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: "Debit",
+      date: { $gte: prevStart, $lte: prevEnd },
+    }).select("amount currency category").lean(),
 
-    // Monthly spending trend — last 6 months
-    Transaction.aggregate([
-      {
-        $match: {
-          ...baseMatch,
-          type: "Debit",
-          date: { $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) },
-        },
-      },
-      {
-        $group: {
-          _id: { year: { $year: "$date" }, month: { $month: "$date" } },
-          total: { $sum: "$amount" },
-        },
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-    ]),
-
-    // Income vs expense — current month
-    Transaction.aggregate([
-      { $match: { ...baseMatch, date: { $gte: curStart, $lte: curEnd } } },
-      { $group: { _id: "$type", total: { $sum: "$amount" } } },
-    ]),
-
-    // Top 5 merchants by transaction count — current month
-    Transaction.aggregate([
-      { $match: { ...baseMatch, type: "Debit", date: { $gte: curStart, $lte: curEnd } } },
-      { $group: { _id: "$merchant", count: { $sum: 1 }, total: { $sum: "$amount" } } },
-      { $sort: { count: -1 } },
-      { $limit: 5 },
-    ]),
+    // 6-month trend debit transactions
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: "Debit",
+      date: { $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) },
+    }).select("amount currency date").lean(),
 
     // Top 5 highest individual expense transactions — current month
     Transaction.find({
@@ -210,7 +218,7 @@ const getSpendingAnalysis = async (userId) => {
     })
       .sort({ amount: -1 })
       .limit(5)
-      .select("date amount merchant category")
+      .select("date amount currency merchant category")
       .lean(),
 
     // Top 5 highest individual income transactions — current month
@@ -222,14 +230,48 @@ const getSpendingAnalysis = async (userId) => {
     })
       .sort({ amount: -1 })
       .limit(5)
-      .select("date amount merchant category")
+      .select("date amount currency merchant category")
       .lean(),
   ]);
 
-  // Build category comparison (current vs previous month)
-  const prevMap = Object.fromEntries(prevByCategory.map((c) => [c._id, c.total]));
+  // Convert and aggregate by category (current month)
+  const catMap = {};
+  const catCount = {};
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+  const merchantMap = {};
+  const merchantCount = {};
+
+  for (const tx of curTx) {
+    const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+    if (tx.type === "Debit") {
+      expenseTotal += converted;
+      const cat = tx.category || "Uncategorized";
+      catMap[cat] = (catMap[cat] || 0) + converted;
+      catCount[cat] = (catCount[cat] || 0) + 1;
+
+      const m = tx.merchant || "Unknown";
+      merchantMap[m] = (merchantMap[m] || 0) + converted;
+      merchantCount[m] = (merchantCount[m] || 0) + 1;
+    } else if (tx.type === "Credit") {
+      incomeTotal += converted;
+    }
+  }
+
+  const byCategory = Object.entries(catMap)
+    .map(([_id, total]) => ({ _id, total: r2(total), count: catCount[_id] }))
+    .sort((a, b) => b.total - a.total);
+
+  // Convert and aggregate by category (previous month)
+  const prevCatMap = {};
+  for (const tx of prevTx) {
+    const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+    const cat = tx.category || "Uncategorized";
+    prevCatMap[cat] = (prevCatMap[cat] || 0) + converted;
+  }
+
   const categoryComparison = byCategory.map((c) => {
-    const prev = prevMap[c._id] ?? 0;
+    const prev = prevCatMap[c._id] ?? 0;
     const change = c.total - prev;
     const changePercent = prev > 0 ? Math.round((change / prev) * 100) : 100;
     return {
@@ -241,17 +283,32 @@ const getSpendingAnalysis = async (userId) => {
     };
   });
 
-  const incomeTotal = incomeVsExpense.find((r) => r._id === "Credit")?.total ?? 0;
-  const expenseTotal = incomeVsExpense.find((r) => r._id === "Debit")?.total ?? 0;
+  // Convert and aggregate monthly trend (last 6 months)
+  const trendMap = {};
+  for (const tx of trendTx) {
+    const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+    const d = new Date(tx.date);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+    if (!trendMap[key]) {
+      trendMap[key] = { year: d.getFullYear(), month: d.getMonth() + 1, total: 0 };
+    }
+    trendMap[key].total += converted;
+  }
+
+  const monthlyTrend = Object.values(trendMap)
+    .sort((a, b) => a.year - b.year || a.month - b.month)
+    .map((m) => ({ year: m.year, month: m.month, total: r2(m.total) }));
+
+  const topMerchants = Object.entries(merchantMap)
+    .map(([_id, total]) => ({ _id, total: r2(total), count: merchantCount[_id] }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 
   return {
-    byCategory: byCategory.map((c) => ({ ...c, total: r2(c.total) })),
+    currency: targetCurrency,
+    byCategory,
     categoryComparison,
-    monthlyTrend: monthlyTrend.map((m) => ({
-      year: m._id.year,
-      month: m._id.month,
-      total: r2(m.total),
-    })),
+    monthlyTrend,
     incomeVsExpense: {
       income: r2(incomeTotal),
       expenses: r2(expenseTotal),

@@ -4,20 +4,20 @@
 
 @layer base {
   :root {
-    /* Light theme - Minimal, clean, premium */
+    /* Light theme - Minimal, clean, fintech aesthetic */
     --background: 0 0% 100%;           /* #FFFFFF */
     --foreground: 222.2 84% 4.9%;      /* #0F172A */
 
     --card: 0 0% 100%;                 /* #FFFFFF */
     --card-foreground: 222.2 84% 4.9%; /* #0F172A */
 
-    --primary: 217 100% 52%;           /* #264DE4 - Electric Blue (used sparingly) */
+    --primary: 217 91% 53%;            /* #1d63ed - Modern Fintech Blue */
     --primary-foreground: 0 0% 100%;   /* White */
 
     --secondary: 218 14% 96%;          /* #F1F5F9 */
     --secondary-foreground: 222 47% 11%; /* #1E293B */
 
-    --accent: 217 100% 52%;            /* #264DE4 */
+    --accent: 217 91% 53%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
@@ -26,9 +26,9 @@
     --muted: 218 14% 96%;              /* #F1F5F9 */
     --muted-foreground: 215 16% 46.9%; /* #64748B */
 
-    --border: 0 0% 0% / 0.08;          /* rgba(15, 23, 42, 0.08) */
-    --input: 218 14% 96%;              /* #F1F5F9 */
-    --ring: 217 100% 52%;              /* #264DE4 */
+    --border: 218 14% 90%;
+    --input: 218 14% 90%;
+    --ring: 217 91% 53%;
 
     /* Semantic colors */
     --success: 142 76% 36%;            /* Green */
@@ -37,40 +37,49 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 0%;
     
-    --info: 217 100% 52%;              /* #264DE4 */
+    --info: 217 91% 53%;
     --info-foreground: 0 0% 100%;
 
-    --radius: 6px;
+    --radius: 0.5rem;
     --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
     --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   .dark {
-    /* Dark theme - Sophisticated, minimal, editorial */
-    --background: 222.2 84% 5%;        /* #0F172A */
-    --foreground: 210 40% 96%;         /* #F3E8FF */
+    /* Dark theme - Sophisticated, high contrast, matching primary palette */
+    --background: 224 71.4% 4.1%;      /* #0b0f19 */
+    --foreground: 210 20% 98%;         /* #f8fafc */
 
-    --card: 222.2 84% 10%;             /* #1A1F3A */
-    --card-foreground: 210 40% 96%;    /* #F3E8FF */
+    --card: 224 71.4% 6.5%;            /* #0f1523 */
+    --card-foreground: 210 20% 98%;
 
-    --primary: 280 100% 53%;           /* #8B5CF6 (Purple for dark) */
-    --primary-foreground: 222.2 84% 5%;
+    --primary: 217 91% 60%;            /* #3b82f6 - Cohesive blue */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 222.2 84% 15%;        /* #262D48 */
-    --secondary-foreground: 210 40% 88%;
+    --secondary: 215 27.9% 13%;        /* #151d2f */
+    --secondary-foreground: 210 20% 98%;
 
-    --accent: 280 100% 53%;            /* #8B5CF6 */
-    --accent-foreground: 222.2 84% 5%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 222.2 84% 5%;
+    --destructive-foreground: 0 0% 100%;
 
-    --muted: 222.2 84% 20%;            /* #323D54 */
-    --muted-foreground: 210 40% 65%;   /* #94A3B8 */
+    --muted: 215 27.9% 12%;
+    --muted-foreground: 217.9 10.6% 64.9%;
 
-    --border: 280 100% 53% / 0.1;      /* subtle purple border */
-    --input: 222.2 84% 15%;            /* #262D48 */
-    --ring: 280 100% 53%;              /* #8B5CF6 */
+    --border: 215 27.9% 16%;
+    --input: 215 27.9% 16%;
+    --ring: 217 91% 60%;
+
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
   }
 }
 
@@ -80,7 +89,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   h1,
@@ -89,47 +99,41 @@
   h4,
   h5,
   h6 {
-    @apply font-heading font-semibold;
+    @apply font-heading font-semibold tracking-tight text-foreground;
   }
 
   h1 {
-    @apply text-2xl sm:text-4xl tracking-tighter;
+    @apply text-xl sm:text-2xl;
   }
 
   h2 {
-    @apply text-xl sm:text-3xl tracking-tighter;
+    @apply text-lg sm:text-xl;
   }
 
   h3 {
-    @apply text-lg sm:text-2xl tracking-tight;
-  }
-
-  h4 {
-    @apply text-base sm:text-xl tracking-tight;
-  }
-
-  h5 {
     @apply text-base sm:text-lg;
   }
 
-  h6 {
+  h4 {
     @apply text-sm sm:text-base;
   }
 
+  h5 {
+    @apply text-sm font-medium;
+  }
+
+  h6 {
+    @apply text-xs font-medium uppercase tracking-wider text-muted-foreground;
+  }
+
   body {
-    @apply font-body leading-[1.65];
+    @apply font-body leading-relaxed text-sm;
   }
+}
 
-  button {
-    @apply focus-visible:outline-none min-h-[44px] min-w-[44px];
-  }
-
-  /* Responsive input touch targets */
-  input,
-  select,
-  textarea {
-    @apply min-h-[44px];
-  }
+.tabular-nums,
+.font-numeric {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Smooth theme transition */

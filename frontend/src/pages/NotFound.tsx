@@ -3,19 +3,24 @@
  */
 
 import React from 'react'
-import { Link } from 'react-router-dom'
-import { Button } from '@components/ui/Button'
+import { useNavigate } from 'react-router-dom'
+import { FileQuestion } from 'lucide-react'
+import { EmptyState } from '@components/ui/EmptyState'
 
 const NotFound: React.FC = () => {
+  const navigate = useNavigate()
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="text-center">
-        <h1 className="mb-2 text-6xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-muted-foreground">Page not found</p>
-        <p className="mb-8 text-muted-foreground">The page you're looking for doesn't exist.</p>
-        <Link to="/dashboard">
-          <Button>Back to Dashboard</Button>
-        </Link>
+      <div className="w-full max-w-md">
+        <EmptyState
+          icon={FileQuestion}
+          title="404 — Page Not Found"
+          description="The page or resource you are looking for doesn't exist or has been moved."
+          action={{
+            label: 'Back to Dashboard',
+            onClick: () => navigate('/dashboard'),
+          }}
+        />
       </div>
     </div>
   )

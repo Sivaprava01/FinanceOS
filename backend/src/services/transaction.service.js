@@ -314,11 +314,18 @@ const applyMerchantMappings = async (userId, transactions) => {
  * @throws {ApiError} If import fails
  */
 const importTransactions = async (statementId, userId, transactions, filePath) => {
-  const session = await Transaction.startSession();
-  session.startTransaction();
+  let session = null;
+  try {
+    session = await Transaction.startSession();
+    session.startTransaction();
+  } catch (sessionErr) {
+    session = null;
+  }
 
   try {
-    // Verify statement exists and belongs to user (use session to avoid deadlock)
+    const queryOpts = session ? { session } : {};
+
+    // Verify statement exists and belongs to user
     const statement = await Statement.findOne(
       {
         _id: statementId,
@@ -326,17 +333,17 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
         isDeleted: false,
       },
       null,
-      { session }
+      queryOpts
     );
 
     if (!statement) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
     }
 
-    // Create all transactions with source="statement"
-    const createdTransactions = [];
+    // Create all transactions with statementId
+    const createdTransactionIds = [];
     for (const txData of transactions) {
-      const tx = await Transaction.create(
+      const txDocs = await Transaction.create(
         [
           {
             user: userId,
@@ -345,19 +352,21 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
             ...txData,
           },
         ],
-        { session }
+        queryOpts
       );
-      createdTransactions.push(tx[0]);
+      createdTransactionIds.push(txDocs[0]._id);
     }
 
     // Update statement status
     statement.status = "Completed";
-    statement.transactionCount = createdTransactions.length;
+    statement.transactionCount = (statement.transactionCount || 0) + createdTransactionIds.length;
     statement.processedAt = new Date();
-    await statement.save({ session });
-
-    // Commit transaction
-    await session.commitTransaction();
+    if (session) {
+      await statement.save({ session });
+      await session.commitTransaction();
+    } else {
+      await statement.save();
+    }
 
     // Delete temporary file after successful import (outside session)
     try {
@@ -375,18 +384,37 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     return {
       success: true,
       statementId,
-      transactionCount: createdTransactions.length,
-      message: `Successfully imported ${createdTransactions.length} transactions`,
+      transactionCount: createdTransactionIds.length,
+      message: `Successfully imported ${createdTransactionIds.length} transactions`,
     };
   } catch (err) {
-    await session.abortTransaction();
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (e) {
+        // ignore session abort error
+      }
+    } else if (typeof createdTransactionIds !== "undefined" && createdTransactionIds.length > 0) {
+      // Safe cleanup rollback for standalone MongoDB: delete ONLY transactions created during THIS invocation
+      try {
+        await Transaction.deleteMany({ _id: { $in: createdTransactionIds } });
+      } catch (cleanupErr) {
+        console.error("[Standalone Rollback] Failed to clean up partial transactions:", cleanupErr.message);
+      }
+    }
     if (err instanceof ApiError) throw err;
     throw new ApiError(
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
       "Failed to import transactions: " + err.message
     );
   } finally {
-    session.endSession();
+    if (session) {
+      try {
+        session.endSession();
+      } catch (e) {
+        // ignore endSession error
+      }
+    }
   }
 };
 
@@ -432,12 +460,14 @@ const getUserTransactions = async (userId, options = {}) => {
     if (toDate) query.date.$lte = new Date(toDate);
   }
 
+  const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   if (merchant) {
-    query.merchant = { $regex: merchant, $options: "i" };
+    query.merchant = { $regex: escapeRegex(merchant), $options: "i" };
   }
 
   if (category) {
-    query.category = { $regex: `^${category}$`, $options: "i" };
+    query.category = { $regex: `^${escapeRegex(category)}$`, $options: "i" };
   }
 
   if (type) {
@@ -459,10 +489,11 @@ const getUserTransactions = async (userId, options = {}) => {
   }
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     // Full-text search across merchant and description
     query.$or = [
-      { merchant: { $regex: search, $options: "i" } },
-      { description: { $regex: search, $options: "i" } },
+      { merchant: { $regex: escapedSearch, $options: "i" } },
+      { description: { $regex: escapedSearch, $options: "i" } },
     ];
   }
 
@@ -493,6 +524,8 @@ const formatTransactionResponse = (tx) => {
     category: tx.category,
     notes: tx.notes,
     currency: tx.currency || null,
+    statementId: tx.statementId || null,
+    source: tx.source || (tx.statementId ? "statement" : "manual"),
     isEdited: tx.isEdited,
     editedAt: tx.editedAt,
     // Original values only if edited

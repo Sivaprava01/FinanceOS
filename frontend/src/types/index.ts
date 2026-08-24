@@ -72,7 +72,7 @@ export interface Statement {
   originalFileName: string
   fileType: 'PDF' | 'CSV' | 'XLSX'
   fileSize: number
-  status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed'
+  status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed' | 'Password Required'
   transactionCount: number
   currency: string | null
   uploadedAt: string
@@ -95,9 +95,11 @@ export interface DashboardOverview {
     _id: string
     date: string
     amount: number
+    currency?: string
     type: 'Debit' | 'Credit'
     merchant: string
     category: string
+    source?: string
   }[]
   topSpendingCategories: { _id: string; total: number }[]
 }
