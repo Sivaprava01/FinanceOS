@@ -117,7 +117,8 @@ export const updateTransaction = asyncHandler(async (req, res) => {
  */
 export const createTransaction = asyncHandler(async (req, res) => {
   const { user } = req;
-  const { date, amount, type, merchant, category, description, notes } = req.body;
+  const { date, amount, type, merchant, category, paymentMethod, description, notes, currency } =
+    req.body;
 
   const transaction = await transactionService.createTransaction(user._id, {
     date,
@@ -125,8 +126,10 @@ export const createTransaction = asyncHandler(async (req, res) => {
     type,
     merchant,
     category,
+    paymentMethod,
     description,
     notes,
+    currency,
   });
 
   return res

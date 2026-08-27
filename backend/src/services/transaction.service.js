@@ -24,6 +24,7 @@ import Statement from "../models/statement.model.js";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
 import { parserService } from "./parser.service.js";
+import { categoryService } from "./category.service.js";
 
 // Get project root directory for path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -125,6 +126,53 @@ const getTransactionsForReview = async (statementId, userId) => {
   };
 };
 
+// ─── Type and Category Validation Helpers ─────────────────────────────────────
+
+const normalizeTransactionType = (type) => {
+  if (!type) return "expense";
+  const t = String(type).toLowerCase().trim();
+  if (t === "debit") return "expense";
+  if (t === "credit") return "income";
+  return t;
+};
+
+/**
+ * Validates that a category exists and belongs to the given transaction type.
+ *
+ * @param {string} userId
+ * @param {string} categoryName
+ * @param {string} transactionType
+ */
+const validateCategoryForType = async (userId, categoryName, transactionType) => {
+  if (!categoryName || categoryName === "Uncategorized") return;
+  const normalizedType = normalizeTransactionType(transactionType);
+
+  const [customCategories, defaultCategories] = await Promise.all([
+    categoryService.getCategories(userId),
+    Promise.resolve(categoryService.getDefaultCategories()),
+  ]);
+
+  const allCategories = [...customCategories, ...defaultCategories];
+  const matched = allCategories.find(
+    (c) => c.name.toLowerCase() === categoryName.toLowerCase().trim()
+  );
+
+  if (!matched) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Category "${categoryName}" does not exist`
+    );
+  }
+
+  const categoryType = normalizeTransactionType(matched.type);
+  if (categoryType !== normalizedType) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Category "${categoryName}" (${categoryType}) does not belong to transaction type "${normalizedType}"`
+    );
+  }
+};
+
 // ─── Create Transaction ────────────────────────────────────────────────────────
 
 /**
@@ -137,10 +185,11 @@ const getTransactionsForReview = async (statementId, userId) => {
  * @param {object} transactionData - Transaction data
  *   - date: date
  *   - amount: number
- *   - type: "Debit" | "Credit"
+ *   - type: "income" | "expense" | "asset" | "liability" | "Debit" | "Credit"
  *   - merchant: string
  *   - description: string (optional)
  *   - category: string (optional)
+ *   - paymentMethod: string (optional, required for expense)
  *   - notes: string (optional)
  *   - originalDate, originalAmount, originalType, originalMerchant, etc.
  *   - statementId: ID of statement (if extracted, null if manual)
@@ -148,10 +197,31 @@ const getTransactionsForReview = async (statementId, userId) => {
  * @throws {ApiError} If invalid
  */
 const createTransaction = async (userId, transactionData) => {
+  const normalizedType = normalizeTransactionType(transactionData.type);
+
+  // Validate category belongs to type
+  if (transactionData.category) {
+    await validateCategoryForType(userId, transactionData.category, normalizedType);
+  }
+
+  // Validate paymentMethod
+  let paymentMethod = null;
+  if (normalizedType === "expense") {
+    if (!transactionData.paymentMethod) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Payment method is required for expense transactions"
+      );
+    }
+    paymentMethod = transactionData.paymentMethod;
+  }
+
   const transaction = await Transaction.create({
     user: userId,
     source: "manual",
     ...transactionData,
+    type: normalizedType,
+    paymentMethod,
   });
 
   return formatTransactionResponse(transaction);
@@ -161,7 +231,7 @@ const createTransaction = async (userId, transactionData) => {
 
 /**
  * Updates a transaction with user corrections.
- * User can edit: merchant, description, category, notes, amount, date
+ * User can edit: merchant, description, category, notes, amount, date, type, paymentMethod
  *
  * Original values are always preserved.
  * A merchant edit can optionally trigger merchant learning.
@@ -184,11 +254,48 @@ const updateTransaction = async (transactionId, userId, updateData) => {
   }
 
   // Update allowed fields
-  const allowedFields = ["date", "amount", "merchant", "description", "category", "notes"];
+  const allowedFields = [
+    "date",
+    "amount",
+    "type",
+    "paymentMethod",
+    "merchant",
+    "description",
+    "category",
+    "notes",
+  ];
   const hasChanges = allowedFields.some((field) => updateData[field] !== undefined);
 
   if (!hasChanges) {
     return formatTransactionResponse(transaction);
+  }
+
+  const newType = updateData.type !== undefined ? normalizeTransactionType(updateData.type) : transaction.type;
+  const newCategory = updateData.category !== undefined ? updateData.category : transaction.category;
+
+  // Validate category for new type
+  if (newCategory) {
+    await validateCategoryForType(userId, newCategory, newType);
+  }
+
+  // Validate payment method
+  if (newType === "expense") {
+    const finalPaymentMethod =
+      updateData.paymentMethod !== undefined ? updateData.paymentMethod : transaction.paymentMethod;
+    if (!finalPaymentMethod) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Payment method is required for expense transactions"
+      );
+    }
+    updateData.paymentMethod = finalPaymentMethod;
+  } else {
+    // Non-expense transactions must have paymentMethod as null
+    updateData.paymentMethod = null;
+  }
+
+  if (updateData.type !== undefined) {
+    updateData.type = newType;
   }
 
   // Track if merchant changed (for learning)
@@ -471,7 +578,18 @@ const getUserTransactions = async (userId, options = {}) => {
   }
 
   if (type) {
-    query.type = type;
+    const normalizedType = normalizeTransactionType(type);
+    if (normalizedType === "income") {
+      query.type = { $in: ["income", "Credit", "Income"] };
+    } else if (normalizedType === "expense") {
+      query.type = { $in: ["expense", "Debit", "Expense"] };
+    } else if (normalizedType === "asset") {
+      query.type = { $in: ["asset", "Asset"] };
+    } else if (normalizedType === "liability") {
+      query.type = { $in: ["liability", "Liability"] };
+    } else {
+      query.type = { $regex: `^${escapeRegex(type)}$`, $options: "i" };
+    }
   }
 
   if (statementId) {
@@ -522,6 +640,7 @@ const formatTransactionResponse = (tx) => {
     merchant: tx.merchant,
     description: tx.description,
     category: tx.category,
+    paymentMethod: tx.paymentMethod || null,
     notes: tx.notes,
     currency: tx.currency || null,
     statementId: tx.statementId || null,
@@ -623,19 +742,29 @@ const getTransactionStats = async (userId, options = {}) => {
   const transactions = await Transaction.find(query).lean();
 
   // Calculate statistics
-  let totalDebit = 0;
-  let totalCredit = 0;
+  let totalDebit = 0; // Expenses
+  let totalCredit = 0; // Income
+  let totalAsset = 0;
+  let totalLiability = 0;
   const byCategory = {};
   const byMerchant = {};
-  const byType = { Debit: 0, Credit: 0 };
+  const byType = { income: 0, expense: 0, asset: 0, liability: 0 };
 
   for (const tx of transactions) {
-    if (tx.type === "Debit") {
+    const normType = normalizeTransactionType(tx.type);
+
+    if (normType === "expense") {
       totalDebit += tx.amount;
-      byType.Debit += tx.amount;
-    } else {
+      byType.expense += tx.amount;
+    } else if (normType === "income") {
       totalCredit += tx.amount;
-      byType.Credit += tx.amount;
+      byType.income += tx.amount;
+    } else if (normType === "asset") {
+      totalAsset += tx.amount;
+      byType.asset += tx.amount;
+    } else if (normType === "liability") {
+      totalLiability += tx.amount;
+      byType.liability += tx.amount;
     }
 
     // By Category
@@ -655,6 +784,8 @@ const getTransactionStats = async (userId, options = {}) => {
       totalTransactions: transactions.length,
       totalDebit: parseFloat(totalDebit.toFixed(2)),
       totalCredit: parseFloat(totalCredit.toFixed(2)),
+      totalAsset: parseFloat(totalAsset.toFixed(2)),
+      totalLiability: parseFloat(totalLiability.toFixed(2)),
       netFlow: parseFloat((totalCredit - totalDebit).toFixed(2)),
     },
     byType,

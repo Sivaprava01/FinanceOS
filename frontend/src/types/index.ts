@@ -36,13 +36,37 @@ export interface ApiResponse<T = unknown> {
   statusCode?: number
 }
 
+export type TransactionType =
+  | 'income'
+  | 'expense'
+  | 'asset'
+  | 'liability'
+  | 'Debit'
+  | 'Credit'
+  | 'Income'
+  | 'Expense'
+  | 'Asset'
+  | 'Liability'
+
+export type PaymentMethod =
+  | 'cash'
+  | 'upi'
+  | 'debit_card'
+  | 'credit_card'
+  | 'bank_transfer'
+  | 'net_banking'
+  | 'cheque'
+  | 'wallet'
+  | 'other'
+
 export interface Transaction {
   _id: string
   user: string
   statementId: string | null
   date: string
   amount: number
-  type: 'Debit' | 'Credit'
+  type: TransactionType
+  paymentMethod?: PaymentMethod | null
   merchant: string
   description: string
   category: string
@@ -58,9 +82,10 @@ export interface Transaction {
 export interface CreateTransactionInput {
   date: string
   amount: number
-  type: 'Debit' | 'Credit'
+  type: TransactionType
   merchant: string
   category: string
+  paymentMethod?: PaymentMethod | null
   description?: string
   notes?: string
   currency?: string
@@ -96,7 +121,8 @@ export interface DashboardOverview {
     date: string
     amount: number
     currency?: string
-    type: 'Debit' | 'Credit'
+    type: TransactionType
+    paymentMethod?: PaymentMethod | null
     merchant: string
     category: string
     source?: string
@@ -161,7 +187,15 @@ export interface ThemeContextType {
   isDark: boolean
 }
 
-export type CategoryType = 'Expense' | 'Income' | 'Asset' | 'Liability'
+export type CategoryType =
+  | 'income'
+  | 'expense'
+  | 'asset'
+  | 'liability'
+  | 'Expense'
+  | 'Income'
+  | 'Asset'
+  | 'Liability'
 
 export interface Category {
   _id: string

@@ -30,6 +30,7 @@ import { useOverview, useSpendingAnalysis } from '@hooks/useDashboard'
 import { useCurrency } from '@hooks/useCurrency'
 import { useDualCurrencyConversion, type DualAmountResult } from '@hooks/useCurrencyConversion'
 import { useNavigate } from 'react-router-dom'
+import { normalizeTransactionType } from '@lib/utils'
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ef4444', '#ec4899', '#f97316']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -126,23 +127,30 @@ const Dashboard: React.FC = () => {
     return null
   }
 
-  const netWorthDual = getDualAmount(overview.netWorth.netWorth)
-  const assetsDual = getDualAmount(overview.netWorth.totalAssets)
-  const liabilitiesDual = getDualAmount(overview.netWorth.totalLiabilities)
+  const netWorthValue = overview.netWorth?.netWorth ?? 0
+  const totalAssetsValue = overview.netWorth?.totalAssets ?? 0
+  const totalLiabilitiesValue = overview.netWorth?.totalLiabilities ?? 0
 
-  const incomeDual = getDualSignedAmount(overview.totalIncome, '+')
-  const expensesDual = getDualSignedAmount(overview.totalExpenses, '-')
-  const cashflowDual = getDualSignedAmount(overview.netBalance, overview.netBalance >= 0 ? '+' : '-')
-  const emiDual = getDualAmount(overview.monthlyEmi)
+  const netWorthDual = getDualAmount(netWorthValue)
+  const assetsDual = getDualAmount(totalAssetsValue)
+  const liabilitiesDual = getDualAmount(totalLiabilitiesValue)
 
-  const monthlyTrendData = analysis.monthlyTrend.map((point) => ({
-    label: `${MONTH_NAMES[point.month - 1]} ${point.year}`,
-    total: point.total,
+  const incomeDual = getDualSignedAmount(overview.totalIncome ?? 0, '+')
+  const expensesDual = getDualSignedAmount(overview.totalExpenses ?? 0, '-')
+  const cashflowDual = getDualSignedAmount(
+    overview.netBalance ?? 0,
+    (overview.netBalance ?? 0) >= 0 ? '+' : '-'
+  )
+  const emiDual = getDualAmount(overview.monthlyEmi ?? 0)
+
+  const monthlyTrendData = (analysis.monthlyTrend || []).map((point) => ({
+    label: `${MONTH_NAMES[(point.month || 1) - 1]} ${point.year}`,
+    total: point.total || 0,
   }))
 
-  const categoryPieData = analysis.byCategory.map((cat) => ({
-    name: cat._id,
-    value: cat.total,
+  const categoryPieData = (analysis.byCategory || []).map((cat) => ({
+    name: cat._id || 'Uncategorized',
+    value: cat.total || 0,
   }))
 
   const currentDateFormatted = new Date().toLocaleDateString('en-US', {
@@ -199,13 +207,13 @@ const Dashboard: React.FC = () => {
             </>
           ) : rateStatus === 'loading' ? (
             <>Updating <strong>{preferredCurrency}</strong> totals with latest market exchange rates...</>
-          ) : rateStatus === 'unavailable' ? (
+          ) : rateStatus === 'fallback' ? (
             <>
-              Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. Live INR conversion is currently unavailable.
+              Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. INR reference values use fallback rates while live exchange data is unavailable.
             </>
           ) : (
             <>
-              Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. INR reference values use fallback rates while live exchange data is unavailable.
+              Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. Live INR conversion is currently unavailable.
             </>
           )}
         </span>
@@ -520,10 +528,13 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {overview.recentTransactions.slice(0, 6).map((txn) => {
-                const isCredit = txn.type === 'Credit'
+              {(overview.recentTransactions || []).slice(0, 6).map((txn) => {
+                const normType = normalizeTransactionType(txn.type)
+                const isIncome = normType === 'income'
+                const isAsset = normType === 'asset'
+                const isLiability = normType === 'liability'
                 const { primaryFormatted, preferredFormatted, inrFormatted, isForeign } = convertTransaction(
-                  txn.amount,
+                  txn.amount || 0,
                   txn.currency
                 )
                 return (
@@ -534,15 +545,36 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          isCredit ? 'bg-success/10 text-success' : 'bg-muted text-foreground'
+                          isIncome
+                            ? 'bg-success/15 text-success'
+                            : isAsset
+                            ? 'bg-primary/15 text-primary'
+                            : isLiability
+                            ? 'bg-amber-500/15 text-amber-500'
+                            : 'bg-muted text-foreground'
                         }`}
                       >
                         {txn.merchant ? txn.merchant.charAt(0).toUpperCase() : 'T'}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate">{txn.merchant}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-semibold text-foreground truncate">{txn.merchant || 'Transaction'}</p>
+                          <span
+                            className={`rounded px-1 py-0.2 text-[9px] font-semibold uppercase tracking-wider ${
+                              isIncome
+                                ? 'bg-success/15 text-success'
+                                : isAsset
+                                ? 'bg-primary/15 text-primary'
+                                : isLiability
+                                ? 'bg-amber-500/15 text-amber-500'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {normType}
+                          </span>
+                        </div>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          {txn.category || 'General'} · {new Date(txn.date).toLocaleDateString()}
+                          {txn.category || 'General'} · {txn.date ? new Date(txn.date).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -551,10 +583,16 @@ const Dashboard: React.FC = () => {
                       {/* Primary Amount */}
                       <p
                         className={`text-xs font-bold tabular-nums font-numeric ${
-                          isCredit ? 'text-success' : 'text-foreground'
+                          isIncome
+                            ? 'text-success'
+                            : isLiability
+                            ? 'text-amber-500'
+                            : isAsset
+                            ? 'text-primary'
+                            : 'text-foreground'
                         }`}
                       >
-                        {isCredit ? '+' : '-'}{primaryFormatted}
+                        {isIncome ? '+' : '-'}{primaryFormatted}
                       </p>
 
                       {/* Preferred Currency Conversion */}
@@ -563,7 +601,7 @@ const Dashboard: React.FC = () => {
                           className="text-[11px] font-medium text-muted-foreground tabular-nums font-numeric"
                           title="Converted to your preferred currency"
                         >
-                          ≈ {isCredit ? '+' : ''}{preferredFormatted}
+                          ≈ {isIncome ? '+' : ''}{preferredFormatted}
                         </p>
                       )}
 
@@ -573,7 +611,7 @@ const Dashboard: React.FC = () => {
                           className="text-[10px] font-normal text-muted-foreground/80 tabular-nums font-numeric"
                           title="Secondary INR reference amount"
                         >
-                          ≈ {isCredit ? '+' : ''}{inrFormatted}
+                          ≈ {isIncome ? '+' : ''}{inrFormatted}
                         </p>
                       )}
                     </div>

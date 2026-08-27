@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useCurrency } from './useCurrency'
 import { currencyService } from '@services/currency.service'
 import { formatCurrency } from '@lib/utils'

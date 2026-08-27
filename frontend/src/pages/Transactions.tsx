@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
 import { Plus, Search, X, Tag, Trash2, SlidersHorizontal } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
@@ -16,13 +16,20 @@ import { useCategories } from '@hooks/useCategories'
 import { useStatement } from '@hooks/useStatements'
 import { useCurrencyConversion } from '@hooks/useCurrencyConversion'
 import CreateCategoryModal from '@components/modals/CreateCategoryModal'
-import type { Transaction, CreateTransactionInput, CreateCategoryInput } from '@/types'
+import { normalizeTransactionType } from '@lib/utils'
+import type {
+  Transaction,
+  CreateTransactionInput,
+  CreateCategoryInput,
+  TransactionType,
+  PaymentMethod,
+} from '@/types'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types & Constants ─────────────────────────────────────────────────────────
 
 interface FilterState {
   search: string
-  type: '' | 'Debit' | 'Credit'
+  type: '' | TransactionType
   category: string
   fromDate: string
   toDate: string
@@ -45,12 +52,32 @@ const emptyFilters = (): FilterState => ({
 const emptyForm = (): CreateTransactionInput => ({
   date: new Date().toISOString().split('T')[0],
   amount: 0,
-  type: 'Debit',
+  type: 'expense',
   merchant: '',
   category: '',
+  paymentMethod: 'upi',
   description: '',
   notes: '',
 })
+
+const TRANSACTION_TYPES: Array<{ value: TransactionType; label: string }> = [
+  { value: 'expense', label: 'Expense' },
+  { value: 'income', label: 'Income' },
+  { value: 'asset', label: 'Asset' },
+  { value: 'liability', label: 'Liability' },
+]
+
+const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'upi', label: 'UPI' },
+  { value: 'debit_card', label: 'Debit Card' },
+  { value: 'credit_card', label: 'Credit Card' },
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'net_banking', label: 'Net Banking' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'wallet', label: 'Wallet' },
+  { value: 'other', label: 'Other' },
+]
 
 // ─── DeleteConfirm dialog ────────────────────────────────────────────────────
 
@@ -211,10 +238,18 @@ const Transactions: React.FC = () => {
   const deleteTransaction = useDeleteTransaction()
   const bulkUpdate = useBulkUpdate()
 
+  // Dynamic category filtering based on selected transaction type
+  const normalizedFormType = normalizeTransactionType(formData.type)
+  const isExpense = normalizedFormType === 'expense'
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((cat) => normalizeTransactionType(cat.type) === normalizedFormType)
+  }, [categories, normalizedFormType])
+
   // Build query params — only pass non-empty values to avoid polluting cache key
   const queryParams = {
     search: filters.search || undefined,
-    type: (filters.type || undefined) as 'Debit' | 'Credit' | undefined,
+    type: filters.type || undefined,
     category: filters.category || undefined,
     fromDate: filters.fromDate || undefined,
     toDate: filters.toDate || undefined,
@@ -233,37 +268,65 @@ const Transactions: React.FC = () => {
 
   // ─── Form handlers ───────────────────────────────────────────────────────────
 
+  const handleTypeChange = (newType: TransactionType) => {
+    const normNewType = normalizeTransactionType(newType)
+    const isNewExpense = normNewType === 'expense'
+
+    // Check if currently selected category is valid for new type
+    const isCatValid = categories.some(
+      (c) => c.name === formData.category && normalizeTransactionType(c.type) === normNewType
+    )
+
+    setFormData((prev) => ({
+      ...prev,
+      type: newType,
+      category: isCatValid ? prev.category : '',
+      paymentMethod: isNewExpense ? (prev.paymentMethod || 'upi') : null,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const submissionData = {
+      ...formData,
+      type: formData.type,
+      paymentMethod: isExpense ? (formData.paymentMethod || 'other') : null,
+    }
+
     if (editingId) {
       await updateTransaction.mutateAsync({
         id: editingId,
         data: {
-          merchant: formData.merchant,
-          description: formData.description,
-          category: formData.category,
-          notes: formData.notes,
-          amount: formData.amount,
-          date: formData.date,
+          merchant: submissionData.merchant,
+          description: submissionData.description,
+          category: submissionData.category,
+          type: submissionData.type,
+          paymentMethod: submissionData.paymentMethod,
+          notes: submissionData.notes,
+          amount: submissionData.amount,
+          date: submissionData.date,
         },
       })
       setEditingId(null)
     } else {
-      await createTransaction.mutateAsync(formData)
+      await createTransaction.mutateAsync(submissionData)
     }
     setFormData(emptyForm())
     setShowForm(false)
   }
 
   const handleEdit = (t: Transaction) => {
+    const normType = normalizeTransactionType(t.type) as TransactionType
     setFormData({
       date: t.date.split('T')[0],
       amount: t.amount,
-      type: t.type,
+      type: normType,
       merchant: t.merchant,
       category: t.category,
-      description: t.description,
-      notes: t.notes,
+      paymentMethod: normType === 'expense' ? (t.paymentMethod || 'other') : null,
+      description: t.description || '',
+      notes: t.notes || '',
     })
     setEditingId(t._id)
     setShowForm(true)
@@ -396,11 +459,15 @@ const Transactions: React.FC = () => {
           <Card className="border-primary/30 shadow-sm">
             <CardHeader className="pb-3 border-b border-border">
               <CardTitle>{editingId ? 'Edit Transaction' : 'Create Transaction'}</CardTitle>
-              <CardDescription>Enter transaction details below</CardDescription>
+              <CardDescription>
+                Select transaction type, category, and enter transaction details below
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Form fields arranged in recommended order */}
                 <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {/* 1. Date */}
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Date *</label>
                     <Input
@@ -411,42 +478,35 @@ const Transactions: React.FC = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount *</label>
-                    <Input
-                      type="number"
-                      value={formData.amount === 0 ? '' : formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0.01"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Type *</label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as 'Debit' | 'Credit' })}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      required
-                    >
-                      <option value="Debit">Expense (Debit)</option>
-                      <option value="Credit">Income (Credit)</option>
-                    </select>
-                  </div>
-
+                  {/* 2. Merchant / Payee */}
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Merchant / Payee *</label>
                     <Input
                       value={formData.merchant}
                       onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                      placeholder="e.g., Apple Store, Payroll"
+                      placeholder="e.g., Apple Store, Payroll, Bank"
                       required
                     />
                   </div>
 
+                  {/* 3. Transaction Type */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Transaction Type *</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => handleTypeChange(e.target.value as TransactionType)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                      required
+                    >
+                      {TRANSACTION_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 4. Category (Dynamic Filtering) */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-medium text-muted-foreground">Category *</label>
@@ -464,13 +524,58 @@ const Transactions: React.FC = () => {
                       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       required
                     >
-                      <option value="">Select a category</option>
-                      {categories.map((cat) => (
-                        <option key={cat._id} value={cat.name}>{cat.name}</option>
+                      <option value="">
+                        {filteredCategories.length > 0 ? 'Select a category' : 'No categories found for this type'}
+                      </option>
+                      {filteredCategories.map((cat) => (
+                        <option key={cat._id} value={cat.name}>
+                          {cat.name}
+                        </option>
                       ))}
                     </select>
                   </div>
 
+                  {/* 5. Payment Method (Shown only for Expense) */}
+                  {isExpense && (
+                    <div className="animate-in fade-in duration-200">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        Payment Method * <span className="text-[10px] text-muted-foreground/80 font-normal">(Expense only)</span>
+                      </label>
+                      <select
+                        value={formData.paymentMethod || 'upi'}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            paymentMethod: e.target.value as PaymentMethod,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                        required={isExpense}
+                      >
+                        {PAYMENT_METHODS.map((pm) => (
+                          <option key={pm.value} value={pm.value}>
+                            {pm.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 6. Amount */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount *</label>
+                    <Input
+                      type="number"
+                      value={formData.amount === 0 ? '' : formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0.01"
+                      required
+                    />
+                  </div>
+
+                  {/* 7. Description */}
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
                     <Input
@@ -480,7 +585,8 @@ const Transactions: React.FC = () => {
                     />
                   </div>
 
-                  <div className="sm:col-span-2 lg:col-span-3">
+                  {/* 8. Notes */}
+                  <div className={isExpense ? "sm:col-span-2 lg:col-span-2" : "sm:col-span-2 lg:col-span-2"}>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
                     <Input
                       value={formData.notes ?? ''}
@@ -560,8 +666,10 @@ const Transactions: React.FC = () => {
                   className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Types</option>
-                  <option value="Credit">Income</option>
-                  <option value="Debit">Expense</option>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                  <option value="asset">Asset</option>
+                  <option value="liability">Liability</option>
                 </select>
               </div>
 
@@ -723,9 +831,12 @@ const Transactions: React.FC = () => {
               {/* Mobile card layout - shown on mobile */}
               <div className="md:hidden divide-y divide-border border-t border-border">
                 {transactions.map((transaction: Transaction) => {
-                  const isCredit = transaction.type === 'Credit'
-                  const { isForeign, primaryFormatted, convertedFormatted } = convertTransaction(
-                    transaction.amount,
+                  const normType = normalizeTransactionType(transaction.type)
+                  const isIncome = normType === 'income'
+                  const isAsset = normType === 'asset'
+                  const isLiability = normType === 'liability'
+                  const { isForeign, primaryFormatted, preferredFormatted } = convertTransaction(
+                    transaction.amount || 0,
                     transaction.currency
                   )
                   return (
@@ -738,22 +849,48 @@ const Transactions: React.FC = () => {
                           className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer mt-0.5"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant}</p>
+                            <span
+                              className={`rounded px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider ${
+                                isIncome
+                                  ? 'bg-success/15 text-success'
+                                  : isAsset
+                                  ? 'bg-primary/15 text-primary'
+                                  : isLiability
+                                  ? 'bg-amber-500/15 text-amber-500'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {normType}
+                            </span>
+                          </div>
                           <p className="text-[11px] text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
                         </div>
                         <div className="flex flex-col items-end gap-0.5 shrink-0">
-                          <p className={`text-xs font-bold tabular-nums font-numeric ${isCredit ? 'text-success' : 'text-foreground'}`}>
-                            {isCredit ? '+' : '-'}{primaryFormatted}
+                          <p
+                            className={`text-xs font-bold tabular-nums font-numeric ${
+                              isIncome ? 'text-success' : 'text-foreground'
+                            }`}
+                          >
+                            {isIncome ? '+' : '-'}{primaryFormatted}
                           </p>
-                          {isForeign && convertedFormatted && (
+                          {isForeign && preferredFormatted && (
                             <p className="text-[11px] font-medium text-muted-foreground tabular-nums font-numeric" title="Converted using the latest available exchange rate">
-                              ≈ {isCredit ? '+' : ''}{convertedFormatted}
+                              ≈ {isIncome ? '+' : ''}{preferredFormatted}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground pl-6">
-                        <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-medium">{transaction.category || 'General'}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-medium">{transaction.category || 'General'}</span>
+                          {transaction.paymentMethod && (
+                            <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase">
+                              {transaction.paymentMethod.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex gap-2">
                           <button
                             className="text-[11px] font-medium text-muted-foreground hover:text-primary"
@@ -793,6 +930,7 @@ const Transactions: React.FC = () => {
         onClose={() => setShowCreateCategoryModal(false)}
         isLoading={createIsLoading}
         onSubmit={handleCreateCategory}
+        initialType={normalizedFormType as any}
       />
     </div>
   )

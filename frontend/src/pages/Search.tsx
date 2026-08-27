@@ -179,8 +179,16 @@ const Search: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filtered.map((t: Transaction) => {
-                      const isCredit = t.type === 'Credit'
-                      const { isForeign, primaryFormatted, convertedFormatted } = convertTransaction(t.amount, t.currency)
+                      const normType = (() => {
+                        const raw = (t.type || 'expense').toLowerCase().trim()
+                        if (raw === 'credit') return 'income'
+                        if (raw === 'debit') return 'expense'
+                        return raw
+                      })()
+                      const isIncome = normType === 'income'
+                      const isAsset = normType === 'asset'
+                      const isLiability = normType === 'liability'
+                      const { isForeign, primaryFormatted, preferredFormatted } = convertTransaction(t.amount, t.currency)
                       return (
                         <tr key={t._id} className="hover:bg-muted/20 transition-colors">
                           <td className="py-2.5 px-4 text-muted-foreground whitespace-nowrap font-numeric">
@@ -215,12 +223,22 @@ const Search: React.FC = () => {
                           </td>
                           <td className="py-2.5 px-4 text-right font-numeric">
                             <div className="flex flex-col items-end gap-0.5">
-                              <span className={`text-xs font-semibold tabular-nums ${isCredit ? 'text-success' : 'text-foreground'}`}>
-                                {isCredit ? '+' : '-'}{primaryFormatted}
+                              <span
+                                className={`text-xs font-semibold tabular-nums ${
+                                  isIncome
+                                    ? 'text-success'
+                                    : isLiability
+                                    ? 'text-amber-500'
+                                    : isAsset
+                                    ? 'text-primary'
+                                    : 'text-foreground'
+                                }`}
+                              >
+                                {isIncome ? '+' : '-'}{primaryFormatted}
                               </span>
-                              {isForeign && convertedFormatted && (
+                              {isForeign && preferredFormatted && (
                                 <span className="text-[11px] font-medium text-muted-foreground tabular-nums" title="Converted using the latest available exchange rate">
-                                  ≈ {isCredit ? '+' : ''}{convertedFormatted}
+                                  ≈ {isIncome ? '+' : ''}{preferredFormatted}
                                 </span>
                               )}
                             </div>
@@ -235,8 +253,16 @@ const Search: React.FC = () => {
               {/* Mobile List View */}
               <div className="md:hidden divide-y divide-border">
                 {filtered.map((t: Transaction) => {
-                  const isCredit = t.type === 'Credit'
-                  const { isForeign, primaryFormatted, convertedFormatted } = convertTransaction(t.amount, t.currency)
+                  const normType = (() => {
+                    const raw = (t.type || 'expense').toLowerCase().trim()
+                    if (raw === 'credit') return 'income'
+                    if (raw === 'debit') return 'expense'
+                    return raw
+                  })()
+                  const isIncome = normType === 'income'
+                  const isAsset = normType === 'asset'
+                  const isLiability = normType === 'liability'
+                  const { isForeign, primaryFormatted, preferredFormatted } = convertTransaction(t.amount, t.currency)
                   return (
                     <div key={t._id} className="p-3.5 space-y-1.5 hover:bg-muted/20 transition-colors">
                       <div className="flex items-start justify-between gap-2">
@@ -258,12 +284,22 @@ const Search: React.FC = () => {
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-0.5 shrink-0 font-numeric">
-                          <span className={`text-xs font-semibold tabular-nums ${isCredit ? 'text-success' : 'text-foreground'}`}>
-                            {isCredit ? '+' : '-'}{primaryFormatted}
+                          <span
+                            className={`text-xs font-semibold tabular-nums ${
+                              isIncome
+                                ? 'text-success'
+                                : isLiability
+                                ? 'text-amber-500'
+                                : isAsset
+                                ? 'text-primary'
+                                : 'text-foreground'
+                            }`}
+                          >
+                            {isIncome ? '+' : '-'}{primaryFormatted}
                           </span>
-                          {isForeign && convertedFormatted && (
+                          {isForeign && preferredFormatted && (
                             <span className="text-[11px] font-medium text-muted-foreground tabular-nums" title="Converted using the latest available exchange rate">
-                              ≈ {isCredit ? '+' : ''}{convertedFormatted}
+                              ≈ {isIncome ? '+' : ''}{preferredFormatted}
                             </span>
                           )}
                         </div>

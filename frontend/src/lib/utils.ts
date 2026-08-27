@@ -202,3 +202,40 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2)
 }
+
+/**
+ * Centralized transaction type normalization.
+ * Maps legacy (Debit/Credit) and various casings to 'income' | 'expense' | 'asset' | 'liability'
+ */
+export function normalizeTransactionType(
+  type?: string | null
+): 'income' | 'expense' | 'asset' | 'liability' {
+  if (!type) return 'expense'
+  const t = String(type).trim().toLowerCase()
+  if (t === 'credit' || t === 'income') return 'income'
+  if (t === 'debit' || t === 'expense') return 'expense'
+  if (t === 'asset') return 'asset'
+  if (t === 'liability') return 'liability'
+  return 'expense'
+}
+
+/**
+ * Centralized category type normalization.
+ * Maps types to capitalized 'Expense' | 'Income' | 'Asset' | 'Liability'
+ */
+export function normalizeCategoryType(
+  type?: string | null
+): 'Expense' | 'Income' | 'Asset' | 'Liability' {
+  const norm = normalizeTransactionType(type)
+  switch (norm) {
+    case 'income':
+      return 'Income'
+    case 'asset':
+      return 'Asset'
+    case 'liability':
+      return 'Liability'
+    case 'expense':
+    default:
+      return 'Expense'
+  }
+}

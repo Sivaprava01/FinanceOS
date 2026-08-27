@@ -63,11 +63,46 @@ const transactionSchema = new Schema(
       min: [0.01, "Amount must be greater than 0"],
     },
 
-    // Debit or Credit
+    // Transaction type: income, expense, asset, liability (supports legacy Debit, Credit, etc.)
     type: {
       type: String,
-      enum: ["Debit", "Credit"],
+      enum: [
+        "income",
+        "expense",
+        "asset",
+        "liability",
+        "Debit",
+        "Credit",
+        "Income",
+        "Expense",
+        "Asset",
+        "Liability",
+      ],
       required: [true, "Transaction type is required"],
+      set: (v) => {
+        if (!v) return v;
+        const normalized = String(v).toLowerCase().trim();
+        if (normalized === "debit") return "expense";
+        if (normalized === "credit") return "income";
+        return normalized;
+      },
+    },
+
+    // Payment method (for expense transactions only)
+    paymentMethod: {
+      type: String,
+      enum: [
+        "cash",
+        "upi",
+        "debit_card",
+        "credit_card",
+        "bank_transfer",
+        "net_banking",
+        "cheque",
+        "wallet",
+        "other",
+      ],
+      default: null,
     },
 
     // Merchant name (user can correct if OCR extracted wrong name)
@@ -178,6 +213,12 @@ const transactionSchema = new Schema(
 
 // Query transactions for a specific user
 transactionSchema.index({ user: 1, date: -1 });
+
+// Query transactions by user and type
+transactionSchema.index({ user: 1, type: 1 });
+
+// Query transactions by user and payment method
+transactionSchema.index({ user: 1, paymentMethod: 1 });
 
 // Query transactions by merchant (for merchant learning)
 transactionSchema.index({ user: 1, merchant: 1 });

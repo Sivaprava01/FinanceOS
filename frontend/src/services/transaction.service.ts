@@ -1,5 +1,5 @@
 import api from './api'
-import type { Transaction, CreateTransactionInput } from '@/types'
+import type { Transaction, CreateTransactionInput, TransactionType, PaymentMethod } from '@/types'
 
 export interface GetTransactionsParams {
   limit?: number
@@ -8,7 +8,7 @@ export interface GetTransactionsParams {
   toDate?: string
   merchant?: string
   category?: string
-  type?: 'Debit' | 'Credit'
+  type?: TransactionType
   search?: string
   minAmount?: number
   maxAmount?: number
@@ -25,6 +25,8 @@ export interface UpdateTransactionInput {
   merchant?: string
   description?: string
   category?: string
+  type?: TransactionType
+  paymentMethod?: PaymentMethod | null
   notes?: string
   amount?: number
   date?: string

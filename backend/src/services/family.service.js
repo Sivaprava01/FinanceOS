@@ -663,12 +663,12 @@ const getFamilyDashboard = async (familyId, requestingUserId) => {
           _id: "$user",
           income: {
             $sum: {
-              $cond: [{ $eq: ["$type", "Credit"] }, "$amount", 0],
+              $cond: [{ $in: ["$type", ["Credit", "income", "Income"]] }, "$amount", 0],
             },
           },
           expenses: {
             $sum: {
-              $cond: [{ $eq: ["$type", "Debit"] }, "$amount", 0],
+              $cond: [{ $in: ["$type", ["Debit", "expense", "Expense"]] }, "$amount", 0],
             },
           },
           transactions: { $push: "$$ROOT" },

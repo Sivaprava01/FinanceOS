@@ -55,6 +55,18 @@ const getConvertedAmount = async (amount, fromCurrency, targetCurrency) => {
   }
 };
 
+const isIncomeType = (type) => {
+  if (!type) return false;
+  const t = String(type).toLowerCase().trim();
+  return t === "income" || t === "credit";
+};
+
+const isExpenseType = (type) => {
+  if (!type) return false;
+  const t = String(type).toLowerCase().trim();
+  return t === "expense" || t === "debit";
+};
+
 /**
  * Sums income and expenses for a user within a date range with currency conversion.
  * Returns { income, expenses }.
@@ -72,9 +84,9 @@ const sumIncomeExpenses = async (userId, start, end) => {
 
   for (const tx of transactions) {
     const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
-    if (tx.type === "Credit") {
+    if (isIncomeType(tx.type)) {
       income += converted;
-    } else {
+    } else if (isExpenseType(tx.type)) {
       expenses += converted;
     }
   }
@@ -107,7 +119,7 @@ const getOverview = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Debit",
+      type: { $in: ["expense", "Debit", "Expense"] },
       date: { $gte: start, $lte: end },
     }).select("amount currency category").lean(),
 
@@ -153,6 +165,7 @@ const getOverview = async (userId) => {
       amount: t.amount,
       currency: t.currency || targetCurrency,
       type: t.type,
+      paymentMethod: t.paymentMethod || null,
       merchant: t.merchant,
       category: t.category,
       source: t.source,
@@ -186,26 +199,26 @@ const getSpendingAnalysis = async (userId) => {
     highestExpenses,
     highestIncome,
   ] = await Promise.all([
-    // Current month transactions (Debit + Credit)
+    // Current month transactions (all types)
     Transaction.find({
       user: userId,
       isDeleted: false,
       date: { $gte: curStart, $lte: curEnd },
     }).select("amount type currency category merchant date").lean(),
 
-    // Previous month debit transactions
+    // Previous month debit/expense transactions
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Debit",
+      type: { $in: ["expense", "Debit", "Expense"] },
       date: { $gte: prevStart, $lte: prevEnd },
     }).select("amount currency category").lean(),
 
-    // 6-month trend debit transactions
+    // 6-month trend debit/expense transactions
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Debit",
+      type: { $in: ["expense", "Debit", "Expense"] },
       date: { $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) },
     }).select("amount currency date").lean(),
 
@@ -213,19 +226,19 @@ const getSpendingAnalysis = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Debit",
+      type: { $in: ["expense", "Debit", "Expense"] },
       date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
       .limit(5)
-      .select("date amount currency merchant category")
+      .select("date amount currency merchant category paymentMethod")
       .lean(),
 
     // Top 5 highest individual income transactions — current month
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Credit",
+      type: { $in: ["income", "Credit", "Income"] },
       date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
@@ -244,7 +257,7 @@ const getSpendingAnalysis = async (userId) => {
 
   for (const tx of curTx) {
     const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
-    if (tx.type === "Debit") {
+    if (isExpenseType(tx.type)) {
       expenseTotal += converted;
       const cat = tx.category || "Uncategorized";
       catMap[cat] = (catMap[cat] || 0) + converted;
@@ -253,7 +266,7 @@ const getSpendingAnalysis = async (userId) => {
       const m = tx.merchant || "Unknown";
       merchantMap[m] = (merchantMap[m] || 0) + converted;
       merchantCount[m] = (merchantCount[m] || 0) + 1;
-    } else if (tx.type === "Credit") {
+    } else if (isIncomeType(tx.type)) {
       incomeTotal += converted;
     }
   }

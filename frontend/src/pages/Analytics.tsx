@@ -98,14 +98,15 @@ const Analytics: React.FC = () => {
 
   if (!analysis || !comparison) return null
 
-  const monthlyTrendData = analysis.monthlyTrend.map((p) => ({
-    label: `${MONTH_NAMES[p.month - 1]} ${p.year}`,
-    expenses: p.total,
+  const monthlyTrendData = (analysis.monthlyTrend || []).map((p) => ({
+    label: `${MONTH_NAMES[(p.month || 1) - 1]} ${p.year}`,
+    total: p.total || 0,
+    expenses: p.total || 0,
   }))
 
-  const categoryPieData = analysis.byCategory.map((c) => ({
-    name: c._id,
-    value: c.total,
+  const categoryPieData = (analysis.byCategory || []).map((c) => ({
+    name: c._id || 'Uncategorized',
+    value: c.total || 0,
   }))
 
   const tabs: Array<{ id: Tab; label: string }> = [

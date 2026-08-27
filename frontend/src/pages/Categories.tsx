@@ -4,7 +4,6 @@ import { FolderOpen, Plus, Trash2, AlertCircle, Lock, Check } from 'lucide-react
 import { Card, CardContent } from '@components/ui/Card'
 import { SkeletonLoader, ErrorState, EmptyState } from '@components/ui'
 import { Button } from '@components/ui/Button'
-import { Badge } from '@components/ui/Badge'
 import { useCategories } from '@hooks/useCategories'
 import CreateCategoryModal from '@components/modals/CreateCategoryModal'
 import type { CreateCategoryInput } from '@/types'
@@ -120,9 +119,19 @@ const Categories: React.FC = () => {
                             />
                             <span className="font-semibold text-xs text-foreground truncate">{cat.name}</span>
                           </div>
-                          <Badge variant={cat.type === 'Income' ? 'success' : 'secondary'} size="sm">
-                            {cat.type === 'Income' ? 'Income' : 'Expense'}
-                          </Badge>
+                          <span
+                            className={`inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                              (cat.type || '').toLowerCase() === 'income'
+                                ? 'bg-success/15 text-success'
+                                : (cat.type || '').toLowerCase() === 'asset'
+                                ? 'bg-primary/15 text-primary'
+                                : (cat.type || '').toLowerCase() === 'liability'
+                                ? 'bg-amber-500/15 text-amber-500'
+                                : 'bg-secondary text-muted-foreground'
+                            }`}
+                          >
+                            {cat.type || 'Expense'}
+                          </span>
                         </div>
                         {cat.description && (
                           <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">

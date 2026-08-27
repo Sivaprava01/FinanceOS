@@ -61,13 +61,23 @@ export const getCategories = asyncHandler(async (req, res) => {
   const { user } = req;
   const { type } = req.query;
 
+  const normalizedType = type ? String(type).toLowerCase().trim() : null;
+  const mappedType =
+    normalizedType === "debit"
+      ? "expense"
+      : normalizedType === "credit"
+      ? "income"
+      : normalizedType;
+
   // Get custom categories
-  const customCategories = await categoryService.getCategories(user._id, { type });
+  const customCategories = await categoryService.getCategories(user._id, {
+    type: mappedType,
+  });
 
   // Get default categories (optionally filtered by type)
   const defaultCategories = categoryService
     .getDefaultCategories()
-    .filter((cat) => !type || cat.type === type);
+    .filter((cat) => !mappedType || cat.type.toLowerCase() === mappedType);
 
   // Combine: custom categories first, then defaults
   const allCategories = [...customCategories, ...defaultCategories];

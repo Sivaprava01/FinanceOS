@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Transaction } from '@/types'
-import { useCurrencyConversion } from '@hooks/useCurrencyConversion'
+import { useDualCurrencyConversion } from '@hooks/useCurrencyConversion'
+import { normalizeTransactionType } from '@lib/utils'
 
 interface TransactionRowProps {
   transaction: Transaction
@@ -17,12 +18,15 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
   isSelected = false,
   onSelect,
 }) => {
-  const { convertTransaction } = useCurrencyConversion()
-  const isCredit = transaction.type === 'Credit'
+  const normType = normalizeTransactionType(transaction.type)
+  const isIncome = normType === 'income'
+  const isAsset = normType === 'asset'
+  const isLiability = normType === 'liability'
   const isImported = transaction.source === 'statement' || !!transaction.statementId
 
+  const { convertTransaction } = useDualCurrencyConversion()
   const { primaryFormatted, preferredFormatted, inrFormatted, isForeign } = convertTransaction(
-    transaction.amount,
+    transaction.amount || 0,
     transaction.currency
   )
 
@@ -54,6 +58,23 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
         })}
       </td>
 
+      {/* Type Badge */}
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span
+          className={`inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+            isIncome
+              ? 'bg-success/15 text-success border border-success/30'
+              : isAsset
+              ? 'bg-primary/15 text-primary border border-primary/30'
+              : isLiability
+              ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+              : 'bg-muted text-muted-foreground border border-border'
+          }`}
+        >
+          {normType}
+        </span>
+      </td>
+
       {/* Merchant / Description */}
       <td className="px-3 py-2.5 min-w-[200px]">
         <div className="flex items-center gap-2">
@@ -74,11 +95,21 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
         </div>
       </td>
 
-      {/* Category */}
+      {/* Category & Payment Method */}
       <td className="px-3 py-2.5">
-        <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium bg-secondary text-muted-foreground">
-          {transaction.category || 'Uncategorized'}
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium bg-secondary text-muted-foreground">
+            {transaction.category || 'Uncategorized'}
+          </span>
+          {transaction.paymentMethod && (
+            <span
+              className="inline-flex items-center rounded bg-muted/80 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase"
+              title={`Paid via ${transaction.paymentMethod.replace('_', ' ')}`}
+            >
+              {transaction.paymentMethod.replace('_', ' ')}
+            </span>
+          )}
+        </div>
       </td>
 
       {/* Amount */}
@@ -86,17 +117,23 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
         <div className="flex flex-col items-end gap-0.5">
           <span
             className={`text-xs font-bold tabular-nums ${
-              isCredit ? 'text-success' : 'text-foreground'
+              isIncome
+                ? 'text-success'
+                : isLiability
+                ? 'text-amber-500'
+                : isAsset
+                ? 'text-primary'
+                : 'text-foreground'
             }`}
           >
-            {isCredit ? '+' : '-'}{primaryFormatted}
+            {isIncome ? '+' : '-'}{primaryFormatted}
           </span>
           {isForeign && preferredFormatted && (
             <span
               className="text-[11px] font-medium text-muted-foreground tabular-nums"
               title="Converted to your preferred currency"
             >
-              ≈ {isCredit ? '+' : ''}{preferredFormatted}
+              ≈ {isIncome ? '+' : ''}{preferredFormatted}
             </span>
           )}
           {inrFormatted && (
@@ -104,7 +141,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
               className="text-[10px] font-normal text-muted-foreground/80 tabular-nums"
               title="Secondary INR reference amount"
             >
-              ≈ {isCredit ? '+' : ''}{inrFormatted}
+              ≈ {isIncome ? '+' : ''}{inrFormatted}
             </span>
           )}
         </div>

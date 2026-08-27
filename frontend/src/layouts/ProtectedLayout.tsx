@@ -8,6 +8,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Sidebar from '@components/layout/Sidebar'
 import TopNavigation from '@components/layout/TopNavigation'
+import { ErrorBoundary } from '@components/LazyPageFallback'
 import { pageVariants } from '@lib/motion'
 
 const ProtectedLayout: React.FC = () => {
@@ -51,15 +52,17 @@ const ProtectedLayout: React.FC = () => {
         {/* Content Area with Page Transitions */}
         <main className="flex-1 overflow-auto" role="main" id="main-content">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-            <motion.div
-              key={location.pathname}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <Outlet />
-            </motion.div>
+            <ErrorBoundary>
+              <motion.div
+                key={location.pathname}
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <Outlet />
+              </motion.div>
+            </ErrorBoundary>
           </div>
         </main>
       </div>

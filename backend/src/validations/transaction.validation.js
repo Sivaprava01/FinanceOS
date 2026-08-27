@@ -60,11 +60,36 @@ export const validateExtractTransactions = [
   handleValidationErrors,
 ];
 
+export const VALID_TRANSACTION_TYPES = [
+  "income",
+  "expense",
+  "asset",
+  "liability",
+  "Debit",
+  "Credit",
+  "Income",
+  "Expense",
+  "Asset",
+  "Liability",
+];
+
+export const VALID_PAYMENT_METHODS = [
+  "cash",
+  "upi",
+  "debit_card",
+  "credit_card",
+  "bank_transfer",
+  "net_banking",
+  "cheque",
+  "wallet",
+  "other",
+];
+
 /**
  * Validates data for updating a transaction.
  *
  * PUT /api/v1/transactions/:id
- * Body: { merchant?, description?, category?, notes?, amount?, date? }
+ * Body: { merchant?, description?, category?, notes?, amount?, date?, type?, paymentMethod? }
  */
 export const validateUpdateTransaction = [
   param("id").isMongoId().withMessage("Invalid transaction ID"),
@@ -79,6 +104,25 @@ export const validateUpdateTransaction = [
   body("notes").optional().isString().trim().withMessage("Notes must be a string"),
   body("amount").optional().isFloat({ min: 0.01 }).withMessage("Amount must be greater than 0"),
   body("date").optional().isISO8601().withMessage("Date must be in ISO 8601 format"),
+  body("type")
+    .optional()
+    .isIn(VALID_TRANSACTION_TYPES)
+    .withMessage("Type must be income, expense, asset, or liability"),
+  body("paymentMethod")
+    .optional({ nullable: true })
+    .custom((val, { req }) => {
+      const type = req.body.type ? String(req.body.type).toLowerCase() : undefined;
+      const normalizedType = type === "debit" ? "expense" : type === "credit" ? "income" : type;
+      if (val && !VALID_PAYMENT_METHODS.includes(val)) {
+        throw new Error(
+          `Payment method must be one of: ${VALID_PAYMENT_METHODS.join(", ")}`
+        );
+      }
+      if (normalizedType && normalizedType !== "expense" && val) {
+        throw new Error("Payment method is only allowed for expense transactions");
+      }
+      return true;
+    }),
   handleValidationErrors,
 ];
 
@@ -133,8 +177,8 @@ export const validateImportTransactions = [
   body("transactions.*.type")
     .notEmpty()
     .withMessage("Transaction type is required")
-    .isIn(["Debit", "Credit"])
-    .withMessage("Type must be Debit or Credit"),
+    .isIn(VALID_TRANSACTION_TYPES)
+    .withMessage("Type must be income, expense, asset, or liability"),
   body("transactions.*.merchant")
     .notEmpty()
     .withMessage("Merchant name is required")
@@ -149,7 +193,7 @@ export const validateImportTransactions = [
  * Validates query parameters for getting transactions.
  *
  * GET /api/v1/transactions
- * Query: { limit?, skip?, fromDate?, toDate?, merchant?, category? }
+ * Query: { limit?, skip?, fromDate?, toDate?, merchant?, category?, type? }
  */
 export const validateGetTransactions = [
   query("limit")
@@ -161,6 +205,7 @@ export const validateGetTransactions = [
   query("toDate").optional().isISO8601().withMessage("To date must be in ISO 8601 format"),
   query("merchant").optional().isString().trim().withMessage("Merchant must be a string"),
   query("category").optional().isString().trim().withMessage("Category must be a string"),
+  query("type").optional().isString().trim().withMessage("Type must be a string"),
   handleValidationErrors,
 ];
 
@@ -180,7 +225,7 @@ export const validateTransactionId = [
  * Validates data for manually creating a transaction.
  *
  * POST /api/v1/transactions
- * Body: { date, amount, type, merchant, category, description?, notes? }
+ * Body: { date, amount, type, merchant, category, paymentMethod?, description?, notes? }
  */
 export const validateCreateTransaction = [
   body("date")
@@ -196,8 +241,8 @@ export const validateCreateTransaction = [
   body("type")
     .notEmpty()
     .withMessage("Transaction type is required")
-    .isIn(["Debit", "Credit"])
-    .withMessage("Type must be Debit or Credit"),
+    .isIn(VALID_TRANSACTION_TYPES)
+    .withMessage("Type must be income, expense, asset, or liability"),
   body("merchant")
     .notEmpty()
     .withMessage("Merchant name is required")
@@ -212,6 +257,22 @@ export const validateCreateTransaction = [
     .trim()
     .notEmpty()
     .withMessage("Category must be a non-empty string"),
+  body("paymentMethod").custom((val, { req }) => {
+    const rawType = req.body.type ? String(req.body.type).toLowerCase().trim() : "";
+    const normalizedType =
+      rawType === "debit" ? "expense" : rawType === "credit" ? "income" : rawType;
+
+    if (normalizedType === "expense") {
+      if (!val || !VALID_PAYMENT_METHODS.includes(val)) {
+        throw new Error(
+          `Payment method is required for expense transactions. Valid options: ${VALID_PAYMENT_METHODS.join(", ")}`
+        );
+      }
+    } else if (val) {
+      throw new Error("Payment method is only allowed for expense transactions");
+    }
+    return true;
+  }),
   body("description").optional().isString().trim().withMessage("Description must be a string"),
   body("notes").optional().isString().trim().withMessage("Notes must be a string"),
   handleValidationErrors,
