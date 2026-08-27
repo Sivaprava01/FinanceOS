@@ -37,11 +37,12 @@ const categorySchema = new Schema(
       maxlength: [50, "Category name cannot exceed 50 characters"],
     },
 
-    // Category type (Expense, Income, Asset, Liability)
+    // Category type (expense, income, asset, liability)
     type: {
       type: String,
-      enum: ["Expense", "Income", "Asset", "Liability"],
-      default: "Expense",
+      enum: ["expense", "income", "asset", "liability", "Expense", "Income", "Asset", "Liability"],
+      default: "expense",
+      set: (v) => (v ? v.toLowerCase() : "expense"),
     },
 
     // Hex color code for UI display (e.g., #10b981)

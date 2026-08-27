@@ -67,7 +67,7 @@ export const getCategories = asyncHandler(async (req, res) => {
   // Get default categories (optionally filtered by type)
   const defaultCategories = categoryService
     .getDefaultCategories()
-    .filter((cat) => !type || cat.type === type);
+    .filter((cat) => !type || cat.type.toLowerCase() === type.toLowerCase());
 
   // Combine: custom categories first, then defaults
   const allCategories = [...customCategories, ...defaultCategories];

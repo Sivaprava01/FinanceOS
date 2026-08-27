@@ -206,18 +206,32 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground">No transactions</p>
             </div>
           ) : (
-            overview.recentTransactions.slice(0, 5).map((txn) => (
-              <div key={txn._id} className="flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{txn.merchant}</p>
-                  <p className="text-xs text-muted-foreground">{txn.category} · {new Date(txn.date).toLocaleDateString()}</p>
+            overview.recentTransactions.slice(0, 5).map((txn) => {
+              const rawType = (txn.type || '').toLowerCase()
+              const isIncome = rawType === 'income' || rawType === 'credit'
+              const isExpense = rawType === 'expense' || rawType === 'debit'
+
+              return (
+                <div key={txn._id} className="flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{txn.merchant}</p>
+                    <p className="text-xs text-muted-foreground">{txn.category} · {new Date(txn.date).toLocaleDateString()}</p>
+                  </div>
+                  <p
+                    className={`text-sm font-semibold ml-4 flex items-center gap-1 ${
+                      isIncome
+                        ? 'text-green-600 dark:text-green-400'
+                        : isExpense
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-foreground'
+                    }`}
+                  >
+                    {isIncome ? <ArrowDownLeft className="w-3 h-3" /> : isExpense ? <ArrowUpRight className="w-3 h-3" /> : null}
+                    {isIncome ? '+' : isExpense ? '-' : ''}{format(txn.amount)}
+                  </p>
                 </div>
-                <p className={`text-sm font-semibold ml-4 flex items-center gap-1 ${txn.type === 'Credit' ? 'text-green-600' : 'text-red-600'}`}>
-                  {txn.type === 'Credit' ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
-                  {txn.type === 'Credit' ? '+' : '-'}{format(txn.amount)}
-                </p>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>

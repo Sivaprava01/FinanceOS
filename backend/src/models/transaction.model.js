@@ -63,11 +63,55 @@ const transactionSchema = new Schema(
       min: [0.01, "Amount must be greater than 0"],
     },
 
-    // Debit or Credit
+    // Transaction Type: income, expense, asset, liability (also supports Debit, Credit for backward compatibility)
     type: {
       type: String,
-      enum: ["Debit", "Credit"],
+      enum: [
+        "income",
+        "expense",
+        "asset",
+        "liability",
+        "Income",
+        "Expense",
+        "Asset",
+        "Liability",
+        "Debit",
+        "Credit",
+      ],
       required: [true, "Transaction type is required"],
+      set: (v) => {
+        if (!v) return v;
+        const lower = v.toLowerCase();
+        if (["income", "expense", "asset", "liability"].includes(lower)) return lower;
+        if (v === "Debit") return "expense";
+        if (v === "Credit") return "income";
+        return v;
+      },
+    },
+
+    // Payment Method (required for expense transactions, null for other types)
+    paymentMethod: {
+      type: String,
+      enum: [
+        "cash",
+        "upi",
+        "debit_card",
+        "credit_card",
+        "bank_transfer",
+        "net_banking",
+        "cheque",
+        "wallet",
+        "other",
+        null,
+      ],
+      default: null,
+    },
+
+    // Legacy banking type preserved for historical transparency (Debit/Credit)
+    bankingType: {
+      type: String,
+      enum: ["Debit", "Credit", null],
+      default: null,
     },
 
     // Merchant name (user can correct if OCR extracted wrong name)
@@ -168,6 +212,12 @@ const transactionSchema = new Schema(
 
 // Query transactions for a specific user
 transactionSchema.index({ user: 1, date: -1 });
+
+// Query transactions by type
+transactionSchema.index({ user: 1, type: 1 });
+
+// Query transactions by payment method
+transactionSchema.index({ user: 1, paymentMethod: 1 });
 
 // Query transactions by merchant (for merchant learning)
 transactionSchema.index({ user: 1, merchant: 1 });

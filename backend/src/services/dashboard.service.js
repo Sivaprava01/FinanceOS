@@ -43,18 +43,25 @@ const sumIncomeExpenses = async (userId, start, end) => {
         user: new Types.ObjectId(userId),
         isDeleted: false,
         date: { $gte: start, $lte: end },
+        type: { $in: ["income", "Income", "Credit", "expense", "Expense", "Debit"] },
       },
     },
     {
       $group: {
-        _id: "$type",
+        _id: {
+          $cond: [
+            { $in: ["$type", ["income", "Income", "Credit"]] },
+            "income",
+            "expense",
+          ],
+        },
         total: { $sum: "$amount" },
       },
     },
   ]);
 
-  const income = result.find((r) => r._id === "Credit")?.total ?? 0;
-  const expenses = result.find((r) => r._id === "Debit")?.total ?? 0;
+  const income = result.find((r) => r._id === "income")?.total ?? 0;
+  const expenses = result.find((r) => r._id === "expense")?.total ?? 0;
   return { income: r2(income), expenses: r2(expenses) };
 };
 
@@ -84,7 +91,7 @@ const getOverview = async (userId) => {
         $match: {
           user: new Types.ObjectId(userId),
           isDeleted: false,
-          type: "Debit",
+          type: { $in: ["expense", "Expense", "Debit"] },
           date: { $gte: start, $lte: end },
         },
       },
@@ -120,6 +127,7 @@ const getOverview = async (userId) => {
       date: t.date,
       amount: t.amount,
       type: t.type,
+      paymentMethod: t.paymentMethod || null,
       merchant: t.merchant,
       category: t.category,
     })),
@@ -158,14 +166,26 @@ const getSpendingAnalysis = async (userId) => {
   ] = await Promise.all([
     // Category-wise spending — current month
     Transaction.aggregate([
-      { $match: { ...baseMatch, type: "Debit", date: { $gte: curStart, $lte: curEnd } } },
+      {
+        $match: {
+          ...baseMatch,
+          type: { $in: ["expense", "Expense", "Debit"] },
+          date: { $gte: curStart, $lte: curEnd },
+        },
+      },
       { $group: { _id: "$category", total: { $sum: "$amount" }, count: { $sum: 1 } } },
       { $sort: { total: -1 } },
     ]),
 
     // Category-wise spending — previous month (for comparison)
     Transaction.aggregate([
-      { $match: { ...baseMatch, type: "Debit", date: { $gte: prevStart, $lte: prevEnd } } },
+      {
+        $match: {
+          ...baseMatch,
+          type: { $in: ["expense", "Expense", "Debit"] },
+          date: { $gte: prevStart, $lte: prevEnd },
+        },
+      },
       { $group: { _id: "$category", total: { $sum: "$amount" } } },
     ]),
 
@@ -174,7 +194,7 @@ const getSpendingAnalysis = async (userId) => {
       {
         $match: {
           ...baseMatch,
-          type: "Debit",
+          type: { $in: ["expense", "Expense", "Debit"] },
           date: { $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) },
         },
       },
@@ -189,13 +209,36 @@ const getSpendingAnalysis = async (userId) => {
 
     // Income vs expense — current month
     Transaction.aggregate([
-      { $match: { ...baseMatch, date: { $gte: curStart, $lte: curEnd } } },
-      { $group: { _id: "$type", total: { $sum: "$amount" } } },
+      {
+        $match: {
+          ...baseMatch,
+          date: { $gte: curStart, $lte: curEnd },
+          type: { $in: ["income", "Income", "Credit", "expense", "Expense", "Debit"] },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $in: ["$type", ["income", "Income", "Credit"]] },
+              "income",
+              "expense",
+            ],
+          },
+          total: { $sum: "$amount" },
+        },
+      },
     ]),
 
     // Top 5 merchants by transaction count — current month
     Transaction.aggregate([
-      { $match: { ...baseMatch, type: "Debit", date: { $gte: curStart, $lte: curEnd } } },
+      {
+        $match: {
+          ...baseMatch,
+          type: { $in: ["expense", "Expense", "Debit"] },
+          date: { $gte: curStart, $lte: curEnd },
+        },
+      },
       { $group: { _id: "$merchant", count: { $sum: 1 }, total: { $sum: "$amount" } } },
       { $sort: { count: -1 } },
       { $limit: 5 },
@@ -205,19 +248,19 @@ const getSpendingAnalysis = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Debit",
+      type: { $in: ["expense", "Expense", "Debit"] },
       date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
       .limit(5)
-      .select("date amount merchant category")
+      .select("date amount merchant category paymentMethod")
       .lean(),
 
     // Top 5 highest individual income transactions — current month
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: "Credit",
+      type: { $in: ["income", "Income", "Credit"] },
       date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
@@ -241,8 +284,8 @@ const getSpendingAnalysis = async (userId) => {
     };
   });
 
-  const incomeTotal = incomeVsExpense.find((r) => r._id === "Credit")?.total ?? 0;
-  const expenseTotal = incomeVsExpense.find((r) => r._id === "Debit")?.total ?? 0;
+  const incomeTotal = incomeVsExpense.find((r) => r._id === "income")?.total ?? 0;
+  const expenseTotal = incomeVsExpense.find((r) => r._id === "expense")?.total ?? 0;
 
   return {
     byCategory: byCategory.map((c) => ({ ...c, total: r2(c.total) })),

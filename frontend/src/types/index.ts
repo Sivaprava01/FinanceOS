@@ -36,13 +36,38 @@ export interface ApiResponse<T = unknown> {
   statusCode?: number
 }
 
+export type TransactionType =
+  | 'income'
+  | 'expense'
+  | 'asset'
+  | 'liability'
+  | 'Debit'
+  | 'Credit'
+  | 'Income'
+  | 'Expense'
+  | 'Asset'
+  | 'Liability'
+
+export type PaymentMethod =
+  | 'cash'
+  | 'upi'
+  | 'debit_card'
+  | 'credit_card'
+  | 'bank_transfer'
+  | 'net_banking'
+  | 'cheque'
+  | 'wallet'
+  | 'other'
+
 export interface Transaction {
   _id: string
   user: string
   statementId: string | null
   date: string
   amount: number
-  type: 'Debit' | 'Credit'
+  type: TransactionType
+  paymentMethod?: PaymentMethod | string | null
+  bankingType?: 'Debit' | 'Credit' | null
   merchant: string
   description: string
   category: string
@@ -57,9 +82,22 @@ export interface Transaction {
 export interface CreateTransactionInput {
   date: string
   amount: number
-  type: 'Debit' | 'Credit'
+  type: 'income' | 'expense' | 'asset' | 'liability' | 'Debit' | 'Credit' | string
   merchant: string
   category: string
+  paymentMethod?: PaymentMethod | string | null
+  description?: string
+  notes?: string
+  currency?: string
+}
+
+export interface UpdateTransactionInput {
+  date?: string
+  amount?: number
+  type?: 'income' | 'expense' | 'asset' | 'liability' | string
+  merchant?: string
+  category?: string
+  paymentMethod?: PaymentMethod | string | null
   description?: string
   notes?: string
   currency?: string
@@ -94,7 +132,8 @@ export interface DashboardOverview {
     _id: string
     date: string
     amount: number
-    type: 'Debit' | 'Credit'
+    type: TransactionType
+    paymentMethod?: string | null
     merchant: string
     category: string
   }[]
@@ -113,7 +152,7 @@ export interface SpendingAnalysis {
   monthlyTrend: { year: number; month: number; total: number }[]
   incomeVsExpense: { income: number; expenses: number; savings: number }
   topMerchants: { _id: string; count: number; total: number }[]
-  highestExpenses: { date: string; amount: number; merchant: string; category: string }[]
+  highestExpenses: { date: string; amount: number; merchant: string; category: string; paymentMethod?: string | null }[]
   highestIncome: { date: string; amount: number; merchant: string; category: string }[]
 }
 
@@ -158,19 +197,28 @@ export interface ThemeContextType {
   isDark: boolean
 }
 
-export type CategoryType = 'Expense' | 'Income' | 'Asset' | 'Liability'
+export type CategoryType =
+  | 'income'
+  | 'expense'
+  | 'asset'
+  | 'liability'
+  | 'Expense'
+  | 'Income'
+  | 'Asset'
+  | 'Liability'
 
 export interface Category {
   _id: string
-  user: string
+  user?: string
   name: string
   type: CategoryType
   color?: string
   icon?: string
   description?: string
-  isDefault: boolean
-  createdAt: string
-  updatedAt: string
+  isDefault?: boolean
+  isCustom?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface CreateCategoryInput {

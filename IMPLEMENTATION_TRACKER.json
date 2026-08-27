@@ -1,0 +1,568 @@
+{
+  "project": "FinanceOS Transaction System Restructuring",
+  "goal": "Convert from Banking model (Debit/Credit) to Accounting model (Income/Expense/Asset/Liability) with Payment Method support",
+  "createdAt": "2024-01-XX",
+  "totalEstimatedHours": "12-18",
+  
+  "phases": {
+    "phase_1_setup": {
+      "name": "Phase 1: Setup & Constants",
+      "duration": "1-2 hours",
+      "blocking": false,
+      "tasks": [
+        {
+          "id": "setup_1",
+          "name": "Add constants to backend",
+          "file": "backend/src/constants/index.js",
+          "action": "ADD",
+          "details": "TRANSACTION_TYPES, PAYMENT_METHODS objects",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "setup_2",
+          "name": "Create payment methods utility",
+          "file": "frontend/src/lib/payment-methods.ts",
+          "action": "CREATE",
+          "details": "PAYMENT_METHODS_BY_TYPE, TYPE_LABELS constants",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "setup_3",
+          "name": "Add TypeScript types",
+          "file": "frontend/src/types/index.ts",
+          "action": "MODIFY",
+          "details": "Add new type enums (keep old for backward compat)",
+          "completed": false,
+          "notes": ""
+        }
+      ]
+    },
+    
+    "phase_2_backend_models": {
+      "name": "Phase 2: Backend Data Models",
+      "duration": "2-3 hours",
+      "blocking": true,
+      "dependsOn": ["phase_1_setup"],
+      "tasks": [
+        {
+          "id": "model_1",
+          "name": "Update Transaction model",
+          "file": "backend/src/models/transaction.model.js",
+          "action": "MODIFY",
+          "details": "Add type (new enum), paymentMethod, bankingType fields as optional",
+          "completed": false,
+          "notes": "Keep old schema fields for backward compatibility"
+        },
+        {
+          "id": "model_2",
+          "name": "Add database indexes",
+          "file": "backend/src/models/transaction.model.js",
+          "action": "ADD",
+          "details": "Index on (user, type) and (user, paymentMethod)",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "model_3",
+          "name": "Verify Category model",
+          "file": "backend/src/models/category.model.js",
+          "action": "VERIFY",
+          "details": "Check type field already uses correct enum",
+          "completed": false,
+          "notes": "No changes needed - already correct"
+        },
+        {
+          "id": "model_4",
+          "name": "Update validation schema",
+          "file": "backend/src/validations/transaction.validation.js",
+          "action": "MODIFY",
+          "details": "Update type enum, add paymentMethod validation rules",
+          "completed": false,
+          "notes": "validateCreateTransaction, validateUpdateTransaction"
+        }
+      ]
+    },
+    
+    "phase_3_backend_logic": {
+      "name": "Phase 3: Backend Business Logic",
+      "duration": "3-4 hours",
+      "blocking": true,
+      "dependsOn": ["phase_2_backend_models"],
+      "tasks": [
+        {
+          "id": "service_1",
+          "name": "Update createTransaction",
+          "file": "backend/src/services/transaction.service.js",
+          "action": "MODIFY",
+          "details": "Accept new type and paymentMethod, validate combination",
+          "completed": false,
+          "notes": "Add validatePaymentMethodForType helper"
+        },
+        {
+          "id": "service_2",
+          "name": "Update updateTransaction",
+          "file": "backend/src/services/transaction.service.js",
+          "action": "MODIFY",
+          "details": "Allow updating type and paymentMethod",
+          "completed": false,
+          "notes": "Validate new type matches category"
+        },
+        {
+          "id": "service_3",
+          "name": "Update importTransactions",
+          "file": "backend/src/services/transaction.service.js",
+          "action": "MODIFY",
+          "details": "Convert old Debit/Credit to new type during import",
+          "completed": false,
+          "notes": "Use mapBankingTypeToCategoryType helper"
+        },
+        {
+          "id": "service_4",
+          "name": "Update getUserTransactions",
+          "file": "backend/src/services/transaction.service.js",
+          "action": "MODIFY",
+          "details": "Support filtering by new type and paymentMethod",
+          "completed": false,
+          "notes": "Remove Debit/Credit type filter"
+        },
+        {
+          "id": "controller_1",
+          "name": "Update transaction controller",
+          "file": "backend/src/controllers/transaction.controller.js",
+          "action": "MODIFY",
+          "details": "Handle paymentMethod in request body",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "routes_1",
+          "name": "Update API documentation",
+          "file": "backend/src/routes/transaction.routes.js",
+          "action": "UPDATE_DOCS",
+          "details": "Update comments for new type enum and paymentMethod",
+          "completed": false,
+          "notes": ""
+        }
+      ]
+    },
+    
+    "phase_4_migration": {
+      "name": "Phase 4: Database Migration",
+      "duration": "0.5-1 hour",
+      "blocking": false,
+      "dependsOn": ["phase_3_backend_logic"],
+      "tasks": [
+        {
+          "id": "migrate_1",
+          "name": "Create migration script",
+          "file": "backend/src/db/migrations/001-transaction-types.js",
+          "action": "CREATE",
+          "details": "Convert Debit/Credit to new type based on category.type",
+          "completed": false,
+          "notes": "Store original values in bankingType field"
+        },
+        {
+          "id": "migrate_2",
+          "name": "Test migration on dev data",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Run migration script on development database",
+          "completed": false,
+          "notes": "Verify all transactions get new type value"
+        },
+        {
+          "id": "migrate_3",
+          "name": "Run migration in production",
+          "file": "N/A",
+          "action": "EXECUTE",
+          "details": "Execute migration after deploying backend",
+          "completed": false,
+          "notes": "After deployment, run migration script"
+        }
+      ]
+    },
+    
+    "phase_5_frontend": {
+      "name": "Phase 5: Frontend UI Updates",
+      "duration": "3-4 hours",
+      "blocking": true,
+      "dependsOn": ["phase_1_setup", "phase_3_backend_logic"],
+      "tasks": [
+        {
+          "id": "ui_1",
+          "name": "Update Transaction form",
+          "file": "frontend/src/pages/Transactions.tsx",
+          "action": "MODIFY",
+          "details": "Replace type dropdown with new enum, add paymentMethod field",
+          "completed": false,
+          "notes": "Lines 170-300, show payment methods based on selected type"
+        },
+        {
+          "id": "ui_2",
+          "name": "Update filter section",
+          "file": "frontend/src/pages/Transactions.tsx",
+          "action": "MODIFY",
+          "details": "Update type filter dropdown, add paymentMethod filter",
+          "completed": false,
+          "notes": "Lines 300-450"
+        },
+        {
+          "id": "ui_3",
+          "name": "Update TransactionRow component",
+          "file": "frontend/src/components/transactions/TransactionRow.tsx",
+          "action": "MODIFY",
+          "details": "Display new type values, show paymentMethod info",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "ui_4",
+          "name": "Update useTransactions hook",
+          "file": "frontend/src/hooks/useTransactions.ts",
+          "action": "MODIFY",
+          "details": "Update type filter params, include paymentMethod in requests",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "ui_5",
+          "name": "Update transaction service",
+          "file": "frontend/src/services/transaction.service.ts",
+          "action": "MODIFY",
+          "details": "Add paymentMethod to interfaces, update API calls",
+          "completed": false,
+          "notes": ""
+        }
+      ]
+    },
+    
+    "phase_6_testing": {
+      "name": "Phase 6: Testing & Validation",
+      "duration": "2-3 hours",
+      "blocking": true,
+      "dependsOn": ["phase_5_frontend"],
+      "tasks": [
+        {
+          "id": "test_1",
+          "name": "Test transaction creation",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Create transaction with each new type",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "test_2",
+          "name": "Test transaction updates",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Update type and paymentMethod fields",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "test_3",
+          "name": "Test filtering",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Filter by type and paymentMethod",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "test_4",
+          "name": "Test backward compatibility",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Old transactions display correctly after migration",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "test_5",
+          "name": "Test category validation",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Cannot select mismatched category type",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "test_6",
+          "name": "Test payment method validation",
+          "file": "N/A",
+          "action": "TEST",
+          "details": "Cannot select invalid payment method for type",
+          "completed": false,
+          "notes": ""
+        }
+      ]
+    },
+    
+    "phase_7_cleanup": {
+      "name": "Phase 7: Cleanup & Documentation",
+      "duration": "1-2 hours",
+      "blocking": false,
+      "dependsOn": ["phase_6_testing"],
+      "tasks": [
+        {
+          "id": "cleanup_1",
+          "name": "Update API documentation",
+          "file": "docs/API.md",
+          "action": "UPDATE",
+          "details": "Document new type enum and paymentMethod field",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "cleanup_2",
+          "name": "Update migration guide",
+          "file": "docs/MIGRATION.md",
+          "action": "CREATE",
+          "details": "Document data migration from Debit/Credit",
+          "completed": false,
+          "notes": ""
+        },
+        {
+          "id": "cleanup_3",
+          "name": "Remove old type filter from analytics",
+          "file": "N/A",
+          "action": "VERIFY",
+          "details": "Update any dashboards/reports using old type",
+          "completed": false,
+          "notes": ""
+        }
+      ]
+    }
+  },
+  
+  "fileMatrix": {
+    "backend": {
+      "models": [
+        {
+          "file": "src/models/transaction.model.js",
+          "action": "MODIFY",
+          "impact": "CRITICAL",
+          "fields_to_add": ["type (new enum)", "paymentMethod", "bankingType"],
+          "priority": 1
+        },
+        {
+          "file": "src/models/category.model.js",
+          "action": "VERIFY",
+          "impact": "NONE",
+          "priority": 1
+        }
+      ],
+      "validations": [
+        {
+          "file": "src/validations/transaction.validation.js",
+          "action": "MODIFY",
+          "impact": "CRITICAL",
+          "priority": 2
+        },
+        {
+          "file": "src/validations/category.validation.js",
+          "action": "VERIFY",
+          "impact": "NONE",
+          "priority": 2
+        }
+      ],
+      "services": [
+        {
+          "file": "src/services/transaction.service.js",
+          "action": "MODIFY",
+          "impact": "CRITICAL",
+          "functions": ["createTransaction", "updateTransaction", "importTransactions", "getUserTransactions"],
+          "priority": 3
+        },
+        {
+          "file": "src/services/category.service.js",
+          "action": "VERIFY",
+          "impact": "NONE",
+          "priority": 3
+        }
+      ],
+      "controllers": [
+        {
+          "file": "src/controllers/transaction.controller.js",
+          "action": "MODIFY",
+          "impact": "HIGH",
+          "priority": 3
+        }
+      ],
+      "routes": [
+        {
+          "file": "src/routes/transaction.routes.js",
+          "action": "UPDATE_DOCS",
+          "impact": "MEDIUM",
+          "priority": 4
+        }
+      ],
+      "constants": [
+        {
+          "file": "src/constants/index.js",
+          "action": "ADD",
+          "impact": "MEDIUM",
+          "additions": ["TRANSACTION_TYPES", "PAYMENT_METHODS"],
+          "priority": 1
+        }
+      ],
+      "migrations": [
+        {
+          "file": "src/db/migrations/001-transaction-types.js",
+          "action": "CREATE",
+          "impact": "CRITICAL",
+          "priority": 5
+        }
+      ]
+    },
+    "frontend": {
+      "types": [
+        {
+          "file": "src/types/index.ts",
+          "action": "MODIFY",
+          "impact": "CRITICAL",
+          "interfaces": ["Transaction", "CreateTransactionInput"],
+          "priority": 1
+        }
+      ],
+      "components": [
+        {
+          "file": "src/pages/Transactions.tsx",
+          "action": "MODIFY",
+          "impact": "CRITICAL",
+          "sections": ["Form section (lines 170-300)", "Filter section (lines 300-450)"],
+          "priority": 2
+        },
+        {
+          "file": "src/components/transactions/TransactionRow.tsx",
+          "action": "MODIFY",
+          "impact": "HIGH",
+          "priority": 2
+        }
+      ],
+      "hooks": [
+        {
+          "file": "src/hooks/useTransactions.ts",
+          "action": "MODIFY",
+          "impact": "HIGH",
+          "priority": 2
+        },
+        {
+          "file": "src/hooks/useCategories.ts",
+          "action": "VERIFY",
+          "impact": "NONE",
+          "priority": 2
+        }
+      ],
+      "services": [
+        {
+          "file": "src/services/transaction.service.ts",
+          "action": "MODIFY",
+          "impact": "HIGH",
+          "priority": 2
+        }
+      ],
+      "utilities": [
+        {
+          "file": "src/lib/payment-methods.ts",
+          "action": "CREATE",
+          "impact": "MEDIUM",
+          "priority": 1
+        }
+      ]
+    }
+  },
+
+  "typeMapping": {
+    "oldBankingModel": {
+      "Debit": {
+        "meaning": "Money OUT",
+        "typically_maps_to": ["Expense", "Asset decrease", "Liability payment"]
+      },
+      "Credit": {
+        "meaning": "Money IN",
+        "typically_maps_to": ["Income", "Asset increase", "Liability addition"]
+      }
+    },
+    "newAccountingModel": {
+      "Income": {
+        "meaning": "Money coming in",
+        "paymentMethods": ["Salary", "Freelance", "Investment", "Bonus", "Refund", "Other"],
+        "icon": "TrendingUp",
+        "color": "success"
+      },
+      "Expense": {
+        "meaning": "Money going out",
+        "paymentMethods": ["Credit Card", "Debit Card", "Cash", "Bank Transfer", "UPI", "Cheque", "Other"],
+        "icon": "TrendingDown",
+        "color": "destructive"
+      },
+      "Asset": {
+        "meaning": "Resource increase",
+        "paymentMethods": ["Cash Deposit", "Bank Transfer", "Investment Purchase", "Other"],
+        "icon": "PiggyBank",
+        "color": "blue-500"
+      },
+      "Liability": {
+        "meaning": "Obligation increase",
+        "paymentMethods": ["Loan Disbursement", "Credit Card Opening", "Other"],
+        "icon": "AlertTriangle",
+        "color": "amber-500"
+      }
+    }
+  },
+
+  "criticalDependencies": [
+    "Transaction model changes must be deployed before migration runs",
+    "Validation rules must be updated before backend accepts new type",
+    "Frontend must be updated to match new backend type enum",
+    "Migration must run after both backend changes are live",
+    "Old data must be preserved in bankingType for rollback"
+  ],
+
+  "riskFactors": [
+    {
+      "risk": "Existing Debit/Credit transactions lose meaning after change",
+      "mitigation": "Store original values in bankingType field, always show both for period"
+    },
+    {
+      "risk": "Frontend and backend types get out of sync",
+      "mitigation": "Use same enum from constants file in both backends"
+    },
+    {
+      "risk": "Category type and transaction type mismatch",
+      "mitigation": "Add validation to prevent selecting category with different type"
+    },
+    {
+      "risk": "Payment method not valid for selected type",
+      "mitigation": "Filter dropdown to only show valid methods per type"
+    },
+    {
+      "risk": "Reports/analytics break if querying old type field",
+      "mitigation": "Update all queries to use new type field after migration"
+    }
+  ],
+
+  "rollbackProcedure": {
+    "immediate_if_issues": [
+      "Revert frontend to show old Debit/Credit types",
+      "Keep new type field optional in model",
+      "Queries can fall back to reading bankingType"
+    ],
+    "data_is_safe_because": [
+      "Original Debit/Credit values stored in bankingType",
+      "No data deletion, only additions",
+      "Migration is reversible by running inverse script"
+    ],
+    "recovery_steps": [
+      "1. Stop accepting new type values",
+      "2. Switch frontend back to old type dropdown",
+      "3. Update queries to read bankingType if type is missing",
+      "4. Investigate root cause",
+      "5. Fix and redeploy"
+    ]
+  }
+}

@@ -3,14 +3,16 @@
  *
  * Initialization Sequence:
  * 1. Load environment variables
- * 2. Connect to MongoDB
- * 3. Start Express server
- * 4. Handle graceful shutdown
+ * 2. Validate environment variables
+ * 3. Connect to MongoDB
+ * 4. Start Express server
+ * 5. Handle graceful shutdown
  */
 
 import dotenv from "dotenv";
 import app from "./app.js";
 import connectDB from "./db/index.js";
+import { validateEnvironment } from "./utils/validateEnv.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -20,8 +22,12 @@ const PORT = process.env.PORT || 8000;
 // Start server
 const startServer = async () => {
   try {
-    // Connect to MongoDB first
-    console.log("\n🔄 Connecting to MongoDB...");
+    // Validate environment first
+    console.log("\n🔍 Validating environment variables...");
+    validateEnvironment();
+
+    // Connect to MongoDB
+    console.log("🔄 Connecting to MongoDB...");
     await connectDB();
 
     // Start Express server

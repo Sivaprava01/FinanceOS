@@ -135,42 +135,91 @@ const Search: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((t: Transaction) => (
-                      <tr key={t._id} className="border-b border-border/50">
-                        <td className="py-3">{new Date(t.date).toLocaleDateString()}</td>
-                        <td className="py-3 font-medium">{t.merchant}</td>
-                        <td className="py-3">
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{t.category || '—'}</span>
-                        </td>
-                        <td className="py-3 text-muted-foreground">{t.description}</td>
-                        <td className={`py-3 text-right font-semibold ${t.type === 'Debit' ? 'text-destructive' : 'text-success'}`}>
-                          {t.type === 'Debit' ? '-' : '+'}{format(t.amount)}
-                        </td>
-                      </tr>
-                    ))}
+                    {filtered.map((t: Transaction) => {
+                      const typeLower = (t.type || '').toLowerCase()
+                      const isIncome = typeLower === 'income' || typeLower === 'credit'
+                      const isExpense = typeLower === 'expense' || typeLower === 'debit'
+                      const isAsset = typeLower === 'asset'
+                      const isLiability = typeLower === 'liability'
+
+                      const colorClass = isIncome
+                        ? 'text-green-600 dark:text-green-400'
+                        : isExpense
+                          ? 'text-red-600 dark:text-red-400'
+                          : isAsset
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : isLiability
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-foreground'
+
+                      const prefix = isIncome ? '+' : isExpense ? '-' : ''
+
+                      return (
+                        <tr key={t._id} className="border-b border-border/50">
+                          <td className="py-3">{new Date(t.date).toLocaleDateString()}</td>
+                          <td className="py-3 font-medium">{t.merchant}</td>
+                          <td className="py-3">
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                              {t.category || '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 text-muted-foreground">{t.description}</td>
+                          <td className={`py-3 text-right font-semibold ${colorClass}`}>
+                            {prefix}
+                            {format(t.amount)}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile card layout - shown on mobile */}
               <div className="md:hidden space-y-3">
-                {filtered.map((t: Transaction) => (
-                  <div key={t._id} className="rounded-lg border border-border bg-card p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{t.merchant}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
+                {filtered.map((t: Transaction) => {
+                  const typeLower = (t.type || '').toLowerCase()
+                  const isIncome = typeLower === 'income' || typeLower === 'credit'
+                  const isExpense = typeLower === 'expense' || typeLower === 'debit'
+                  const isAsset = typeLower === 'asset'
+                  const isLiability = typeLower === 'liability'
+
+                  const colorClass = isIncome
+                    ? 'text-green-600 dark:text-green-400'
+                    : isExpense
+                      ? 'text-red-600 dark:text-red-400'
+                      : isAsset
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : isLiability
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-foreground'
+
+                  const prefix = isIncome ? '+' : isExpense ? '-' : ''
+
+                  return (
+                    <div
+                      key={t._id}
+                      className="rounded-lg border border-border bg-card p-4 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{t.merchant}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(t.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <p className={`text-sm font-semibold whitespace-nowrap ${colorClass}`}>
+                          {prefix}
+                          {format(t.amount)}
+                        </p>
                       </div>
-                      <p className={`text-sm font-semibold whitespace-nowrap ${t.type === 'Debit' ? 'text-destructive' : 'text-success'}`}>
-                        {t.type === 'Debit' ? '-' : '+'}{format(t.amount)}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                        <span className="rounded-full bg-muted px-2 py-0.5">{t.category || '—'}</span>
+                        <span className="text-xs">{t.description}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-t border-border pt-2">
-                      <span className="rounded-full bg-muted px-2 py-0.5">{t.category || '—'}</span>
-                      <span className="text-xs">{t.description}</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}

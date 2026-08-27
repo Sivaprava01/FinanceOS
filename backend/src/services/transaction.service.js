@@ -125,6 +125,8 @@ const getTransactionsForReview = async (statementId, userId) => {
   };
 };
 
+import { verifyCategoryAndType, normalizeTransactionType } from "../validations/transaction.validation.js";
+
 // ─── Create Transaction ────────────────────────────────────────────────────────
 
 /**
@@ -137,8 +139,9 @@ const getTransactionsForReview = async (statementId, userId) => {
  * @param {object} transactionData - Transaction data
  *   - date: date
  *   - amount: number
- *   - type: "Debit" | "Credit"
+ *   - type: "income" | "expense" | "asset" | "liability"
  *   - merchant: string
+ *   - paymentMethod: string (required for expense)
  *   - description: string (optional)
  *   - category: string (optional)
  *   - notes: string (optional)
@@ -148,9 +151,29 @@ const getTransactionsForReview = async (statementId, userId) => {
  * @throws {ApiError} If invalid
  */
 const createTransaction = async (userId, transactionData) => {
+  const normType = normalizeTransactionType(transactionData.type || "expense");
+  const category = transactionData.category || "Uncategorized";
+
+  // Verify category belongs to transaction type
+  await verifyCategoryAndType(category, normType, userId);
+
+  let paymentMethod = null;
+  if (normType === "expense") {
+    if (!transactionData.paymentMethod || !transactionData.paymentMethod.trim()) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Payment method is required for expense transactions"
+      );
+    }
+    paymentMethod = transactionData.paymentMethod.trim().toLowerCase();
+  }
+
   const transaction = await Transaction.create({
     user: userId,
     ...transactionData,
+    type: normType,
+    category,
+    paymentMethod,
   });
 
   return formatTransactionResponse(transaction);
@@ -160,7 +183,7 @@ const createTransaction = async (userId, transactionData) => {
 
 /**
  * Updates a transaction with user corrections.
- * User can edit: merchant, description, category, notes, amount, date
+ * User can edit: merchant, description, category, notes, amount, date, type, paymentMethod
  *
  * Original values are always preserved.
  * A merchant edit can optionally trigger merchant learning.
@@ -183,11 +206,51 @@ const updateTransaction = async (transactionId, userId, updateData) => {
   }
 
   // Update allowed fields
-  const allowedFields = ["date", "amount", "merchant", "description", "category", "notes"];
+  const allowedFields = [
+    "date",
+    "amount",
+    "type",
+    "merchant",
+    "description",
+    "category",
+    "notes",
+    "paymentMethod",
+  ];
   const hasChanges = allowedFields.some((field) => updateData[field] !== undefined);
 
   if (!hasChanges) {
     return formatTransactionResponse(transaction);
+  }
+
+  const targetType = normalizeTransactionType(updateData.type || transaction.type);
+  const targetCategory = updateData.category || transaction.category;
+
+  // Validate category compatibility if type or category changed
+  if (updateData.type !== undefined || updateData.category !== undefined) {
+    await verifyCategoryAndType(targetCategory, targetType, userId);
+  }
+
+  // Handle payment method rules
+  if (targetType === "expense") {
+    const finalPaymentMethod =
+      updateData.paymentMethod !== undefined
+        ? updateData.paymentMethod
+        : transaction.paymentMethod;
+
+    if (!finalPaymentMethod) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Payment method is required for expense transactions"
+      );
+    }
+    updateData.paymentMethod = finalPaymentMethod.toLowerCase();
+  } else {
+    // Non-expense transactions must not have payment methods
+    updateData.paymentMethod = null;
+  }
+
+  if (updateData.type) {
+    updateData.type = targetType;
   }
 
   // Track if merchant changed (for learning)
@@ -331,12 +394,16 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     // Create all transactions
     const createdTransactions = [];
     for (const txData of transactions) {
+      const normType = normalizeTransactionType(txData.type || "expense");
       const tx = await Transaction.create(
         [
           {
             user: userId,
             statementId,
             ...txData,
+            type: normType,
+            bankingType: txData.type === "Debit" || txData.type === "Credit" ? txData.type : null,
+            paymentMethod: normType === "expense" ? txData.paymentMethod || "other" : null,
           },
         ],
         { session }
@@ -397,6 +464,7 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
  *   - toDate: Date
  *   - merchant: string (partial match)
  *   - category: string
+ *   - type: string
  * @returns {Promise<Array>} Array of transactions
  */
 const getUserTransactions = async (userId, options = {}) => {
@@ -433,7 +501,18 @@ const getUserTransactions = async (userId, options = {}) => {
   }
 
   if (type) {
-    query.type = type;
+    const norm = type.toLowerCase();
+    if (norm === "expense" || norm === "debit") {
+      query.type = { $in: ["expense", "Expense", "Debit"] };
+    } else if (norm === "income" || norm === "credit") {
+      query.type = { $in: ["income", "Income", "Credit"] };
+    } else if (norm === "asset") {
+      query.type = { $in: ["asset", "Asset"] };
+    } else if (norm === "liability") {
+      query.type = { $in: ["liability", "Liability"] };
+    } else {
+      query.type = type;
+    }
   }
 
   if (minAmount !== undefined || maxAmount !== undefined) {
@@ -472,6 +551,8 @@ const formatTransactionResponse = (tx) => {
     date: tx.date,
     amount: tx.amount,
     type: tx.type,
+    paymentMethod: tx.paymentMethod || null,
+    bankingType: tx.bankingType || null,
     merchant: tx.merchant,
     description: tx.description,
     category: tx.category,
@@ -574,19 +655,34 @@ const getTransactionStats = async (userId, options = {}) => {
   const transactions = await Transaction.find(query).lean();
 
   // Calculate statistics
-  let totalDebit = 0;
-  let totalCredit = 0;
+  let totalExpense = 0;
+  let totalIncome = 0;
+  let totalAsset = 0;
+  let totalLiability = 0;
   const byCategory = {};
   const byMerchant = {};
-  const byType = { Debit: 0, Credit: 0 };
+  const byPaymentMethod = {};
+  const byType = { income: 0, expense: 0, asset: 0, liability: 0, Debit: 0, Credit: 0 };
 
   for (const tx of transactions) {
-    if (tx.type === "Debit") {
-      totalDebit += tx.amount;
+    const t = (tx.type || "").toLowerCase();
+    if (t === "expense" || t === "debit") {
+      totalExpense += tx.amount;
+      byType.expense += tx.amount;
       byType.Debit += tx.amount;
-    } else {
-      totalCredit += tx.amount;
+      if (tx.paymentMethod) {
+        byPaymentMethod[tx.paymentMethod] = (byPaymentMethod[tx.paymentMethod] || 0) + tx.amount;
+      }
+    } else if (t === "income" || t === "credit") {
+      totalIncome += tx.amount;
+      byType.income += tx.amount;
       byType.Credit += tx.amount;
+    } else if (t === "asset") {
+      totalAsset += tx.amount;
+      byType.asset += tx.amount;
+    } else if (t === "liability") {
+      totalLiability += tx.amount;
+      byType.liability += tx.amount;
     }
 
     // By Category
@@ -604,12 +700,17 @@ const getTransactionStats = async (userId, options = {}) => {
     },
     summary: {
       totalTransactions: transactions.length,
-      totalDebit: parseFloat(totalDebit.toFixed(2)),
-      totalCredit: parseFloat(totalCredit.toFixed(2)),
-      netFlow: parseFloat((totalCredit - totalDebit).toFixed(2)),
+      totalIncome: parseFloat(totalIncome.toFixed(2)),
+      totalExpense: parseFloat(totalExpense.toFixed(2)),
+      totalAsset: parseFloat(totalAsset.toFixed(2)),
+      totalLiability: parseFloat(totalLiability.toFixed(2)),
+      totalDebit: parseFloat(totalExpense.toFixed(2)),
+      totalCredit: parseFloat(totalIncome.toFixed(2)),
+      netFlow: parseFloat((totalIncome - totalExpense).toFixed(2)),
     },
     byType,
     byCategory,
+    byPaymentMethod,
     topMerchants: Object.entries(byMerchant)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)

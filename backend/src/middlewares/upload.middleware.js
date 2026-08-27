@@ -53,23 +53,36 @@ const storage = multer.diskStorage({
 // ─── File Filter ──────────────────────────────────────────────────────────────
 
 /**
- * Accepts only supported file types (PDF, CSV, XLSX).
- * Validation rules are checked again in the validation middleware,
- * but we filter here too as a first line of defense.
+ * Validates file type, extension, and mimetype.
+ * Prevents arbitrary file uploads and NoSQL injection via filenames.
  */
-const fileFilter = (req, file, cb) => {
-  const allowedMimes = [
-    "application/pdf",
-    "text/csv",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-excel",
-  ];
+const ALLOWED_MIMES = [
+  "application/pdf",
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+];
 
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("File type not supported"), false);
+const ALLOWED_EXTENSIONS = [".pdf", ".csv", ".xlsx", ".xls"];
+
+const fileFilter = (req, file, cb) => {
+  // Check MIME type
+  if (!ALLOWED_MIMES.includes(file.mimetype)) {
+    return cb(new Error(`Invalid file type: ${file.mimetype}. Allowed types: PDF, CSV, XLSX`), false);
   }
+
+  // Check file extension
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return cb(new Error(`Invalid file extension: ${ext}. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`), false);
+  }
+
+  // Check filename for suspicious patterns (prevent injection)
+  if (!/^[\w\s\-\.]+$/.test(file.originalname)) {
+    return cb(new Error("Filename contains invalid characters"), false);
+  }
+
+  cb(null, true);
 };
 
 // ─── Multer Instance ──────────────────────────────────────────────────────────
@@ -77,9 +90,12 @@ const fileFilter = (req, file, cb) => {
 /**
  * Multer configuration for statement uploads.
  *
- * Limits:
- * - maxFileSize: 50MB (reasonable for bank statements)
- * - maxFiles: 1 (single file per request)
+ * Security features:
+ * - File size limit: 50MB (prevents DoS attacks)
+ * - File type validation: only PDF, CSV, XLSX allowed
+ * - File extension validation: prevents disguised files
+ * - Filename sanitization: prevents path traversal and injection
+ * - Single file only: max 1 file per request
  *
  * After upload:
  * - File is available as req.file
@@ -90,6 +106,7 @@ const upload = multer({
   fileFilter,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB
+    files: 1, // Only 1 file per request
   },
 });
 
