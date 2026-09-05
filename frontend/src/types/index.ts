@@ -66,7 +66,7 @@ export interface Transaction {
   date: string
   amount: number
   type: TransactionType
-  paymentMethod?: PaymentMethod | null
+  paymentMethod?: PaymentMethod
   merchant: string
   description: string
   category: string
@@ -83,9 +83,9 @@ export interface CreateTransactionInput {
   date: string
   amount: number
   type: TransactionType
-  merchant: string
+  merchant?: string
   category: string
-  paymentMethod?: PaymentMethod | null
+  paymentMethod?: PaymentMethod
   description?: string
   notes?: string
   currency?: string
@@ -122,7 +122,7 @@ export interface DashboardOverview {
     amount: number
     currency?: string
     type: TransactionType
-    paymentMethod?: PaymentMethod | null
+    paymentMethod?: PaymentMethod
     merchant: string
     category: string
     source?: string

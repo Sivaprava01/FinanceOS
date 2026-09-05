@@ -19,8 +19,8 @@ const Search: React.FC = () => {
   const filtered = allTransactions.filter((t: Transaction) => {
     const matchesQuery =
       query === '' ||
-      t.merchant.toLowerCase().includes(query.toLowerCase()) ||
-      t.description.toLowerCase().includes(query.toLowerCase()) ||
+      (t.merchant || '').toLowerCase().includes(query.toLowerCase()) ||
+      (t.description || '').toLowerCase().includes(query.toLowerCase()) ||
       (t.category && t.category.toLowerCase().includes(query.toLowerCase()))
 
     const matchesCategory = filters.category === '' || t.category === filters.category
@@ -206,7 +206,7 @@ const Search: React.FC = () => {
                                 }`}
                                 title={t.source === 'statement' ? 'Imported from bank statement' : 'Manually created'}
                               />
-                              <span className="truncate max-w-[180px]">{t.merchant}</span>
+                              <span className="truncate max-w-[180px]">{t.merchant || t.description || 'Transaction'}</span>
                             </div>
                           </td>
                           <td className="py-2.5 px-4">
@@ -273,7 +273,7 @@ const Search: React.FC = () => {
                                 t.source === 'statement' ? 'bg-primary' : 'bg-muted-foreground/40'
                               }`}
                             />
-                            <p className="font-medium text-xs text-foreground truncate">{t.merchant}</p>
+                            <p className="font-medium text-xs text-foreground truncate">{t.merchant || t.description || 'Transaction'}</p>
                           </div>
                           <p className="text-[11px] text-muted-foreground mt-0.5 font-numeric">
                             {new Date(t.date).toLocaleDateString('en-US', {

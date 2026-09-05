@@ -84,9 +84,9 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
           />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-foreground truncate max-w-[220px]">
-              {transaction.merchant}
+              {transaction.merchant || transaction.description || 'Transaction'}
             </p>
-            {transaction.description && (
+            {transaction.merchant && transaction.description && (
               <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
                 {transaction.description}
               </p>

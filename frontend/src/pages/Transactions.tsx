@@ -55,9 +55,8 @@ const emptyForm = (): CreateTransactionInput => ({
   type: 'expense',
   merchant: '',
   category: '',
-  paymentMethod: 'upi',
+  paymentMethod: 'upi',  // Only for expenses
   description: '',
-  notes: '',
 })
 
 const TRANSACTION_TYPES: Array<{ value: TransactionType; label: string }> = [
@@ -281,17 +280,24 @@ const Transactions: React.FC = () => {
       ...prev,
       type: newType,
       category: isCatValid ? prev.category : '',
-      paymentMethod: isNewExpense ? (prev.paymentMethod || 'upi') : null,
+      // For non-expense types, use undefined (not null) so it doesn't get serialized
+      paymentMethod: isNewExpense ? (prev.paymentMethod || 'upi') : undefined,
     }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const submissionData = {
-      ...formData,
+    const submissionData: CreateTransactionInput = {
+      date: formData.date,
+      amount: formData.amount,
       type: formData.type,
-      paymentMethod: isExpense ? (formData.paymentMethod || 'other') : null,
+      category: formData.category,
+      merchant: formData.merchant || '',
+      description: formData.description || '',
+      ...(isExpense
+        ? { paymentMethod: formData.paymentMethod || 'upi' }
+        : {}),
     }
 
     if (editingId) {
@@ -302,8 +308,7 @@ const Transactions: React.FC = () => {
           description: submissionData.description,
           category: submissionData.category,
           type: submissionData.type,
-          paymentMethod: submissionData.paymentMethod,
-          notes: submissionData.notes,
+          ...(isExpense ? { paymentMethod: formData.paymentMethod || 'upi' } : {}),
           amount: submissionData.amount,
           date: submissionData.date,
         },
@@ -324,9 +329,8 @@ const Transactions: React.FC = () => {
       type: normType,
       merchant: t.merchant,
       category: t.category,
-      paymentMethod: normType === 'expense' ? (t.paymentMethod || 'other') : null,
+      paymentMethod: normType === 'expense' ? (t.paymentMethod || 'other') : undefined,
       description: t.description || '',
-      notes: t.notes || '',
     })
     setEditingId(t._id)
     setShowForm(true)
@@ -480,12 +484,11 @@ const Transactions: React.FC = () => {
 
                   {/* 2. Merchant / Payee */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Merchant / Payee *</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Merchant / Payee</label>
                     <Input
-                      value={formData.merchant}
+                      value={formData.merchant ?? ''}
                       onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
                       placeholder="e.g., Apple Store, Payroll, Bank"
-                      required
                     />
                   </div>
 
@@ -582,16 +585,6 @@ const Transactions: React.FC = () => {
                       value={formData.description ?? ''}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="Optional memo"
-                    />
-                  </div>
-
-                  {/* 8. Notes */}
-                  <div className={isExpense ? "sm:col-span-2 lg:col-span-2" : "sm:col-span-2 lg:col-span-2"}>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
-                    <Input
-                      value={formData.notes ?? ''}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Additional notes"
                     />
                   </div>
                 </div>
@@ -850,7 +843,7 @@ const Transactions: React.FC = () => {
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant}</p>
+                            <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant || transaction.description || 'Transaction'}</p>
                             <span
                               className={`rounded px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider ${
                                 isIncome

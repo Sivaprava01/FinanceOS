@@ -114,10 +114,15 @@ const Dashboard: React.FC = () => {
   }
 
   if (hasError) {
+    const errorObj = overviewError || analysisError
+    const errorMessage =
+      (errorObj as { message?: string })?.message ||
+      'There was an error loading your dashboard financial metrics.'
+
     return (
       <ErrorState
         title="Failed to Load Dashboard"
-        message="There was an error loading your dashboard financial metrics."
+        message={errorMessage}
         onRetry={handleRetry}
       />
     )

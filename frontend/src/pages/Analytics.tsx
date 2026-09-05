@@ -81,6 +81,11 @@ const Analytics: React.FC = () => {
   }
 
   if (hasError) {
+    const errorObj = aError || cError
+    const errorMessage =
+      (errorObj as { message?: string })?.message ||
+      'There was an error loading your analytics data. Please try again.'
+
     return (
       <div className="space-y-6">
         <div className="pb-2 border-b border-border">
@@ -89,7 +94,7 @@ const Analytics: React.FC = () => {
         </div>
         <ErrorState
           title="Failed to Load Analytics"
-          message="There was an error loading your analytics data. Please try again."
+          message={errorMessage}
           onRetry={() => { refetchA(); refetchC() }}
         />
       </div>

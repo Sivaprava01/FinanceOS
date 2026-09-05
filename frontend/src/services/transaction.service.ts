@@ -26,7 +26,7 @@ export interface UpdateTransactionInput {
   description?: string
   category?: string
   type?: TransactionType
-  paymentMethod?: PaymentMethod | null
+  paymentMethod?: PaymentMethod
   notes?: string
   amount?: number
   date?: string
@@ -52,6 +52,7 @@ export const transactionService = {
   },
 
   createTransaction: async (input: CreateTransactionInput): Promise<Transaction> => {
+    console.log("[FRONTEND] Creating transaction with payload:", JSON.stringify(input, null, 2));
     const response = await api.post<{ success: boolean; message: string; data: Transaction }>('/transactions', input)
     return response.data.data
   },
