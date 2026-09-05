@@ -21,11 +21,18 @@ const { Types } = mongoose;
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 
-/** Returns the first and last millisecond of a given month. */
-const monthBounds = (year, month) => ({
-  start: new Date(year, month, 1),
-  end: new Date(year, month + 1, 0, 23, 59, 59, 999),
-});
+/** Returns timezone-robust bounds for a given month covering UTC and local timestamps. */
+const monthBounds = (year, month) => {
+  const localStart = new Date(year, month, 1, 0, 0, 0, 0);
+  const utcStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const start = localStart < utcStart ? localStart : utcStart;
+
+  const localEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const utcEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+  const end = localEnd > utcEnd ? localEnd : utcEnd;
+
+  return { start, end };
+};
 
 /** Rounds a number to 2 decimal places. */
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -55,6 +62,11 @@ const getConvertedAmount = async (amount, fromCurrency, targetCurrency) => {
   }
 };
 
+export const DB_INCOME_TYPES = ["income", "Credit", "Income", "credit"];
+export const DB_EXPENSE_TYPES = ["expense", "Debit", "Expense", "debit"];
+export const DB_ASSET_TYPES = ["asset", "Asset"];
+export const DB_LIABILITY_TYPES = ["liability", "Liability"];
+
 const isIncomeType = (type) => {
   if (!type) return false;
   const t = String(type).toLowerCase().trim();
@@ -65,6 +77,18 @@ const isExpenseType = (type) => {
   if (!type) return false;
   const t = String(type).toLowerCase().trim();
   return t === "expense" || t === "debit";
+};
+
+const isAssetType = (type) => {
+  if (!type) return false;
+  const t = String(type).toLowerCase().trim();
+  return t === "asset";
+};
+
+const isLiabilityType = (type) => {
+  if (!type) return false;
+  const t = String(type).toLowerCase().trim();
+  return t === "liability";
 };
 
 /**
@@ -108,7 +132,15 @@ const getOverview = async (userId) => {
   const now = new Date();
   const { start, end } = monthBounds(now.getFullYear(), now.getMonth());
 
-  const [monthlyTotals, recentTransactions, rawTopCategoryTx, loans, assets] = await Promise.all([
+  const [
+    monthlyTotals,
+    recentTransactions,
+    rawTopCategoryTx,
+    loans,
+    assets,
+    assetTxs,
+    liabilityTxs,
+  ] = await Promise.all([
     // Income and expenses for current month
     sumIncomeExpenses(userId, start, end),
 
@@ -119,7 +151,7 @@ const getOverview = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: { $in: ["expense", "Debit", "Expense"] },
+      type: { $in: DB_EXPENSE_TYPES },
       date: { $gte: start, $lte: end },
     }).select("amount currency category").lean(),
 
@@ -128,6 +160,20 @@ const getOverview = async (userId) => {
 
     // All assets
     Asset.find({ user: userId }).lean(),
+
+    // All asset transactions
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: { $in: DB_ASSET_TYPES },
+    }).select("amount currency").lean(),
+
+    // All liability transactions
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: { $in: DB_LIABILITY_TYPES },
+    }).select("amount currency").lean(),
   ]);
 
   // Aggregate top spending categories with currency conversion
@@ -143,8 +189,18 @@ const getOverview = async (userId) => {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
-  const totalAssets = r2(assets.reduce((s, a) => s + a.currentValue, 0));
-  const totalLiabilities = r2(loans.reduce((s, l) => s + l.outstandingBalance, 0));
+  let assetTxTotal = 0;
+  for (const tx of assetTxs) {
+    assetTxTotal += await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+  }
+
+  let liabilityTxTotal = 0;
+  for (const tx of liabilityTxs) {
+    liabilityTxTotal += await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+  }
+
+  const totalAssets = r2(assets.reduce((s, a) => s + a.currentValue, 0) + assetTxTotal);
+  const totalLiabilities = r2(loans.reduce((s, l) => s + l.outstandingBalance, 0) + liabilityTxTotal);
   const monthlyEmi = r2(loans.reduce((s, l) => s + l.emiAmount, 0));
 
   return {
@@ -165,7 +221,7 @@ const getOverview = async (userId) => {
       amount: t.amount,
       currency: t.currency || targetCurrency,
       type: t.type,
-      paymentMethod: t.paymentMethod || null,
+      ...(t.paymentMethod ? { paymentMethod: t.paymentMethod } : {}),
       merchant: t.merchant,
       category: t.category,
       source: t.source,
@@ -210,7 +266,7 @@ const getSpendingAnalysis = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: { $in: ["expense", "Debit", "Expense"] },
+      type: { $in: DB_EXPENSE_TYPES },
       date: { $gte: prevStart, $lte: prevEnd },
     }).select("amount currency category").lean(),
 
@@ -218,7 +274,7 @@ const getSpendingAnalysis = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: { $in: ["expense", "Debit", "Expense"] },
+      type: { $in: DB_EXPENSE_TYPES },
       date: { $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) },
     }).select("amount currency date").lean(),
 
@@ -226,7 +282,7 @@ const getSpendingAnalysis = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: { $in: ["expense", "Debit", "Expense"] },
+      type: { $in: DB_EXPENSE_TYPES },
       date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
@@ -238,7 +294,7 @@ const getSpendingAnalysis = async (userId) => {
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: { $in: ["income", "Credit", "Income"] },
+      type: { $in: DB_INCOME_TYPES },
       date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
@@ -412,12 +468,33 @@ const getHealthScore = async (userId) => {
     prevMonth.getMonth()
   );
 
-  const [current, previous, loans, assets] = await Promise.all([
+  const targetCurrency = await getUserTargetCurrency(userId);
+  const [current, previous, loans, assets, assetTxs, liabilityTxs] = await Promise.all([
     sumIncomeExpenses(userId, curStart, curEnd),
     sumIncomeExpenses(userId, prevStart, prevEnd),
     Loan.find({ user: userId, loanStatus: LOAN_STATUS.ACTIVE }).lean(),
     Asset.find({ user: userId }).lean(),
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: { $in: DB_ASSET_TYPES },
+    }).select("amount currency").lean(),
+    Transaction.find({
+      user: userId,
+      isDeleted: false,
+      type: { $in: DB_LIABILITY_TYPES },
+    }).select("amount currency").lean(),
   ]);
+
+  let assetTxTotal = 0;
+  for (const tx of assetTxs) {
+    assetTxTotal += await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+  }
+
+  let liabilityTxTotal = 0;
+  for (const tx of liabilityTxs) {
+    liabilityTxTotal += await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
+  }
 
   // ── Savings Rate (40 pts) ─────────────────────────────────────────────────
   // Full 40 pts at ≥20% savings rate. Scales linearly below that.
@@ -426,8 +503,8 @@ const getHealthScore = async (userId) => {
 
   // ── Debt Ratio (30 pts) ───────────────────────────────────────────────────
   // Full 30 pts when liabilities = 0. 0 pts when liabilities ≥ total assets.
-  const totalAssets = assets.reduce((s, a) => s + a.currentValue, 0);
-  const totalLiabilities = loans.reduce((s, l) => s + l.outstandingBalance, 0);
+  const totalAssets = assets.reduce((s, a) => s + a.currentValue, 0) + assetTxTotal;
+  const totalLiabilities = loans.reduce((s, l) => s + l.outstandingBalance, 0) + liabilityTxTotal;
   const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
   const debtScore = Math.round(Math.max(0, 30 - debtRatio * 30));
 

@@ -120,6 +120,14 @@ export const createTransaction = asyncHandler(async (req, res) => {
   const { date, amount, type, merchant, category, paymentMethod, description, notes, currency } =
     req.body;
 
+  console.log("\n========== [DEBUG TRANSACTION REQUEST] ==========");
+  console.log("Full req.body:", JSON.stringify(req.body, null, 2));
+  console.log("Extracted paymentMethod:", paymentMethod);
+  console.log("paymentMethod === null:", paymentMethod === null);
+  console.log("paymentMethod === undefined:", paymentMethod === undefined);
+  console.log("typeof paymentMethod:", typeof paymentMethod);
+  console.log("=============================================\n");
+
   const transaction = await transactionService.createTransaction(user._id, {
     date,
     amount,

@@ -94,11 +94,10 @@ export const VALID_PAYMENT_METHODS = [
 export const validateUpdateTransaction = [
   param("id").isMongoId().withMessage("Invalid transaction ID"),
   body("merchant")
-    .optional()
+    .optional({ checkFalsy: true })
     .isString()
     .trim()
-    .notEmpty()
-    .withMessage("Merchant must be a non-empty string"),
+    .withMessage("Merchant must be a string"),
   body("description").optional().isString().trim().withMessage("Description must be a string"),
   body("category").optional().isString().trim().withMessage("Category must be a string"),
   body("notes").optional().isString().trim().withMessage("Notes must be a string"),
@@ -111,15 +110,22 @@ export const validateUpdateTransaction = [
   body("paymentMethod")
     .optional({ nullable: true })
     .custom((val, { req }) => {
-      const type = req.body.type ? String(req.body.type).toLowerCase() : undefined;
+      const type = req.body.type ? String(req.body.type).toLowerCase().trim() : undefined;
       const normalizedType = type === "debit" ? "expense" : type === "credit" ? "income" : type;
-      if (val && !VALID_PAYMENT_METHODS.includes(val)) {
-        throw new Error(
-          `Payment method must be one of: ${VALID_PAYMENT_METHODS.join(", ")}`
-        );
-      }
-      if (normalizedType && normalizedType !== "expense" && val) {
-        throw new Error("Payment method is only allowed for expense transactions");
+      if (normalizedType === "expense") {
+        const normalizedVal = val ? String(val).toLowerCase().trim() : "";
+        if (!normalizedVal || !VALID_PAYMENT_METHODS.includes(normalizedVal)) {
+          throw new Error(
+            `Payment method is required for expense transactions. Valid options: ${VALID_PAYMENT_METHODS.join(", ")}`
+          );
+        }
+      } else if (val) {
+        const normalizedVal = String(val).toLowerCase().trim();
+        if (normalizedVal && !VALID_PAYMENT_METHODS.includes(normalizedVal)) {
+          throw new Error(
+            `Invalid payment method. Valid options: ${VALID_PAYMENT_METHODS.join(", ")}`
+          );
+        }
       }
       return true;
     }),
@@ -244,12 +250,10 @@ export const validateCreateTransaction = [
     .isIn(VALID_TRANSACTION_TYPES)
     .withMessage("Type must be income, expense, asset, or liability"),
   body("merchant")
-    .notEmpty()
-    .withMessage("Merchant name is required")
+    .optional({ checkFalsy: true })
     .isString()
     .trim()
-    .notEmpty()
-    .withMessage("Merchant name must be a non-empty string"),
+    .withMessage("Merchant must be a string"),
   body("category")
     .notEmpty()
     .withMessage("Category is required")
@@ -257,22 +261,30 @@ export const validateCreateTransaction = [
     .trim()
     .notEmpty()
     .withMessage("Category must be a non-empty string"),
-  body("paymentMethod").custom((val, { req }) => {
-    const rawType = req.body.type ? String(req.body.type).toLowerCase().trim() : "";
-    const normalizedType =
-      rawType === "debit" ? "expense" : rawType === "credit" ? "income" : rawType;
+  body("paymentMethod")
+    .optional({ nullable: true })
+    .custom((val, { req }) => {
+      const rawType = req.body.type ? String(req.body.type).toLowerCase().trim() : "";
+      const normalizedType =
+        rawType === "debit" ? "expense" : rawType === "credit" ? "income" : rawType;
 
-    if (normalizedType === "expense") {
-      if (!val || !VALID_PAYMENT_METHODS.includes(val)) {
-        throw new Error(
-          `Payment method is required for expense transactions. Valid options: ${VALID_PAYMENT_METHODS.join(", ")}`
-        );
+      if (normalizedType === "expense") {
+        const normalizedVal = val ? String(val).toLowerCase().trim() : "";
+        if (!normalizedVal || !VALID_PAYMENT_METHODS.includes(normalizedVal)) {
+          throw new Error(
+            `Payment method is required for expense transactions. Valid options: ${VALID_PAYMENT_METHODS.join(", ")}`
+          );
+        }
+      } else if (val) {
+        const normalizedVal = String(val).toLowerCase().trim();
+        if (normalizedVal && !VALID_PAYMENT_METHODS.includes(normalizedVal)) {
+          throw new Error(
+            `Invalid payment method. Valid options: ${VALID_PAYMENT_METHODS.join(", ")}`
+          );
+        }
       }
-    } else if (val) {
-      throw new Error("Payment method is only allowed for expense transactions");
-    }
-    return true;
-  }),
+      return true;
+    }),
   body("description").optional().isString().trim().withMessage("Description must be a string"),
   body("notes").optional().isString().trim().withMessage("Notes must be a string"),
   handleValidationErrors,

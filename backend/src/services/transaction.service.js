@@ -22,7 +22,7 @@ import Transaction from "../models/transaction.model.js";
 import MerchantMapping from "../models/merchant-mapping.model.js";
 import Statement from "../models/statement.model.js";
 import ApiError from "../utils/ApiError.js";
-import { HTTP_STATUS } from "../constants/index.js";
+import { HTTP_STATUS, VALID_PAYMENT_METHODS } from "../constants/index.js";
 import { parserService } from "./parser.service.js";
 import { categoryService } from "./category.service.js";
 
@@ -197,6 +197,13 @@ const validateCategoryForType = async (userId, categoryName, transactionType) =>
  * @throws {ApiError} If invalid
  */
 const createTransaction = async (userId, transactionData) => {
+  console.log("\n========== [DEBUG TRANSACTION SERVICE] ==========");
+  console.log("Input transactionData:", JSON.stringify(transactionData, null, 2));
+  console.log("paymentMethod in input:", transactionData.paymentMethod);
+  console.log("paymentMethod === null:", transactionData.paymentMethod === null);
+  console.log("paymentMethod === undefined:", transactionData.paymentMethod === undefined);
+  console.log("===================================================\n");
+  
   const normalizedType = normalizeTransactionType(transactionData.type);
 
   // Validate category belongs to type
@@ -204,8 +211,8 @@ const createTransaction = async (userId, transactionData) => {
     await validateCategoryForType(userId, transactionData.category, normalizedType);
   }
 
-  // Validate paymentMethod
-  let paymentMethod = null;
+  // Validate and normalize paymentMethod
+  let paymentMethod = undefined;
   if (normalizedType === "expense") {
     if (!transactionData.paymentMethod) {
       throw new ApiError(
@@ -213,16 +220,45 @@ const createTransaction = async (userId, transactionData) => {
         "Payment method is required for expense transactions"
       );
     }
-    paymentMethod = transactionData.paymentMethod;
+    const pm = String(transactionData.paymentMethod).toLowerCase().trim();
+    if (!VALID_PAYMENT_METHODS.includes(pm)) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Invalid payment method: ${pm}`
+      );
+    }
+    paymentMethod = pm;
   }
 
-  const transaction = await Transaction.create({
+  // IMPORTANT: Do NOT include paymentMethod for non-expense types
+  // Extract it from the input and discard it
+  const { paymentMethod: _ignoredPm, currency, notes, ...restData } = transactionData;
+
+  const docToCreate = {
     user: userId,
     source: "manual",
-    ...transactionData,
+    ...restData,
     type: normalizedType,
-    paymentMethod,
-  });
+  };
+
+  // Only add paymentMethod back if it's an expense
+  if (normalizedType === "expense" && paymentMethod) {
+    docToCreate.paymentMethod = paymentMethod;
+  }
+
+  // Optionally add notes if provided
+  if (notes) {
+    docToCreate.notes = notes;
+  }
+
+  // Optionally add currency if provided
+  if (currency) {
+    docToCreate.currency = currency;
+  }
+
+  console.log("[TRANSACTION DB PAYLOAD]", JSON.stringify(docToCreate, null, 2));
+
+  const transaction = await Transaction.create(docToCreate);
 
   return formatTransactionResponse(transaction);
 };
@@ -288,10 +324,18 @@ const updateTransaction = async (transactionId, userId, updateData) => {
         "Payment method is required for expense transactions"
       );
     }
-    updateData.paymentMethod = finalPaymentMethod;
+    const pm = String(finalPaymentMethod).toLowerCase().trim();
+    if (!VALID_PAYMENT_METHODS.includes(pm)) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Invalid payment method: ${pm}`
+      );
+    }
+    updateData.paymentMethod = pm;
   } else {
-    // Non-expense transactions must have paymentMethod as null
-    updateData.paymentMethod = null;
+    // Non-expense transactions must not have paymentMethod
+    updateData.paymentMethod = undefined;
+    transaction.paymentMethod = undefined;
   }
 
   if (updateData.type !== undefined) {
@@ -580,9 +624,9 @@ const getUserTransactions = async (userId, options = {}) => {
   if (type) {
     const normalizedType = normalizeTransactionType(type);
     if (normalizedType === "income") {
-      query.type = { $in: ["income", "Credit", "Income"] };
+      query.type = { $in: ["income", "Credit", "Income", "credit"] };
     } else if (normalizedType === "expense") {
-      query.type = { $in: ["expense", "Debit", "Expense"] };
+      query.type = { $in: ["expense", "Debit", "Expense", "debit"] };
     } else if (normalizedType === "asset") {
       query.type = { $in: ["asset", "Asset"] };
     } else if (normalizedType === "liability") {

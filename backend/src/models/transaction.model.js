@@ -91,24 +91,29 @@ const transactionSchema = new Schema(
     // Payment method (for expense transactions only)
     paymentMethod: {
       type: String,
-      enum: [
-        "cash",
-        "upi",
-        "debit_card",
-        "credit_card",
-        "bank_transfer",
-        "net_banking",
-        "cheque",
-        "wallet",
-        "other",
-      ],
-      default: null,
+      enum: {
+        values: [
+          "cash",
+          "upi",
+          "debit_card",
+          "credit_card",
+          "bank_transfer",
+          "net_banking",
+          "cheque",
+          "wallet",
+          "other",
+        ],
+        message: "{VALUE} is not a valid payment method",
+      },
+      required: false,
+      default: undefined,
+      set: (v) => (v ? String(v).toLowerCase().trim() : undefined),
     },
 
     // Merchant name (user can correct if OCR extracted wrong name)
     merchant: {
       type: String,
-      required: [true, "Merchant name is required"],
+      default: '',
       trim: true,
     },
 
@@ -232,5 +237,14 @@ transactionSchema.index({ statementId: 1 });
 // ─── Model ────────────────────────────────────────────────────────────────────
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
+
+// Diagnostic logging for runtime schema verification
+if (process.env.NODE_ENV !== "production") {
+  console.log("\n[RUNTIME] Transaction Model Loaded");
+  console.log("[RUNTIME] paymentMethod enum values:", transactionSchema.path("paymentMethod").enumValues);
+  console.log("[RUNTIME] paymentMethod required:", transactionSchema.path("paymentMethod").isRequired);
+  console.log("[RUNTIME] paymentMethod default:", transactionSchema.path("paymentMethod").defaultValue);
+  console.log("");
+}
 
 export default Transaction;

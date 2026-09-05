@@ -20,6 +20,7 @@ export const HTTP_STATUS = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
 };
 
 // ─── Routing ─────────────────────────────────────────────────────────────────
@@ -254,4 +255,29 @@ export const FAMILY_MESSAGES = {
   USER_NOT_FOUND: "User not found",
 };
 
-// Immutable allowed values — used in validation and schema enum
+// ─── Transaction Constants ───────────────────────────────────────────────────
+
+export const VALID_TRANSACTION_TYPES = [
+  "income",
+  "expense",
+  "asset",
+  "liability",
+  "Debit",
+  "Credit",
+  "Income",
+  "Expense",
+  "Asset",
+  "Liability",
+];
+
+export const VALID_PAYMENT_METHODS = [
+  "cash",
+  "upi",
+  "debit_card",
+  "credit_card",
+  "bank_transfer",
+  "net_banking",
+  "cheque",
+  "wallet",
+  "other",
+];
