@@ -31,13 +31,14 @@ import { HTTP_STATUS } from "../constants/index.js";
  * @param {import("express").Response} res
  */
 export const uploadStatement = asyncHandler(async (req, res) => {
-  const { user, file } = req;
+  const { user, file, body } = req;
 
   if (!file) {
     throw new Error("File not found"); // Should be caught by validation middleware
   }
 
-  const statement = await statementService.uploadStatement(user._id, file);
+  const currency = body?.currency ? String(body.currency).trim().toUpperCase() : null;
+  const statement = await statementService.uploadStatement(user._id, file, { currency });
 
   return res
     .status(HTTP_STATUS.CREATED)

@@ -33,7 +33,6 @@ export const routes = [
     element: <Landing />,
   },
   {
-    path: '/',
     element: <PublicLayout />,
     children: [
       {
@@ -63,7 +62,6 @@ export const routes = [
     ],
   },
   {
-    path: '/',
     element: <ProtectedLayout />,
     children: [
       {

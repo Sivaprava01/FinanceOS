@@ -41,9 +41,9 @@ const Register: React.FC = () => {
       await registerUser(data.name, data.email, data.password)
       const onboardingSkipped = localStorage.getItem('onboarding_skipped')
       if (!onboardingSkipped) {
-        navigate('/onboarding')
+        navigate('/onboarding', { replace: true })
       } else {
-        navigate('/dashboard')
+        navigate('/dashboard', { replace: true })
       }
     } catch (err) {
       const message =

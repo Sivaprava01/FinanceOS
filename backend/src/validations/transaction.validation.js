@@ -8,6 +8,7 @@
 import { body, param, query, validationResult } from "express-validator";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
+import { isValidCurrency } from "../utils/currency.js";
 
 // ─── Validation Error Handler ─────────────────────────────────────────────────
 
@@ -160,7 +161,7 @@ export const validateLearnMerchant = [
  * Validates transaction import data.
  *
  * POST /api/v1/transactions/import
- * Body: { statementId, filePath, transactions: [] }
+ * Body: { statementId, currency, filePath, transactions: [] }
  */
 export const validateImportTransactions = [
   body("statementId")
@@ -168,6 +169,17 @@ export const validateImportTransactions = [
     .withMessage("Statement ID is required")
     .isMongoId()
     .withMessage("Invalid statement ID"),
+  body("currency")
+    .notEmpty()
+    .withMessage("Currency is required for statement import")
+    .isString()
+    .trim()
+    .custom((val) => {
+      if (!isValidCurrency(val)) {
+        throw new Error(`Invalid currency code: ${val}. Must be a valid supported ISO currency code.`);
+      }
+      return true;
+    }),
   body("filePath").optional().isString().withMessage("File path must be a string"),
   body("transactions").isArray({ min: 1 }).withMessage("Transactions must be a non-empty array"),
   body("transactions.*.date")
@@ -231,7 +243,7 @@ export const validateTransactionId = [
  * Validates data for manually creating a transaction.
  *
  * POST /api/v1/transactions
- * Body: { date, amount, type, merchant, category, paymentMethod?, description?, notes? }
+ * Body: { date, amount, type, merchant, category, paymentMethod?, description?, notes?, currency? }
  */
 export const validateCreateTransaction = [
   body("date")
@@ -287,5 +299,15 @@ export const validateCreateTransaction = [
     }),
   body("description").optional().isString().trim().withMessage("Description must be a string"),
   body("notes").optional().isString().trim().withMessage("Notes must be a string"),
+  body("currency")
+    .optional({ nullable: true, checkFalsy: true })
+    .isString()
+    .trim()
+    .custom((val) => {
+      if (val && !isValidCurrency(val)) {
+        throw new Error(`Invalid currency code: ${val}`);
+      }
+      return true;
+    }),
   handleValidationErrors,
 ];

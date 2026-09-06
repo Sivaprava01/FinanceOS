@@ -79,13 +79,6 @@ const transactionSchema = new Schema(
         "Liability",
       ],
       required: [true, "Transaction type is required"],
-      set: (v) => {
-        if (!v) return v;
-        const normalized = String(v).toLowerCase().trim();
-        if (normalized === "debit") return "expense";
-        if (normalized === "credit") return "income";
-        return normalized;
-      },
     },
 
     // Payment method (for expense transactions only)

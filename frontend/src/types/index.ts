@@ -91,6 +91,33 @@ export interface CreateTransactionInput {
   currency?: string
 }
 
+export interface ExtractedTransaction {
+  date: string
+  amount: number
+  type: TransactionType | 'Debit' | 'Credit'
+  merchant: string
+  description?: string
+  category?: string
+  paymentMethod?: PaymentMethod
+  currency?: string | null
+  originalDate?: string
+  originalAmount?: number
+  originalType?: string
+  originalMerchant?: string
+  originalDescription?: string
+}
+
+export interface StatementPreviewData {
+  statementId?: string
+  originalFileName?: string
+  fileType?: 'PDF' | 'CSV' | 'XLSX'
+  transactions: ExtractedTransaction[]
+  detectedCurrency: string | null
+  isAmbiguous: boolean
+  confidence: 'high' | 'low' | 'none'
+  detectedSources?: string[]
+}
+
 export interface Statement {
   _id: string
   user: string
@@ -103,6 +130,14 @@ export interface Statement {
   uploadedAt: string
   processedAt?: string | null
   failureReason?: string | null
+  preview?: StatementPreviewData
+}
+
+export interface ImportTransactionsInput {
+  statementId: string
+  currency: string
+  transactions: ExtractedTransaction[]
+  filePath?: string
 }
 
 export interface DashboardOverview {

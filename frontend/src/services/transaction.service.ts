@@ -81,4 +81,26 @@ export const transactionService = {
     }>('/transactions/bulk-update', input)
     return response.data.data
   },
+
+  extractTransactions: async (statementId: string): Promise<any> => {
+    const response = await api.post<{ success: boolean; message: string; data: any }>(
+      '/transactions/extract',
+      { statementId }
+    )
+    return response.data.data
+  },
+
+  importTransactions: async (input: {
+    statementId: string
+    currency: string
+    transactions: any[]
+    filePath?: string
+  }): Promise<{ statementId: string; transactionCount: number; currency: string; message: string }> => {
+    const response = await api.post<{
+      success: boolean
+      message: string
+      data: { statementId: string; transactionCount: number; currency: string; message: string }
+    }>('/transactions/import', input)
+    return response.data.data
+  },
 }

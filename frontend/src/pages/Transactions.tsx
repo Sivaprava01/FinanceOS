@@ -3,7 +3,7 @@ import { Plus, Search, X, Tag, Trash2, SlidersHorizontal } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
-import { TransactionRow } from '@components/transactions/TransactionRow'
+import { TransactionRow, TRANSACTION_GRID_LAYOUT } from '@components/transactions/TransactionRow'
 import { SkeletonLoader, ErrorState, EmptyState } from '@components/ui'
 import {
   useTransactions,
@@ -245,8 +245,11 @@ const Transactions: React.FC = () => {
     return categories.filter((cat) => normalizeTransactionType(cat.type) === normalizedFormType)
   }, [categories, normalizedFormType])
 
-  // Build query params — only pass non-empty values to avoid polluting cache key
+  // Build query params — only pass non-empty values to avoid polluting cache key.
+  // limit: 500 ensures all matching transactions are returned regardless of type/category
+  // filter — without this, the backend default of 50 silently hides older records.
   const queryParams = {
+    limit: 500,
     search: filters.search || undefined,
     type: filters.type || undefined,
     category: filters.category || undefined,
@@ -782,31 +785,32 @@ const Transactions: React.FC = () => {
             <div>
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      <th className="w-10 px-3 py-2.5">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.size === transactions.length && transactions.length > 0}
-                          ref={(el) => {
-                            if (el) {
-                              el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
-                            }
-                          }}
-                          onChange={toggleSelectAll}
-                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
-                          aria-label="Select all"
-                        />
-                      </th>
-                      <th className="px-3 py-2.5">Date</th>
-                      <th className="px-3 py-2.5">Merchant / Description</th>
-                      <th className="px-3 py-2.5">Category</th>
-                      <th className="px-3 py-2.5 text-right">Amount</th>
-                      <th className="px-3 py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
+                <div className="min-w-[800px]">
+                  {/* Table Header */}
+                  <div className={`border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ${TRANSACTION_GRID_LAYOUT}`}>
+                    <div>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === transactions.length && transactions.length > 0}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
+                          }
+                        }}
+                        onChange={toggleSelectAll}
+                        className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
+                        aria-label="Select all"
+                      />
+                    </div>
+                    <div>Date</div>
+                    <div>Merchant / Description</div>
+                    <div>Category</div>
+                    <div className="text-right">Amount</div>
+                    <div className="text-right">Actions</div>
+                  </div>
+
+                  {/* Table Body */}
+                  <div className="divide-y divide-border/60">
                     {transactions.map((transaction: Transaction) => (
                       <TransactionRow
                         key={transaction._id}
@@ -817,8 +821,8 @@ const Transactions: React.FC = () => {
                         onSelect={toggleSelect}
                       />
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
 
               {/* Mobile card layout - shown on mobile */}

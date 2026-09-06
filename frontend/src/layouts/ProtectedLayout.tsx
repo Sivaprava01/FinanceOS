@@ -4,12 +4,14 @@
  */
 
 import React, { useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Sidebar from '@components/layout/Sidebar'
 import TopNavigation from '@components/layout/TopNavigation'
+import { BackButton } from '@components/ui/BackButton'
 import { ErrorBoundary } from '@components/LazyPageFallback'
 import { pageVariants } from '@lib/motion'
+import { useAuth } from '@hooks/useAuth'
 
 const ProtectedLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -17,6 +19,7 @@ const ProtectedLayout: React.FC = () => {
     return localStorage.getItem('sidebar_collapsed') === 'true'
   })
   const location = useLocation()
+  const { isAuthenticated, isLoading } = useAuth()
 
   const handleToggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -24,6 +27,21 @@ const ProtectedLayout: React.FC = () => {
       localStorage.setItem('sidebar_collapsed', String(next))
       return next
     })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return (
@@ -60,6 +78,8 @@ const ProtectedLayout: React.FC = () => {
                 animate="animate"
                 exit="exit"
               >
+                {/* Global Back Navigation */}
+                <BackButton className="mb-4" />
                 <Outlet />
               </motion.div>
             </ErrorBoundary>

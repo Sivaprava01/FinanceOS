@@ -28,7 +28,6 @@ api.interceptors.response.use(
   (error: AxiosError<ApiResponse>) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('accessToken')
-      window.location.href = '/login'
     }
     return Promise.reject(error.response?.data ?? error)
   }

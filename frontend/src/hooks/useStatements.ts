@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { statementService } from '@services/statement.service'
-import type { Statement } from '@/types'
+import { transactionService } from '@services/transaction.service'
+import type { Statement, ImportTransactionsInput } from '@/types'
 
 const STATEMENTS_KEY = ['statements']
 
@@ -38,6 +39,19 @@ export const useUploadStatement = () => {
   return useMutation({
     mutationFn: ({ file, currency }: { file: File; currency?: string }) =>
       statementService.uploadStatement(file, currency),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STATEMENTS_KEY })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export const useImportTransactions = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ImportTransactionsInput) =>
+      transactionService.importTransactions(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STATEMENTS_KEY })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })

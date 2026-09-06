@@ -50,6 +50,10 @@ export const extractTransactions = asyncHandler(async (req, res) => {
       statementId,
       transactionCount: withMappings.length,
       transactions: withMappings,
+      detectedCurrency: transactions.detectedCurrency || null,
+      isAmbiguous: transactions.isAmbiguous || false,
+      confidence: transactions.confidence || "none",
+      detectedSources: transactions.detectedSources || [],
       nextStep: "Review transactions and make any corrections, then import",
     })
   );
@@ -191,7 +195,7 @@ export const learnMerchantMapping = asyncHandler(async (req, res) => {
  */
 export const importTransactions = asyncHandler(async (req, res) => {
   const { user } = req;
-  const { statementId, transactions, filePath } = req.body;
+  const { statementId, currency, transactions, filePath } = req.body;
 
   if (!statementId || !transactions || !Array.isArray(transactions)) {
     throw new Error("Statement ID and transactions array are required");
@@ -205,7 +209,8 @@ export const importTransactions = asyncHandler(async (req, res) => {
     statementId,
     user._id,
     transactions,
-    filePath
+    filePath,
+    currency
   );
 
   return res.status(HTTP_STATUS.OK).json(new ApiResponse(HTTP_STATUS.OK, result.message, result));
@@ -241,7 +246,7 @@ export const getUserTransactions = asyncHandler(async (req, res) => {
   } = req.query;
 
   const { transactions, count } = await transactionService.getUserTransactions(user._id, {
-    limit: Math.min(parseInt(limit) || 50, 100),
+    limit: Math.min(parseInt(limit) || 500, 500),
     skip: parseInt(skip) || 0,
     fromDate,
     toDate,

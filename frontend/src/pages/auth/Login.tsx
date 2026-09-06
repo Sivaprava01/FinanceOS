@@ -34,7 +34,7 @@ const Login: React.FC = () => {
     setServerError('')
     try {
       await login(data.email, data.password)
-      navigate('/dashboard')
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'message' in err

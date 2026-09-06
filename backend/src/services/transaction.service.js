@@ -25,6 +25,7 @@ import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS, VALID_PAYMENT_METHODS } from "../constants/index.js";
 import { parserService } from "./parser.service.js";
 import { categoryService } from "./category.service.js";
+import { normalizeCurrencyCode, isValidCurrency } from "../utils/currency.js";
 
 // Get project root directory for path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -460,11 +461,12 @@ const applyMerchantMappings = async (userId, transactions) => {
  * @param {string} statementId - Statement ID
  * @param {string} userId - User's ID
  * @param {Array} transactions - Transaction data to save
- * @param {string} filePath - Path to temporary file (for deletion)
+ * @param {string} [filePath] - Path to temporary file (for deletion)
+ * @param {string} [currency] - User selected or confirmed currency code
  * @returns {Promise<object>} Import result with summary
  * @throws {ApiError} If import fails
  */
-const importTransactions = async (statementId, userId, transactions, filePath) => {
+const importTransactions = async (statementId, userId, transactions, filePath, currency) => {
   let session = null;
   try {
     session = await Transaction.startSession();
@@ -491,25 +493,62 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
     }
 
-    // Create all transactions with statementId
+    // Resolve final currency code
+    let resolvedCurrency = null;
+
+    if (currency) {
+      resolvedCurrency = normalizeCurrencyCode(currency);
+      if (!resolvedCurrency) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          `Invalid or unsupported currency code: ${currency}`
+        );
+      }
+    } else if (statement.currency) {
+      resolvedCurrency = normalizeCurrencyCode(statement.currency);
+    } else if (transactions.detectedCurrency) {
+      resolvedCurrency = normalizeCurrencyCode(transactions.detectedCurrency);
+    } else if (transactions[0]?.currency) {
+      resolvedCurrency = normalizeCurrencyCode(transactions[0].currency);
+    }
+
+    if (!resolvedCurrency) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Currency is required for statement import. Please select a valid currency."
+      );
+    }
+
+    // Create all transactions with statementId and resolved currency
     const createdTransactionIds = [];
     for (const txData of transactions) {
-      const txDocs = await Transaction.create(
-        [
-          {
-            user: userId,
-            statementId,
-            source: "statement",
-            ...txData,
-          },
-        ],
-        queryOpts
-      );
+      const normType = normalizeTransactionType(txData.type);
+      const { paymentMethod: rawPm, currency: _ignoredCurrency, ...restTx } = txData;
+
+      const docToCreate = {
+        user: userId,
+        statementId,
+        source: "statement",
+        ...restTx,
+        type: normType,
+        currency: resolvedCurrency,
+      };
+
+      // Handle paymentMethod: required for expense, omitted for non-expense
+      if (normType === "expense") {
+        const pm = rawPm ? String(rawPm).toLowerCase().trim() : "other";
+        docToCreate.paymentMethod = VALID_PAYMENT_METHODS.includes(pm) ? pm : "other";
+      } else {
+        delete docToCreate.paymentMethod;
+      }
+
+      const txDocs = await Transaction.create([docToCreate], queryOpts);
       createdTransactionIds.push(txDocs[0]._id);
     }
 
-    // Update statement status
+    // Update statement status and persist currency
     statement.status = "Completed";
+    statement.currency = resolvedCurrency;
     statement.transactionCount = (statement.transactionCount || 0) + createdTransactionIds.length;
     statement.processedAt = new Date();
     if (session) {
@@ -535,8 +574,9 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     return {
       success: true,
       statementId,
+      currency: resolvedCurrency,
       transactionCount: createdTransactionIds.length,
-      message: `Successfully imported ${createdTransactionIds.length} transactions`,
+      message: `Successfully imported ${createdTransactionIds.length} transactions in ${resolvedCurrency}`,
     };
   } catch (err) {
     if (session) {
@@ -659,10 +699,14 @@ const getUserTransactions = async (userId, options = {}) => {
     ];
   }
 
+  console.log("\n[LIVE TRANSACTION FILTER]", JSON.stringify(query, null, 2));
+
   const [transactions, count] = await Promise.all([
     Transaction.find(query).sort({ date: -1 }).limit(limit).skip(skip).lean(),
     Transaction.countDocuments(query),
   ]);
+
+  console.log(`[LIVE TRANSACTION RESULT COUNT] Matched docs: ${transactions.length}, Total count: ${count}`);
 
   return { transactions: transactions.map(formatTransactionResponse), count };
 };

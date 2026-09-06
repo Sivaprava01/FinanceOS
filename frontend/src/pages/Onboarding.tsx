@@ -89,14 +89,14 @@ const Onboarding: React.FC = () => {
     if (neverShowAgain) {
       localStorage.setItem('onboarding_skipped', 'true')
     }
-    navigate('/dashboard')
+    navigate('/dashboard', { replace: true })
   }
 
   const handleFinish = () => {
     if (neverShowAgain) {
       localStorage.setItem('onboarding_completed', 'true')
     }
-    navigate('/dashboard')
+    navigate('/dashboard', { replace: true })
   }
 
   const step = steps[currentStep]

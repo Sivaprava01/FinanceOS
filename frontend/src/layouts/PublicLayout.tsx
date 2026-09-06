@@ -4,9 +4,17 @@
  */
 
 import React from 'react'
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, Navigate } from 'react-router-dom'
+import { useAuth } from '@hooks/useAuth'
 
 const PublicLayout: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  // Authenticated users should not see login/register pages; redirect to dashboard and replace history
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return (
     <div className="min-h-screen w-full bg-background flex flex-col justify-between selection:bg-primary/20 selection:text-primary">
       {/* Skip to main content link */}

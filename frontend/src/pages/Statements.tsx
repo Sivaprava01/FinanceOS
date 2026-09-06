@@ -23,9 +23,11 @@ import {
   useDeleteStatement,
   useClearFailedStatements,
   useRetryStatement,
+  useImportTransactions,
 } from '@hooks/useStatements'
 import { useAuth } from '@hooks/useAuth'
-import type { Statement } from '@/types'
+import { SUPPORTED_CURRENCIES, formatCurrency } from '@lib/utils'
+import type { Statement, ExtractedTransaction } from '@/types'
 
 const COMMON_CURRENCIES = [
   'USD', 'EUR', 'GBP', 'INR', 'AUD', 'CAD', 'SGD', 'JPY', 'AED', 'NZD',
@@ -147,6 +149,245 @@ const ClearFailedDialog: React.FC<{
   </div>
 )
 
+// ─── Statement Import Preview Dialog ──────────────────────────────────────────
+
+const ImportPreviewDialog: React.FC<{
+  statement: Statement | null
+  onClose: () => void
+  onSuccess: () => void
+}> = ({ statement, onClose, onSuccess }) => {
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('')
+  const [importError, setImportError] = useState<string>('')
+  const importTransactions = useImportTransactions()
+  const deleteStatement = useDeleteStatement()
+  const { user } = useAuth()
+
+  const preview = statement?.preview
+  const transactions: ExtractedTransaction[] = preview?.transactions || []
+  const detectedCurrency = preview?.detectedCurrency || statement?.currency || null
+  const isAmbiguous = preview?.isAmbiguous ?? false
+  const confidence = preview?.confidence ?? 'none'
+  const detectedSources = preview?.detectedSources || []
+
+  React.useEffect(() => {
+    if (detectedCurrency && !selectedCurrency) {
+      setSelectedCurrency(detectedCurrency)
+    } else if (!selectedCurrency && user?.preferredCurrency) {
+      setSelectedCurrency(user.preferredCurrency)
+    } else if (!selectedCurrency) {
+      setSelectedCurrency('USD')
+    }
+  }, [detectedCurrency, user?.preferredCurrency, selectedCurrency])
+
+  if (!statement || !preview) return null
+
+  const handleConfirmImport = async () => {
+    if (!selectedCurrency) {
+      setImportError('Please select a valid currency before importing.')
+      return
+    }
+
+    setImportError('')
+    try {
+      await importTransactions.mutateAsync({
+        statementId: statement._id,
+        currency: selectedCurrency,
+        transactions: transactions,
+      })
+      onSuccess()
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : 'Failed to import transactions. Please try again.'
+      setImportError(message)
+    }
+  }
+
+  const handleCancel = async () => {
+    try {
+      if (statement.status === 'Uploaded') {
+        await deleteStatement.mutateAsync(statement._id)
+      }
+    } catch {
+      // ignore deletion error
+    } finally {
+      onClose()
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={handleCancel}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-xl border border-border bg-card shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="flex items-center justify-between border-b border-border p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Review & Confirm Statement Import</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {statement.originalFileName} • {statement.fileType} • {formatFileSize(statement.fileSize)} • {transactions.length} transactions extracted
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCancel}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Currency Detection Status Banner */}
+          {detectedCurrency && !isAmbiguous && confidence !== 'none' ? (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Detected Statement Currency: {detectedCurrency}</span>
+                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider">
+                  {confidence} confidence
+                </span>
+              </div>
+              <p className="text-muted-foreground">
+                We detected <strong>{detectedCurrency}</strong>
+                {detectedSources.length > 0 ? ` from statement ${detectedSources.join(', ')}` : ''}.
+                You can override it below if needed.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-amber-500 text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <span>Currency Confirmation Required</span>
+              </div>
+              <p className="text-muted-foreground">
+                {isAmbiguous
+                  ? 'The currency symbol in this statement is ambiguous. Please confirm or select the target currency for all transactions in this statement.'
+                  : 'Currency could not be automatically detected. Please select the currency below to proceed with importing.'}
+              </p>
+            </div>
+          )}
+
+          {/* Currency Dropdown Selector */}
+          <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2">
+            <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span>Target Currency for Imported Transactions:</span>
+              <span className="text-[11px] text-muted-foreground font-normal">Applies to all transactions in this file</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+              >
+                <option value="" disabled>Select currency...</option>
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} - {c.name} ({c.symbol})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Extracted Transactions Preview List */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">Extracted Transactions Preview ({transactions.length})</span>
+              <span>Formatted in {selectedCurrency || 'selected currency'}</span>
+            </div>
+
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/50 text-muted-foreground font-medium sticky top-0">
+                    <tr className="border-b border-border">
+                      <th className="py-2 px-3">Date</th>
+                      <th className="py-2 px-3">Description</th>
+                      <th className="py-2 px-3">Type</th>
+                      <th className="py-2 px-3">Category</th>
+                      <th className="py-2 px-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {transactions.slice(0, 15).map((tx, idx) => (
+                      <tr key={idx} className="hover:bg-muted/30">
+                        <td className="py-2 px-3 whitespace-nowrap text-muted-foreground">
+                          {tx.date ? new Date(tx.date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="py-2 px-3 font-medium text-foreground max-w-[200px] truncate" title={tx.description}>
+                          {tx.description || 'Transaction'}
+                        </td>
+                        <td className="py-2 px-3">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              tx.type === 'income'
+                                ? 'bg-success/10 text-success'
+                                : 'bg-destructive/10 text-destructive'
+                            }`}
+                          >
+                            {tx.type}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-muted-foreground">
+                          {tx.category || 'Uncategorized'}
+                        </td>
+                        <td className="py-2 px-3 text-right font-semibold whitespace-nowrap">
+                          <span className={tx.type === 'income' ? 'text-success' : 'text-foreground'}>
+                            {formatCurrency(tx.amount, selectedCurrency || 'USD')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {transactions.length > 15 && (
+                <div className="bg-muted/30 py-1.5 px-3 text-center text-[11px] text-muted-foreground border-t border-border">
+                  + {transactions.length - 15} more transactions will be imported
+                </div>
+              )}
+            </div>
+          </div>
+
+          {importError && (
+            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive font-medium">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{importError}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-end gap-3 border-t border-border p-4 bg-muted/20">
+          <Button variant="outline" onClick={handleCancel} disabled={importTransactions.isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmImport}
+            isLoading={importTransactions.isPending}
+            disabled={!selectedCurrency || transactions.length === 0}
+            className="gap-2"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Confirm & Import {transactions.length} Transactions
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const Statements: React.FC = () => {
@@ -164,6 +405,7 @@ const Statements: React.FC = () => {
   // Modal dialog states
   const [deleteTarget, setDeleteTarget] = useState<Statement | null>(null)
   const [showClearFailedModal, setShowClearFailedModal] = useState(false)
+  const [previewStatement, setPreviewStatement] = useState<Statement | null>(null)
 
   const { user } = useAuth()
   const { data, isLoading, error } = useStatements(activeTab)
@@ -238,11 +480,15 @@ const Statements: React.FC = () => {
     }
 
     try {
-      await uploadStatement.mutateAsync({
+      const result = await uploadStatement.mutateAsync({
         file,
-        currency: statementCurrency || user?.preferredCurrency || 'USD',
+        currency: statementCurrency || user?.preferredCurrency || '',
       })
-      setUploadSuccess(true)
+      if (result?.preview?.transactions && result.preview.transactions.length > 0) {
+        setPreviewStatement(result)
+      } else {
+        setUploadSuccess(true)
+      }
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'message' in err
@@ -289,6 +535,16 @@ const Statements: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Import Preview Modal */}
+      <ImportPreviewDialog
+        statement={previewStatement}
+        onClose={() => setPreviewStatement(null)}
+        onSuccess={() => {
+          setPreviewStatement(null)
+          setUploadSuccess(true)
+        }}
+      />
+
       {/* Delete confirmation modal */}
       <DeleteStatementDialog
         statement={deleteTarget}
@@ -531,6 +787,14 @@ const Statements: React.FC = () => {
                             <span>{statement.fileType}</span>
                             <span>•</span>
                             <span>{formatFileSize(statement.fileSize)}</span>
+                            {statement.currency && (
+                              <>
+                                <span>•</span>
+                                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                                  {statement.currency}
+                                </span>
+                              </>
+                            )}
                             {statement.status === 'Completed' && (
                               <>
                                 <span>•</span>
@@ -547,6 +811,16 @@ const Statements: React.FC = () => {
 
                       {/* Right: Actions */}
                       <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+                        {statement.status === 'Uploaded' && statement.preview && (
+                          <Button
+                            size="sm"
+                            className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                            onClick={() => setPreviewStatement(statement)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Review & Import
+                          </Button>
+                        )}
+
                         {statement.status === 'Completed' && (
                           <Button
                             size="sm"

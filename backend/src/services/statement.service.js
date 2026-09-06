@@ -18,6 +18,7 @@ import Statement from "../models/statement.model.js";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
 import { getFileTypeFromMime } from "../validations/statement.validation.js";
+import { normalizeCurrencyCode } from "../utils/currency.js";
 
 // ─── Upload Statement ──────────────────────────────────────────────────────────
 
@@ -30,11 +31,19 @@ import { getFileTypeFromMime } from "../validations/statement.validation.js";
  * @param {object} file - Multer file object
  * @returns {Promise<object>} Statement record
  */
-const uploadStatement = async (userId, file) => {
+const uploadStatement = async (userId, file, options = {}) => {
   const fileType = getFileTypeFromMime(file.mimetype);
 
   if (!fileType) {
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Unsupported file type");
+  }
+
+  const explicitCurrency = options.currency ? normalizeCurrencyCode(options.currency) : null;
+  if (options.currency && !explicitCurrency) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Invalid or unsupported currency code: ${options.currency}`
+    );
   }
 
   // Calculate cryptographic hash (SHA-256) of uploaded file content to prevent duplicate imports
@@ -81,6 +90,7 @@ const uploadStatement = async (userId, file) => {
       fileType,
       fileSize: file.size,
       fileHash,
+      currency: explicitCurrency || null,
       status: "Uploaded",
     });
   } catch (err) {
@@ -100,13 +110,56 @@ const uploadStatement = async (userId, file) => {
     throw err;
   }
 
-  // Trigger async processing WITHOUT awaiting (fire and forget)
-  processStatementAsync(statement._id.toString(), userId).catch((err) => {
-    console.error(`[Statement Processing] Error processing statement ${statement._id}:`, err);
-  });
+  // Try extracting preview data synchronously for immediate UI feedback if available
+  let previewData = null;
+  try {
+    const { parserService } = await import("./parser.service.js");
+    const fullFilePath = file.path || `.${relativePath}`;
+    let extracted = [];
+    if (fileType === "PDF") {
+      extracted = await parserService.parsePDF(fullFilePath);
+    } else if (fileType === "CSV") {
+      extracted = await parserService.parseCSV(fullFilePath);
+    } else if (fileType === "XLSX") {
+      extracted = await parserService.parseExcel(fullFilePath);
+    }
+
+    if (extracted && extracted.length > 0) {
+      const detectedCurr = explicitCurrency || extracted.detectedCurrency || null;
+      if (detectedCurr && !statement.currency) {
+        statement.currency = detectedCurr;
+        await statement.save();
+      }
+      previewData = {
+        transactions: extracted,
+        detectedCurrency: extracted.detectedCurrency || null,
+        isAmbiguous: extracted.isAmbiguous || false,
+        confidence: extracted.confidence || "none",
+        detectedSources: extracted.detectedSources || [],
+      };
+    }
+  } catch (extractErr) {
+    // If password required or parsing error, let processStatementAsync handle background lifecycle
+    if (extractErr?.message === "PDF_PASSWORD_REQUIRED") {
+      statement.status = "Password Required";
+      statement.failureReason = "This PDF is password protected. Please provide the password.";
+      await statement.save();
+    }
+  }
+
+  // Trigger async processing if previewData is not extracted or in background
+  if (!previewData && statement.status !== "Password Required") {
+    processStatementAsync(statement._id.toString(), userId).catch((err) => {
+      console.error(`[Statement Processing] Error processing statement ${statement._id}:`, err);
+    });
+  }
 
   // Return public view (no sensitive data)
-  return formatStatementResponse(statement);
+  const formatted = formatStatementResponse(statement);
+  if (previewData) {
+    formatted.preview = previewData;
+  }
+  return formatted;
 };
 
 /**
@@ -182,15 +235,17 @@ const processStatementAsync = async (statementId, userId, password = "") => {
         return;
       }
 
-      // Use existing importTransactions to persist data
-      console.log(`[Statement Processing] Calling importTransactions for ${statementId} with ${transactions.length} transactions`);
+      // Use existing importTransactions to persist data with resolved currency
+      const resolvedCurrency = statement.currency || transactions.detectedCurrency || null;
+      console.log(`[Statement Processing] Calling importTransactions for ${statementId} with ${transactions.length} transactions, currency: ${resolvedCurrency || "none"}`);
       
       try {
         const result = await transactionService.importTransactions(
           statementId,
           userId,
           transactions,
-          fullFilePath
+          fullFilePath,
+          resolvedCurrency
         );
 
         console.log(
@@ -532,6 +587,7 @@ const formatStatementResponse = (statement) => {
     filePath: statement.filePath,
     fileType: statement.fileType,
     fileSize: statement.fileSize,
+    currency: statement.currency || null,
     status: statement.status,
     failureReason: statement.failureReason || null,
     transactionCount: statement.transactionCount,

@@ -26,6 +26,7 @@ import csv from "csv-parser";
 import XLSX from "xlsx";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
+import { detectStatementCurrency } from "../utils/currency.js";
 
 // ─── PDF Parser ───────────────────────────────────────────────────────────────
 
@@ -125,6 +126,12 @@ const parsePDF = async (filePath, password = "") => {
         "No transactions found in PDF. Ensure it's a valid bank statement."
       );
     }
+
+    const detected = detectStatementCurrency(text);
+    transactions.detectedCurrency = detected.currency;
+    transactions.isAmbiguous = detected.isAmbiguous;
+    transactions.confidence = detected.confidence;
+    transactions.detectedSources = detected.detectedSources;
 
     return transactions;
   } catch (err) {
@@ -280,7 +287,13 @@ const parseCSV = async (filePath) => {
       );
     }
 
-    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions`);
+    const detected = detectStatementCurrency(fileContent, lines.slice(0, 20));
+    transactions.detectedCurrency = detected.currency;
+    transactions.isAmbiguous = detected.isAmbiguous;
+    transactions.confidence = detected.confidence;
+    transactions.detectedSources = detected.detectedSources;
+
+    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -350,8 +363,18 @@ const parseExcel = async (filePath) => {
         v === "cr"
       ).length;
 
-      // Require BOTH date AND multiple amount columns for confidence
-      if (dateIndicators >= 1 && amountIndicators >= 2) {
+      const descIndicators = rowValues.filter(v =>
+        v.includes("description") ||
+        v.includes("particulars") ||
+        v.includes("narration") ||
+        v.includes("merchant") ||
+        v.includes("details") ||
+        v.includes("payee") ||
+        v.includes("remarks")
+      ).length;
+
+      // Require date AND amount (or date + amount + description)
+      if (dateIndicators >= 1 && amountIndicators >= 1 && (amountIndicators >= 2 || descIndicators >= 1 || rowValues.length <= 6)) {
         headerRowIdx = r;
         headerFound = true;
         console.log(`[Excel Parser] Detected header row at index ${r}`);
@@ -360,7 +383,22 @@ const parseExcel = async (filePath) => {
     }
 
     if (!headerFound) {
-      // Fallback: look for just S.No or similar sequential numbering columns
+      // Fallback 1: look for any row with date AND amount
+      for (let r = 0; r < Math.min(raw2D.length, 50); r++) {
+        const rowValues = (raw2D[r] || []).map((v) => String(v).toLowerCase().trim());
+        const dateInd = rowValues.filter(v => v.includes("date") && !v.includes("from")).length;
+        const amtInd = rowValues.filter(v => v.includes("amount") || v.includes("debit") || v.includes("credit")).length;
+        if (dateInd >= 1 && amtInd >= 1) {
+          headerRowIdx = r;
+          headerFound = true;
+          console.log(`[Excel Parser] Detected header row at index ${r} (relaxed date+amount)`);
+          break;
+        }
+      }
+    }
+
+    if (!headerFound) {
+      // Fallback 2: look for just S.No or similar sequential numbering columns
       for (let r = 0; r < Math.min(raw2D.length, 50); r++) {
         const rowValues = (raw2D[r] || []).map((v) => String(v).toLowerCase().trim());
         if (rowValues.some(v => v === "s no." || v === "s no" || v === "sno" || v === "serial")) {
@@ -407,6 +445,14 @@ const parseExcel = async (filePath) => {
       );
     }
 
+    const sampleText = raw2D.slice(0, 25).map((r) => Array.isArray(r) ? r.join(" ") : String(r)).join("\n");
+    const detected = detectStatementCurrency(sampleText, raw2D.slice(0, 25));
+    transactions.detectedCurrency = detected.currency;
+    transactions.isAmbiguous = detected.isAmbiguous;
+    transactions.confidence = detected.confidence;
+    transactions.detectedSources = detected.detectedSources;
+
+    console.log(`[Excel Parser] Extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
