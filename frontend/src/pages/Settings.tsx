@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@comp
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
 import { useAuth } from '@hooks/useAuth'
+import { useTheme } from '@hooks/useTheme'
 import { userService } from '@services/user.service'
 
 // ─── Preferences form (language, theme, dateFormat, notifications) ─────────────
@@ -131,6 +132,7 @@ const PasswordChangeCard: React.FC = () => {
 
 const Settings: React.FC = () => {
   const { user, updateUser, logout } = useAuth()
+  const { setTheme } = useTheme()
 
   // Preferences form state
   const [prefSuccess, setPrefSuccess] = useState(false)
@@ -210,10 +212,6 @@ const Settings: React.FC = () => {
                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="en">English (US)</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-                <option value="hi">Hindi</option>
               </select>
             </div>
 
@@ -243,7 +241,7 @@ const Settings: React.FC = () => {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => prefForm.setValue('theme', t)}
+                  onClick={() => { prefForm.setValue('theme', t); setTheme(t) }}
                   className={`rounded-lg border px-4 py-2 text-xs font-semibold capitalize transition-all ${
                     currentTheme === t
                       ? 'border-primary bg-primary/10 text-primary shadow-xs'

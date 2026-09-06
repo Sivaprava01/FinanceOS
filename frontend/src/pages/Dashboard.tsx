@@ -196,33 +196,35 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Currency Context Notice ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-medium text-primary">
-        <Globe className="h-3.5 w-3.5 shrink-0" />
-        <span>
-          {rateStatus === 'live' ? (
-            <>
-              All dashboard totals & charts are converted to <strong>{preferredCurrency}</strong> using live market exchange rates
-              {preferredCurrency !== 'INR' && liveInrRate ? ` (1 ${preferredCurrency} ≈ ₹${liveInrRate.toFixed(2)})` : ''}.
-            </>
-          ) : rateStatus === 'cached' ? (
-            <>
-              Dashboard totals are using recently cached market exchange rates
-              {preferredCurrency !== 'INR' && liveInrRate ? ` (1 ${preferredCurrency} ≈ ₹${liveInrRate.toFixed(2)})` : ''}.
-            </>
-          ) : rateStatus === 'loading' ? (
-            <>Updating <strong>{preferredCurrency}</strong> totals with latest market exchange rates...</>
-          ) : rateStatus === 'fallback' ? (
-            <>
-              Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. INR reference values use fallback rates while live exchange data is unavailable.
-            </>
-          ) : (
-            <>
-              Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. Live INR conversion is currently unavailable.
-            </>
-          )}
-        </span>
-      </div>
+      {/* ─── Currency Context Notice — hidden when INR is the selected currency ── */}
+      {rateStatus !== 'none' && (
+        <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-medium text-primary">
+          <Globe className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {rateStatus === 'live' ? (
+              <>
+                All dashboard totals &amp; charts are converted to <strong>{preferredCurrency}</strong> using live market exchange rates
+                {preferredCurrency !== 'INR' && liveInrRate ? ` (1 ${preferredCurrency} ≈ ₹${liveInrRate.toFixed(2)})` : ''}.
+              </>
+            ) : rateStatus === 'cached' ? (
+              <>
+                Dashboard totals are using recently cached market exchange rates
+                {preferredCurrency !== 'INR' && liveInrRate ? ` (1 ${preferredCurrency} ≈ ₹${liveInrRate.toFixed(2)})` : ''}.
+              </>
+            ) : rateStatus === 'loading' ? (
+              <>Updating <strong>{preferredCurrency}</strong> totals with latest market exchange rates...</>
+            ) : rateStatus === 'fallback' ? (
+              <>
+                Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. INR reference values use fallback rates while live exchange data is unavailable.
+              </>
+            ) : (
+              <>
+                Dashboard totals are displayed in <strong>{preferredCurrency}</strong>. Live INR conversion is currently unavailable.
+              </>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* ─── Primary Financial Command Card + Metric Strip ─────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-3">

@@ -65,21 +65,23 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ onMenuClick }) => {
           </div>
         </div>
 
-        {/* Center: Quick Search */}
-        <div className="hidden md:flex flex-1 max-w-sm mx-6">
-          <form onSubmit={handleSearchSubmit} className="relative w-full">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <input
-              id="top-search"
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search anything (press Enter)…"
-              className="h-8 w-full rounded-md border border-border bg-background/80 py-1 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:border-primary focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-              aria-label="Search"
-            />
-          </form>
-        </div>
+        {/* Center: Quick Search — hidden on Dashboard */}
+        {location.pathname !== '/dashboard' && (
+          <div className="hidden md:flex flex-1 max-w-sm mx-6">
+            <form onSubmit={handleSearchSubmit} className="relative w-full">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <input
+                id="top-search"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search anything (press Enter)…"
+                className="h-8 w-full rounded-md border border-border bg-background/80 py-1 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:border-primary focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                aria-label="Search"
+              />
+            </form>
+          </div>
+        )}
 
         {/* Right: Theme Toggle + User Avatar */}
         <div className="flex items-center gap-2.5">
