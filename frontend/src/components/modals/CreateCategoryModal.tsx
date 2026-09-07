@@ -40,7 +40,17 @@ interface CreateCategoryModalProps {
   onSuccess?: (message?: string) => void
   onError?: (error: string) => void
   isLoading?: boolean
+  initialType?: 'Expense' | 'Income' | 'Asset' | 'Liability' | 'expense' | 'income' | 'asset' | 'liability'
   onSubmit: (data: CategoryFormData) => Promise<void>
+}
+
+const mapType = (type?: string): 'Expense' | 'Income' | 'Asset' | 'Liability' => {
+  if (!type) return 'Expense'
+  const t = type.toLowerCase().trim()
+  if (t === 'income' || t === 'credit') return 'Income'
+  if (t === 'asset') return 'Asset'
+  if (t === 'liability') return 'Liability'
+  return 'Expense'
 }
 
 const PRESET_COLORS = [
@@ -79,6 +89,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
   onSuccess,
   onError,
   isLoading = false,
+  initialType = 'Expense',
   onSubmit,
 }) => {
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0])
@@ -95,11 +106,21 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
   } = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
     defaultValues: {
-      type: 'Expense',
+      type: mapType(initialType),
       color: PRESET_COLORS[0],
       description: '',
     },
   })
+
+  React.useEffect(() => {
+    if (isOpen) {
+      reset({
+        type: mapType(initialType),
+        color: PRESET_COLORS[0],
+        description: '',
+      })
+    }
+  }, [isOpen, initialType, reset])
 
   const handleClose = () => {
     reset()

@@ -10,8 +10,20 @@ import { HTTP_STATUS, APP_MESSAGES } from "../constants/index.js";
 
 const errorHandler = (err, req, res, next) => {
   // Default error properties
-  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
-  const message = err.message || APP_MESSAGES.INTERNAL_ERROR;
+  let statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  let message = err.message || APP_MESSAGES.INTERNAL_ERROR;
+
+  // Handle Mongoose validation errors
+  if (err.name === "ValidationError") {
+    statusCode = HTTP_STATUS.BAD_REQUEST;
+    message = Object.values(err.errors || {})
+      .map((e) => e.message)
+      .join(", ") || err.message;
+    console.log("[VALIDATION ERROR DETAILS]", JSON.stringify(err.errors, null, 2));
+  } else if (err.name === "CastError") {
+    statusCode = HTTP_STATUS.BAD_REQUEST;
+    message = `Invalid ${err.path}: ${err.value}`;
+  }
 
   // Log error details (in production, use a proper logging service)
   console.error({

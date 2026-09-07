@@ -25,6 +25,20 @@ const router = express.Router();
 // All dashboard routes require a valid access token
 router.use(protect);
 
+// Dynamic user-specific dashboard data must never be cached by browser/proxies
+router.use((req, res, next) => {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store",
+  });
+  // Strip conditional headers to prevent stale 304 Not Modified
+  delete req.headers["if-none-match"];
+  delete req.headers["if-modified-since"];
+  next();
+});
+
 router.get("/overview", getOverview);
 router.get("/spending-analysis", getSpendingAnalysis);
 router.get("/monthly-comparison", getMonthlyComparison);

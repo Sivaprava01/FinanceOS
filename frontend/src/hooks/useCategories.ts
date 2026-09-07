@@ -2,13 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { categories as categoryAPI } from '@services/api'
 import type { Category, CreateCategoryInput, UpdateCategoryInput } from '@/types'
 
-export const useCategories = () => {
+export const useCategories = (type?: string) => {
   const queryClient = useQueryClient()
 
   const query = useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', type || 'all'],
     queryFn: async () => {
-      const response = await categoryAPI.list()
+      const response = await categoryAPI.list(type ? { type } : undefined)
       return response.data.data.categories as Category[]
     },
     staleTime: 5 * 60 * 1000,

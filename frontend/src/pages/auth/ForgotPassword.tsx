@@ -19,54 +19,51 @@ const ForgotPassword: React.FC = () => {
 
   if (submitted) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Check your email</CardTitle>
+      <Card className="border border-border shadow-xs">
+        <CardHeader className="pb-3 text-center">
+          <CardTitle className="text-lg">Check Your Email</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="mb-6 text-muted-foreground">
-            If an account exists with that email, we'll send password reset instructions.
+        <CardContent className="pt-2 text-center space-y-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            If an account exists with that email address, we have sent instructions to reset your password.
           </p>
-          <Link to="/login">
-            <Button className="w-full">Back to Login</Button>
-          </Link>
+          <Button asChild size="sm" className="w-full text-xs font-semibold">
+            <Link to="/login">Back to Sign In</Link>
+          </Button>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reset Password</CardTitle>
-        <CardDescription>Enter your email to receive reset instructions</CardDescription>
+    <Card className="border border-border shadow-xs">
+      <CardHeader className="pb-3 text-center">
+        <CardTitle className="text-lg">Reset Password</CardTitle>
+        <CardDescription className="text-xs">Enter your email to receive reset instructions</CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="pt-2 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium">
-              Email
+            <label htmlFor="email" className="block text-xs font-medium text-muted-foreground mb-1">
+              Email Address
             </label>
             <Input
               id="email"
               type="email"
               placeholder="you@example.com"
               required
-              className="mt-1"
             />
           </div>
 
-          <Button type="submit" className="w-full" isLoading={isLoading}>
+          <Button type="submit" size="sm" className="w-full text-xs font-semibold mt-2" isLoading={isLoading}>
             Send Reset Link
           </Button>
         </form>
 
-        <div className="mt-6 border-t border-border pt-6">
-          <p className="text-center text-sm text-muted-foreground">
-            <Link to="/login" className="text-primary hover:underline">
-              Back to Login
-            </Link>
-          </p>
+        <div className="pt-3 border-t border-border/80 text-center">
+          <Link to="/login" className="text-xs font-medium text-primary hover:underline">
+            Back to Sign In
+          </Link>
         </div>
       </CardContent>
     </Card>

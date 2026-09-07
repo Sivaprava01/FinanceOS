@@ -20,50 +20,118 @@
  */
 
 import fs from "fs";
+import { Readable } from "stream";
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import csv from "csv-parser";
 import XLSX from "xlsx";
 import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS } from "../constants/index.js";
+import { detectStatementCurrency } from "../utils/currency.js";
 
 // ─── PDF Parser ───────────────────────────────────────────────────────────────
 
 /**
+ * Extracts text from PDF file using PDF.js with direct password support.
+ *
+ * @param {Buffer} fileBuffer
+ * @param {string} password
+ * @returns {Promise<string>}
+ */
+const loadPDFTextWithPDFJS = async (fileBuffer, password = "") => {
+  let PDFJS;
+  try {
+    const imported = await import("pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js");
+    PDFJS = imported.default || imported;
+  } catch (err) {
+    throw new Error("PDF parser library unavailable: " + err.message);
+  }
+
+  PDFJS.disableWorker = true;
+  const param = { data: new Uint8Array(fileBuffer) };
+  if (password) {
+    param.password = password;
+  }
+
+  const doc = await PDFJS.getDocument(param);
+  let text = "";
+
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const textContent = await page.getTextContent();
+    let lastY = null;
+    for (const item of textContent.items) {
+      if (lastY === item.transform[5] || !lastY) {
+        text += item.str;
+      } else {
+        text += "\n" + item.str;
+      }
+      lastY = item.transform[5];
+    }
+    text += "\n\n";
+  }
+
+  doc.destroy();
+  return text;
+};
+
+/**
  * Extracts text from PDF file and parses transactions.
  *
- * Current implementation: Text extraction from digital PDFs
- * Future: OCR support can be added here for scanned PDFs
- *
  * @param {string} filePath - Path to PDF file
+ * @param {string} password - PDF password (if encrypted)
  * @returns {Promise<Array>} Array of extracted transactions
  * @throws {ApiError} If PDF is invalid or cannot be parsed
  */
-const parsePDF = async (filePath) => {
+const parsePDF = async (filePath, password = "") => {
   try {
     const fileBuffer = fs.readFileSync(filePath);
-    const pdfData = await pdfParse(fileBuffer);
-    const text = pdfData.text;
+    let text = "";
+
+    try {
+      text = await loadPDFTextWithPDFJS(fileBuffer, password);
+    } catch (parseErr) {
+      const errMsg = (parseErr.message || String(parseErr)).toLowerCase();
+      const errName = parseErr.name || "";
+
+      // MUST check 'incorrect' or 'invalid' BEFORE checking general 'password' keyword
+      if (errMsg.includes("incorrect") || errMsg.includes("invalid") || parseErr.code === 2) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, "PDF_INCORRECT_PASSWORD");
+      }
+
+      if (
+        errMsg.includes("password") ||
+        errMsg.includes("encrypted") ||
+        errName === "PasswordException" ||
+        parseErr.code === 1
+      ) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, "PDF_PASSWORD_REQUIRED");
+      }
+
+      throw parseErr;
+    }
 
     if (!text || text.trim().length === 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "PDF does not contain extractable text");
     }
 
-    // Extract transactions from PDF text using pattern matching
     const transactions = extractTransactionsFromText(text);
 
     if (transactions.length === 0) {
-      // In dev, print a sample so the developer can see what was extracted
       if (process.env.NODE_ENV !== "production") {
         const sample = text.slice(0, 1500).replace(/\n/g, " ↵ ");
-        console.log("[Parser] Extracted text sample (first 1500 chars):");
-        console.log(sample);
-        console.log("[Parser] Check the lines above against the date/amount patterns.");
+        console.log("[Parser] Extracted text sample (first 1500 chars):", sample);
       }
       throw new ApiError(
         HTTP_STATUS.BAD_REQUEST,
         "No transactions found in PDF. Ensure it's a valid bank statement."
       );
     }
+
+    const detected = detectStatementCurrency(text);
+    transactions.detectedCurrency = detected.currency;
+    transactions.isAmbiguous = detected.isAmbiguous;
+    transactions.confidence = detected.confidence;
+    transactions.detectedSources = detected.detectedSources;
 
     return transactions;
   } catch (err) {
@@ -76,50 +144,172 @@ const parsePDF = async (filePath) => {
 
 /**
  * Parses CSV file and extracts transactions.
- *
- * Supports various CSV formats from different banks.
- * Looks for common column names: Date, Amount, Description, Merchant, Type, etc.
+ * Robustly handles metadata rows before header, UTF-8 BOM, varying delimiters, and quoted fields.
  *
  * @param {string} filePath - Path to CSV file
  * @returns {Promise<Array>} Array of extracted transactions
  * @throws {ApiError} If CSV is invalid or cannot be parsed
  */
 const parseCSV = async (filePath) => {
-  return new Promise((resolve, reject) => {
-    const transactions = [];
-    const errors = [];
+  try {
+    let fileContent = fs.readFileSync(filePath, "utf-8");
+    // Strip UTF-8 BOM if present
+    if (fileContent.charCodeAt(0) === 0xFEFF) {
+      fileContent = fileContent.slice(1);
+    }
 
-    fs.createReadStream(filePath)
-      .pipe(csv())
-      .on("data", (row) => {
-        try {
-          const transaction = normalizeRow(row, "CSV");
-          if (transaction) {
-            transactions.push(transaction);
+    const lines = fileContent.split(/\r?\n/);
+    if (!lines || lines.length === 0) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "CSV file is empty");
+    }
+
+    // Header detection: scan up to 50 lines
+    let headerLineIdx = -1;
+    let detectedDelimiter = ",";
+
+    for (let i = 0; i < Math.min(lines.length, 50); i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Determine delimiter for this line
+      const commaCount = (line.match(/,/g) || []).length;
+      const semiCount = (line.match(/;/g) || []).length;
+      const tabCount = (line.match(/\t/g) || []).length;
+
+      let delim = ",";
+      if (semiCount > commaCount && semiCount > tabCount) delim = ";";
+      else if (tabCount > commaCount && tabCount > semiCount) delim = "\t";
+
+      // Split line accounting for quotes or basic split
+      const tokens = line
+        .toLowerCase()
+        .split(delim)
+        .map((t) => t.replace(/^["']|["']$/g, "").trim());
+
+      const dateIndicators = tokens.filter(
+        (v) =>
+          (v.includes("date") &&
+            !v.includes("from") &&
+            !v.includes("statement") &&
+            !v.includes("run")) ||
+          v === "dt" ||
+          v === "txn date" ||
+          v === "transaction date" ||
+          v === "value date" ||
+          v === "posting date"
+      ).length;
+
+      const amountIndicators = tokens.filter(
+        (v) =>
+          v.includes("amount") ||
+          v.includes("debit") ||
+          v.includes("credit") ||
+          v.includes("withdrawal") ||
+          v.includes("deposit") ||
+          v === "dr" ||
+          v === "cr"
+      ).length;
+
+      const descIndicators = tokens.filter(
+        (v) =>
+          v.includes("description") ||
+          v.includes("narration") ||
+          v.includes("particulars") ||
+          v.includes("merchant") ||
+          v.includes("details") ||
+          v.includes("remarks") ||
+          v.includes("payee")
+      ).length;
+
+      if (dateIndicators >= 1 && (amountIndicators >= 1 || descIndicators >= 1)) {
+        headerLineIdx = i;
+        detectedDelimiter = delim;
+        console.log(`[CSV Parser] Detected header line at index ${i} with delimiter '${delim === "\t" ? "\\t" : delim}'`);
+        break;
+      }
+    }
+
+    if (headerLineIdx === -1) {
+      // Fallback: search for line containing date or amount keywords
+      for (let i = 0; i < Math.min(lines.length, 50); i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const lower = line.toLowerCase();
+        if (
+          lower.includes("date") ||
+          lower.includes("amount") ||
+          lower.includes("debit") ||
+          lower.includes("credit") ||
+          lower.includes("deposit") ||
+          lower.includes("withdrawal")
+        ) {
+          headerLineIdx = i;
+          console.log(`[CSV Parser] Fallback header line detected at index ${i}`);
+          break;
+        }
+      }
+    }
+
+    if (headerLineIdx === -1) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "No transaction header row (Date, Amount/Debit/Credit, Description) could be detected in CSV file."
+      );
+    }
+
+    // Slice content starting from headerLineIdx
+    const csvContentToParse = lines.slice(headerLineIdx).join("\n");
+
+    const transactions = await new Promise((resolve, reject) => {
+      const rows = [];
+      const stream = Readable.from([csvContentToParse]);
+
+      stream
+        .pipe(csv({ separator: detectedDelimiter }))
+        .on("data", (row) => {
+          try {
+            const tx = normalizeRow(row, "CSV");
+            if (tx) rows.push(tx);
+          } catch (err) {
+            // ignore row parse errors
           }
-        } catch (err) {
-          errors.push(err.message);
-        }
-      })
-      .on("end", () => {
-        if (transactions.length === 0) {
-          reject(new ApiError(HTTP_STATUS.BAD_REQUEST, "No valid transactions found in CSV file"));
-        } else {
-          resolve(transactions);
-        }
-      })
-      .on("error", (err) => {
-        reject(new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to parse CSV file: " + err.message));
-      });
-  });
+        })
+        .on("end", () => resolve(rows))
+        .on("error", (err) =>
+          reject(new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to parse CSV stream: " + err.message))
+        );
+    });
+
+    if (transactions.length === 0) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `No valid transactions found in CSV file. Scanned ${lines.length - headerLineIdx} data rows.`
+      );
+    }
+
+    const detected = detectStatementCurrency(fileContent, lines.slice(0, 20));
+    transactions.detectedCurrency = detected.currency;
+    transactions.isAmbiguous = detected.isAmbiguous;
+    transactions.confidence = detected.confidence;
+    transactions.detectedSources = detected.detectedSources;
+
+    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
+    return transactions;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to parse CSV file: " + err.message);
+  }
 };
 
 // ─── Excel Parser ──────────────────────────────────────────────────────────────
 
 /**
- * Parses Excel (XLSX) file and extracts transactions.
- *
- * Reads the first sheet and looks for transaction data.
+ * Parses Excel (.xls / .xlsx) file and extracts transactions.
+ * Robustly detects header rows and handles realistic bank column layouts:
+ * - Date | Description | Debit | Credit | Balance
+ * - Date | Narration | Withdrawal | Deposit | Balance
+ * - Date | Details | Dr | Cr
+ * - Date | Merchant | Amount | Type
  *
  * @param {string} filePath - Path to Excel file
  * @returns {Promise<Array>} Array of extracted transactions
@@ -127,7 +317,7 @@ const parseCSV = async (filePath) => {
  */
 const parseExcel = async (filePath) => {
   try {
-    const workbook = XLSX.readFile(filePath);
+    const workbook = XLSX.readFile(filePath, { cellDates: true, raw: false });
     const sheetName = workbook.SheetNames[0];
 
     if (!sheetName) {
@@ -135,21 +325,138 @@ const parseExcel = async (filePath) => {
     }
 
     const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(worksheet);
 
-    if (!rows || rows.length === 0) {
+    // First, convert sheet to raw 2D array to locate the true header row
+    const raw2D = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+    if (!raw2D || raw2D.length === 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "No data found in Excel sheet");
     }
 
-    const transactions = rows.map((row) => normalizeRow(row, "XLSX")).filter((t) => t !== null);
+    console.log(`[Excel Parser] Sheet "${sheetName}" has ${raw2D.length} rows`);
 
-    if (transactions.length === 0) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "No valid transactions found in Excel file");
+    // Find the header row by looking for a row that has BOTH:
+    // - At least 1 date column indicator
+    // - At least 2 amount/debit/credit indicators
+    // This avoids false positives from metadata rows that might have a single date
+    let headerRowIdx = 0;
+    let headerFound = false;
+    
+    for (let r = 0; r < Math.min(raw2D.length, 50); r++) {
+      const rowValues = (raw2D[r] || []).map((v) => String(v).toLowerCase().trim());
+      
+      const dateIndicators = rowValues.filter(v => 
+        (v.includes("date") && !v.includes("from")) ||  // Exclude "date from" (metadata)
+        v === "txn date" || 
+        (v.includes("transaction date") && !v.includes("from")) ||
+        (v.includes("value date") && !v.includes("from")) ||
+        (v.includes("posting date") && !v.includes("from"))
+      ).length;
+      
+      const amountIndicators = rowValues.filter(v => 
+        v.includes("amount") ||
+        v.includes("debit") ||
+        v.includes("credit") ||
+        v.includes("withdrawal") ||
+        v.includes("deposit") ||
+        v === "dr" ||
+        v === "cr"
+      ).length;
+
+      const descIndicators = rowValues.filter(v =>
+        v.includes("description") ||
+        v.includes("particulars") ||
+        v.includes("narration") ||
+        v.includes("merchant") ||
+        v.includes("details") ||
+        v.includes("payee") ||
+        v.includes("remarks")
+      ).length;
+
+      // Require date AND amount (or date + amount + description)
+      if (dateIndicators >= 1 && amountIndicators >= 1 && (amountIndicators >= 2 || descIndicators >= 1 || rowValues.length <= 6)) {
+        headerRowIdx = r;
+        headerFound = true;
+        console.log(`[Excel Parser] Detected header row at index ${r}`);
+        break;
+      }
     }
 
+    if (!headerFound) {
+      // Fallback 1: look for any row with date AND amount
+      for (let r = 0; r < Math.min(raw2D.length, 50); r++) {
+        const rowValues = (raw2D[r] || []).map((v) => String(v).toLowerCase().trim());
+        const dateInd = rowValues.filter(v => v.includes("date") && !v.includes("from")).length;
+        const amtInd = rowValues.filter(v => v.includes("amount") || v.includes("debit") || v.includes("credit")).length;
+        if (dateInd >= 1 && amtInd >= 1) {
+          headerRowIdx = r;
+          headerFound = true;
+          console.log(`[Excel Parser] Detected header row at index ${r} (relaxed date+amount)`);
+          break;
+        }
+      }
+    }
+
+    if (!headerFound) {
+      // Fallback 2: look for just S.No or similar sequential numbering columns
+      for (let r = 0; r < Math.min(raw2D.length, 50); r++) {
+        const rowValues = (raw2D[r] || []).map((v) => String(v).toLowerCase().trim());
+        if (rowValues.some(v => v === "s no." || v === "s no" || v === "sno" || v === "serial")) {
+          headerRowIdx = r;
+          headerFound = true;
+          console.log(`[Excel Parser] Detected header row at index ${r} (via S.No column)`);
+          break;
+        }
+      }
+    }
+
+    if (!headerFound) {
+      console.warn(`[Excel Parser] Could not detect header row, trying row 0`);
+      headerRowIdx = 0;
+    }
+
+    // Convert to JSON objects using detected header row
+    const rows = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIdx });
+
+    if (!rows || rows.length === 0) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "No valid data rows found in Excel sheet");
+    }
+
+    console.log(`[Excel Parser] Found ${rows.length} data rows after header`);
+
+    const transactions = [];
+    let rejectedCount = 0;
+    
+    for (const row of rows) {
+      const tx = normalizeRow(row, "XLSX");
+      if (tx) {
+        transactions.push(tx);
+      } else {
+        rejectedCount++;
+      }
+    }
+
+    console.log(`[Excel Parser] Normalized ${transactions.length} transactions, rejected ${rejectedCount} rows`);
+
+    if (transactions.length === 0) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST, 
+        `No valid transactions found in Excel file. Scanned ${rows.length} rows.`
+      );
+    }
+
+    const sampleText = raw2D.slice(0, 25).map((r) => Array.isArray(r) ? r.join(" ") : String(r)).join("\n");
+    const detected = detectStatementCurrency(sampleText, raw2D.slice(0, 25));
+    transactions.detectedCurrency = detected.currency;
+    transactions.isAmbiguous = detected.isAmbiguous;
+    transactions.confidence = detected.confidence;
+    transactions.detectedSources = detected.detectedSources;
+
+    console.log(`[Excel Parser] Extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
+    console.error(`[Excel Parser] Error parsing Excel:`, err.message);
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to parse Excel file: " + err.message);
   }
 };
@@ -158,53 +465,172 @@ const parseExcel = async (filePath) => {
 
 /**
  * Normalizes a row from CSV/Excel into standard transaction format.
- * Handles various column naming conventions.
+ * Dynamically identifies columns for Date, Amount/Type (or Debit/Credit/Withdrawal/Deposit/Dr/Cr),
+ * and Merchant/Description/Narration.
  *
- * @param {object} row - Row from CSV/Excel
+ * @param {object} row - Row object from CSV/Excel
  * @param {string} source - "CSV" or "XLSX"
  * @returns {object|null} Normalized transaction or null if invalid
  */
 const normalizeRow = (row, source) => {
-  // Find and parse date
-  const dateField = Object.keys(row).find((k) => k.toLowerCase().includes("date"));
-  const date = dateField ? parseDate(row[dateField]) : null;
+  if (!row || typeof row !== "object") return null;
+
+  const keys = Object.keys(row);
+  if (keys.length === 0) return null;
+
+  // Skip completely empty rows
+  const hasAnyData = keys.some((k) => row[k] !== null && row[k] !== "" && row[k] !== undefined);
+  if (!hasAnyData) return null;
+
+  // 1. Find and parse Date column (try harder to find it)
+  const dateKey = keys.find((k) => {
+    const l = k.toLowerCase().trim();
+    return (
+      l.includes("date") ||
+      l === "dt" ||
+      l === "txn date" ||
+      l === "transaction date" ||
+      l === "value date" ||
+      l === "post date" ||
+      l === "posting date" ||
+      l === "tran date"
+    );
+  });
+
+  const rawDate = dateKey ? row[dateKey] : null;
+  const date = rawDate ? parseDate(rawDate) : null;
   if (!date) return null;
 
-  // Find and parse amount
-  const amountField = Object.keys(row).find((k) => k.toLowerCase().includes("amount"));
-  const amount = amountField ? parseAmount(row[amountField]) : null;
-  if (amount === null) return null;
+  // 2. Find Merchant / Narration / Description columns
+  const merchantKey = keys.find((k) => {
+    const l = k.toLowerCase().trim();
+    return (
+      l.includes("merchant") ||
+      l.includes("vendor") ||
+      l.includes("payee") ||
+      l.includes("narration") ||
+      l.includes("particulars") ||
+      l.includes("description") ||
+      l.includes("details") ||
+      l.includes("remarks") ||
+      l.includes("reference") ||
+      l === "ref"
+    );
+  });
 
-  // Determine type (Debit/Credit)
-  const typeField = Object.keys(row).find((k) => k.toLowerCase().includes("type"));
-  const type = typeField ? parseType(row[typeField], amount) : "Debit";
+  const merchantRaw = merchantKey ? String(row[merchantKey]).trim() : "Unknown";
+  const merchant = merchantRaw.length > 0 ? merchantRaw : "Unknown";
 
-  // Find merchant/description
-  const merchantField = Object.keys(row).find(
+  const descKey = keys.find(
     (k) =>
-      k.toLowerCase().includes("merchant") ||
-      k.toLowerCase().includes("vendor") ||
-      k.toLowerCase().includes("description")
+      k !== merchantKey &&
+      (k.toLowerCase().includes("description") ||
+        k.toLowerCase().includes("narration") ||
+        k.toLowerCase().includes("particulars") ||
+        k.toLowerCase().includes("remarks") ||
+        k.toLowerCase().includes("details"))
   );
-  const merchant = merchantField ? String(row[merchantField]).trim() : "Unknown";
+  const description = descKey ? String(row[descKey]).trim() : merchant;
 
-  // Find description
-  const descField = Object.keys(row).find(
-    (k) => k.toLowerCase().includes("description") && k !== merchantField
-  );
-  const description = descField ? String(row[descField]).trim() : "";
+  // 3. Determine Amount and Type (Debit vs Credit)
+  let amount = null;
+  let type = "Debit";
+
+  // Check for separate Debit / Withdrawal / Dr columns
+  const debitKey = keys.find((k) => {
+    const l = k.toLowerCase().trim();
+    return (
+      l.includes("debit") ||
+      l.includes("withdrawal") ||
+      l.includes("outflow") ||
+      l === "dr" ||
+      l === "dr." ||
+      l.includes("amt debited") ||
+      l.includes("withdrawals")
+    );
+  });
+
+  // Check for separate Credit / Deposit / Cr columns
+  const creditKey = keys.find((k) => {
+    const l = k.toLowerCase().trim();
+    return (
+      l.includes("credit") ||
+      l.includes("deposit") ||
+      l.includes("inflow") ||
+      l === "cr" ||
+      l === "cr." ||
+      l.includes("amt credited") ||
+      l.includes("deposits")
+    );
+  });
+
+  const debitVal = debitKey ? parseAmount(row[debitKey]) : null;
+  const creditVal = creditKey ? parseAmount(row[creditKey]) : null;
+
+  if (debitVal !== null && debitVal > 0) {
+    amount = debitVal;
+    type = "Debit";
+  } else if (creditVal !== null && creditVal > 0) {
+    amount = creditVal;
+    type = "Credit";
+  } else {
+    // Single Amount column fallback (but NEVER use Balance)
+    const balanceKey = keys.find((k) => {
+      const l = k.toLowerCase().trim();
+      return l.includes("balance") || l.includes("closing") || l.includes("running");
+    });
+
+    const amountKey = keys.find((k) => {
+      const l = k.toLowerCase().trim();
+      // Explicitly exclude balance/closing columns
+      if (balanceKey && k === balanceKey) return false;
+      if (l.includes("balance") || l.includes("closing")) return false;
+      return (
+        l.includes("amount") ||
+        l === "amt" ||
+        l === "sum" ||
+        l === "tx amount" ||
+        l === "transaction amount" ||
+        l === "txn amount" ||
+        l.includes("total")
+      );
+    });
+
+    if (amountKey) {
+      const rawAmt = parseAmount(row[amountKey]);
+      if (rawAmt !== null && rawAmt !== 0) {
+        amount = Math.abs(rawAmt);
+        const typeKey = keys.find((k) => {
+          const l = k.toLowerCase().trim();
+          return l.includes("type") || l === "dr/cr" || l === "d/c" || l.includes("transaction type");
+        });
+
+        if (rawAmt < 0) {
+          type = "Debit";
+        } else if (typeKey) {
+          type = parseType(row[typeKey], rawAmt);
+        } else {
+          type = "Debit";
+        }
+      }
+    }
+  }
+
+  if (amount === null || isNaN(amount) || amount <= 0) {
+    return null;
+  }
 
   return {
     date,
     amount: Math.abs(amount),
     type,
-    merchant,
-    description,
+    merchant: merchant.substring(0, 100),
+    description: description.substring(0, 255),
     originalDate: date,
     originalAmount: Math.abs(amount),
     originalType: type,
-    originalMerchant: merchant,
-    originalDescription: description,
+    originalMerchant: merchant.substring(0, 100),
+    originalDescription: description.substring(0, 255),
   };
 };
 
@@ -433,7 +859,14 @@ const extractTransactionsFromText = (text) => {
  */
 const parseDate = (dateStr) => {
   if (!dateStr) return null;
-  if (dateStr instanceof Date) return dateStr;
+  if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
+
+  // Handle Excel serial date numbers (e.g. 45384)
+  if (typeof dateStr === "number" || (!isNaN(Number(dateStr)) && Number(dateStr) > 25000 && Number(dateStr) < 75000)) {
+    const num = Number(dateStr);
+    const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+    if (!isNaN(d.getTime())) return d;
+  }
 
   const s = String(dateStr).trim();
 
@@ -443,7 +876,7 @@ const parseDate = (dateStr) => {
     const year = parseInt(iso[1]);
     const month = parseInt(iso[2]);
     const day = parseInt(iso[3]);
-    const d = new Date(year, month - 1, day);
+    const d = new Date(Date.UTC(year, month - 1, day));
     if (!isNaN(d.getTime())) return d;
   }
 
@@ -454,35 +887,35 @@ const parseDate = (dateStr) => {
     const month = parseInt(dmy[2]);
     let year = parseInt(dmy[3]);
     if (year < 100) year += year < 50 ? 2000 : 1900;
-    const d = new Date(year, month - 1, day);
+    const d = new Date(Date.UTC(year, month - 1, day));
     if (!isNaN(d.getTime())) return d;
   }
 
   // DD MMM YYYY  or  DD MMM YY  (e.g. "10 Jul 2025", "01 Jan 25")
   const dMonthY = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2,4})$/);
-  if (dMonthY) {
+    if (dMonthY) {
     const months = {
-      jan: 0,
-      feb: 1,
-      mar: 2,
-      apr: 3,
-      may: 4,
-      jun: 5,
-      jul: 6,
-      aug: 7,
-      sep: 8,
-      oct: 9,
-      nov: 10,
-      dec: 11,
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
     };
+
     const day = parseInt(dMonthY[1]);
     const monthIdx = months[dMonthY[2].toLowerCase()];
     let year = parseInt(dMonthY[3]);
+
     if (monthIdx === undefined) return null;
+
     if (year < 100) year += year < 50 ? 2000 : 1900;
-    const d = new Date(year, monthIdx, day);
+
+    const d = new Date(Date.UTC(year, monthIdx, day));
+
     if (!isNaN(d.getTime())) return d;
   }
+
+  // Fallback to JS Date constructor
+  const fallback = new Date(s);
+
+  if (!isNaN(fallback.getTime())) return fallback;
 
   return null;
 };

@@ -6,6 +6,7 @@
 import { useRoutes } from 'react-router-dom'
 import { routes } from '@routes/index'
 import { useAuth } from '@hooks/useAuth'
+import { ErrorBoundary } from '@components/LazyPageFallback'
 
 function App() {
   const element = useRoutes(routes)
@@ -22,7 +23,7 @@ function App() {
     )
   }
 
-  return element
+  return <ErrorBoundary>{element}</ErrorBoundary>
 }
 
 export default App

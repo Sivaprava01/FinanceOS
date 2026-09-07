@@ -36,18 +36,43 @@ export interface ApiResponse<T = unknown> {
   statusCode?: number
 }
 
+export type TransactionType =
+  | 'income'
+  | 'expense'
+  | 'asset'
+  | 'liability'
+  | 'Debit'
+  | 'Credit'
+  | 'Income'
+  | 'Expense'
+  | 'Asset'
+  | 'Liability'
+
+export type PaymentMethod =
+  | 'cash'
+  | 'upi'
+  | 'debit_card'
+  | 'credit_card'
+  | 'bank_transfer'
+  | 'net_banking'
+  | 'cheque'
+  | 'wallet'
+  | 'other'
+
 export interface Transaction {
   _id: string
   user: string
   statementId: string | null
   date: string
   amount: number
-  type: 'Debit' | 'Credit'
+  type: TransactionType
+  paymentMethod?: PaymentMethod
   merchant: string
   description: string
   category: string
   notes: string
   currency: string | null
+  source: 'manual' | 'statement'
   isEdited: boolean
   editedAt: string | null
   createdAt: string
@@ -57,12 +82,40 @@ export interface Transaction {
 export interface CreateTransactionInput {
   date: string
   amount: number
-  type: 'Debit' | 'Credit'
-  merchant: string
+  type: TransactionType
+  merchant?: string
   category: string
+  paymentMethod?: PaymentMethod
   description?: string
   notes?: string
   currency?: string
+}
+
+export interface ExtractedTransaction {
+  date: string
+  amount: number
+  type: TransactionType | 'Debit' | 'Credit'
+  merchant: string
+  description?: string
+  category?: string
+  paymentMethod?: PaymentMethod
+  currency?: string | null
+  originalDate?: string
+  originalAmount?: number
+  originalType?: string
+  originalMerchant?: string
+  originalDescription?: string
+}
+
+export interface StatementPreviewData {
+  statementId?: string
+  originalFileName?: string
+  fileType?: 'PDF' | 'CSV' | 'XLSX'
+  transactions: ExtractedTransaction[]
+  detectedCurrency: string | null
+  isAmbiguous: boolean
+  confidence: 'high' | 'low' | 'none'
+  detectedSources?: string[]
 }
 
 export interface Statement {
@@ -71,12 +124,20 @@ export interface Statement {
   originalFileName: string
   fileType: 'PDF' | 'CSV' | 'XLSX'
   fileSize: number
-  status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed'
+  status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed' | 'Password Required'
   transactionCount: number
   currency: string | null
   uploadedAt: string
   processedAt?: string | null
   failureReason?: string | null
+  preview?: StatementPreviewData
+}
+
+export interface ImportTransactionsInput {
+  statementId: string
+  currency: string
+  transactions: ExtractedTransaction[]
+  filePath?: string
 }
 
 export interface DashboardOverview {
@@ -94,9 +155,12 @@ export interface DashboardOverview {
     _id: string
     date: string
     amount: number
-    type: 'Debit' | 'Credit'
+    currency?: string
+    type: TransactionType
+    paymentMethod?: PaymentMethod
     merchant: string
     category: string
+    source?: string
   }[]
   topSpendingCategories: { _id: string; total: number }[]
 }
@@ -158,7 +222,15 @@ export interface ThemeContextType {
   isDark: boolean
 }
 
-export type CategoryType = 'Expense' | 'Income' | 'Asset' | 'Liability'
+export type CategoryType =
+  | 'income'
+  | 'expense'
+  | 'asset'
+  | 'liability'
+  | 'Expense'
+  | 'Income'
+  | 'Asset'
+  | 'Liability'
 
 export interface Category {
   _id: string

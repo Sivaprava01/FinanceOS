@@ -30,11 +30,11 @@ const buildUserPayload = (user) => ({
   provider: user.provider,
   isEmailVerified: user.isEmailVerified,
   createdAt: user.createdAt,
-  preferredCurrency: user.preferredCurrency || 'USD',
+  preferredCurrency: user.preferredCurrency || "USD",
   preferences: user.preferences || {
-    language: 'en',
-    theme: 'system',
-    dateFormat: 'DD/MM/YYYY',
+    language: "en",
+    theme: "system",
+    dateFormat: "DD/MM/YYYY",
     notifications: { email: true, push: false },
   },
 });

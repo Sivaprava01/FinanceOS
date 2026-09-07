@@ -21,7 +21,7 @@ const connectDB = async () => {
     });
 
     console.log(
-      `\n✅ MongoDB Connected Successfully\nDatabase Host: ${connectionInstance.connection.host}\n`
+      `\n✅ MongoDB Connected Successfully\nDatabase Host: ${connectionInstance.connection.host}\nDatabase Name: ${connectionInstance.connection.name}\n`
     );
 
     return connectionInstance;

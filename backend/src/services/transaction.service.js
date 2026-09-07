@@ -22,8 +22,10 @@ import Transaction from "../models/transaction.model.js";
 import MerchantMapping from "../models/merchant-mapping.model.js";
 import Statement from "../models/statement.model.js";
 import ApiError from "../utils/ApiError.js";
-import { HTTP_STATUS } from "../constants/index.js";
+import { HTTP_STATUS, VALID_PAYMENT_METHODS } from "../constants/index.js";
 import { parserService } from "./parser.service.js";
+import { categoryService } from "./category.service.js";
+import { normalizeCurrencyCode, isValidCurrency } from "../utils/currency.js";
 
 // Get project root directory for path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -125,6 +127,53 @@ const getTransactionsForReview = async (statementId, userId) => {
   };
 };
 
+// ─── Type and Category Validation Helpers ─────────────────────────────────────
+
+const normalizeTransactionType = (type) => {
+  if (!type) return "expense";
+  const t = String(type).toLowerCase().trim();
+  if (t === "debit") return "expense";
+  if (t === "credit") return "income";
+  return t;
+};
+
+/**
+ * Validates that a category exists and belongs to the given transaction type.
+ *
+ * @param {string} userId
+ * @param {string} categoryName
+ * @param {string} transactionType
+ */
+const validateCategoryForType = async (userId, categoryName, transactionType) => {
+  if (!categoryName || categoryName === "Uncategorized") return;
+  const normalizedType = normalizeTransactionType(transactionType);
+
+  const [customCategories, defaultCategories] = await Promise.all([
+    categoryService.getCategories(userId),
+    Promise.resolve(categoryService.getDefaultCategories()),
+  ]);
+
+  const allCategories = [...customCategories, ...defaultCategories];
+  const matched = allCategories.find(
+    (c) => c.name.toLowerCase() === categoryName.toLowerCase().trim()
+  );
+
+  if (!matched) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Category "${categoryName}" does not exist`
+    );
+  }
+
+  const categoryType = normalizeTransactionType(matched.type);
+  if (categoryType !== normalizedType) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Category "${categoryName}" (${categoryType}) does not belong to transaction type "${normalizedType}"`
+    );
+  }
+};
+
 // ─── Create Transaction ────────────────────────────────────────────────────────
 
 /**
@@ -137,10 +186,11 @@ const getTransactionsForReview = async (statementId, userId) => {
  * @param {object} transactionData - Transaction data
  *   - date: date
  *   - amount: number
- *   - type: "Debit" | "Credit"
+ *   - type: "income" | "expense" | "asset" | "liability" | "Debit" | "Credit"
  *   - merchant: string
  *   - description: string (optional)
  *   - category: string (optional)
+ *   - paymentMethod: string (optional, required for expense)
  *   - notes: string (optional)
  *   - originalDate, originalAmount, originalType, originalMerchant, etc.
  *   - statementId: ID of statement (if extracted, null if manual)
@@ -148,10 +198,68 @@ const getTransactionsForReview = async (statementId, userId) => {
  * @throws {ApiError} If invalid
  */
 const createTransaction = async (userId, transactionData) => {
-  const transaction = await Transaction.create({
+  console.log("\n========== [DEBUG TRANSACTION SERVICE] ==========");
+  console.log("Input transactionData:", JSON.stringify(transactionData, null, 2));
+  console.log("paymentMethod in input:", transactionData.paymentMethod);
+  console.log("paymentMethod === null:", transactionData.paymentMethod === null);
+  console.log("paymentMethod === undefined:", transactionData.paymentMethod === undefined);
+  console.log("===================================================\n");
+  
+  const normalizedType = normalizeTransactionType(transactionData.type);
+
+  // Validate category belongs to type
+  if (transactionData.category) {
+    await validateCategoryForType(userId, transactionData.category, normalizedType);
+  }
+
+  // Validate and normalize paymentMethod
+  let paymentMethod = undefined;
+  if (normalizedType === "expense") {
+    if (!transactionData.paymentMethod) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Payment method is required for expense transactions"
+      );
+    }
+    const pm = String(transactionData.paymentMethod).toLowerCase().trim();
+    if (!VALID_PAYMENT_METHODS.includes(pm)) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Invalid payment method: ${pm}`
+      );
+    }
+    paymentMethod = pm;
+  }
+
+  // IMPORTANT: Do NOT include paymentMethod for non-expense types
+  // Extract it from the input and discard it
+  const { paymentMethod: _ignoredPm, currency, notes, ...restData } = transactionData;
+
+  const docToCreate = {
     user: userId,
-    ...transactionData,
-  });
+    source: "manual",
+    ...restData,
+    type: normalizedType,
+  };
+
+  // Only add paymentMethod back if it's an expense
+  if (normalizedType === "expense" && paymentMethod) {
+    docToCreate.paymentMethod = paymentMethod;
+  }
+
+  // Optionally add notes if provided
+  if (notes) {
+    docToCreate.notes = notes;
+  }
+
+  // Optionally add currency if provided
+  if (currency) {
+    docToCreate.currency = currency;
+  }
+
+  console.log("[TRANSACTION DB PAYLOAD]", JSON.stringify(docToCreate, null, 2));
+
+  const transaction = await Transaction.create(docToCreate);
 
   return formatTransactionResponse(transaction);
 };
@@ -160,7 +268,7 @@ const createTransaction = async (userId, transactionData) => {
 
 /**
  * Updates a transaction with user corrections.
- * User can edit: merchant, description, category, notes, amount, date
+ * User can edit: merchant, description, category, notes, amount, date, type, paymentMethod
  *
  * Original values are always preserved.
  * A merchant edit can optionally trigger merchant learning.
@@ -183,11 +291,56 @@ const updateTransaction = async (transactionId, userId, updateData) => {
   }
 
   // Update allowed fields
-  const allowedFields = ["date", "amount", "merchant", "description", "category", "notes"];
+  const allowedFields = [
+    "date",
+    "amount",
+    "type",
+    "paymentMethod",
+    "merchant",
+    "description",
+    "category",
+    "notes",
+  ];
   const hasChanges = allowedFields.some((field) => updateData[field] !== undefined);
 
   if (!hasChanges) {
     return formatTransactionResponse(transaction);
+  }
+
+  const newType = updateData.type !== undefined ? normalizeTransactionType(updateData.type) : transaction.type;
+  const newCategory = updateData.category !== undefined ? updateData.category : transaction.category;
+
+  // Validate category for new type
+  if (newCategory) {
+    await validateCategoryForType(userId, newCategory, newType);
+  }
+
+  // Validate payment method
+  if (newType === "expense") {
+    const finalPaymentMethod =
+      updateData.paymentMethod !== undefined ? updateData.paymentMethod : transaction.paymentMethod;
+    if (!finalPaymentMethod) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Payment method is required for expense transactions"
+      );
+    }
+    const pm = String(finalPaymentMethod).toLowerCase().trim();
+    if (!VALID_PAYMENT_METHODS.includes(pm)) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Invalid payment method: ${pm}`
+      );
+    }
+    updateData.paymentMethod = pm;
+  } else {
+    // Non-expense transactions must not have paymentMethod
+    updateData.paymentMethod = undefined;
+    transaction.paymentMethod = undefined;
+  }
+
+  if (updateData.type !== undefined) {
+    updateData.type = newType;
   }
 
   // Track if merchant changed (for learning)
@@ -308,52 +461,104 @@ const applyMerchantMappings = async (userId, transactions) => {
  * @param {string} statementId - Statement ID
  * @param {string} userId - User's ID
  * @param {Array} transactions - Transaction data to save
- * @param {string} filePath - Path to temporary file (for deletion)
+ * @param {string} [filePath] - Path to temporary file (for deletion)
+ * @param {string} [currency] - User selected or confirmed currency code
  * @returns {Promise<object>} Import result with summary
  * @throws {ApiError} If import fails
  */
-const importTransactions = async (statementId, userId, transactions, filePath) => {
-  const session = await Transaction.startSession();
-  session.startTransaction();
+const importTransactions = async (statementId, userId, transactions, filePath, currency) => {
+  let session = null;
+  try {
+    session = await Transaction.startSession();
+    session.startTransaction();
+  } catch (sessionErr) {
+    session = null;
+  }
 
   try {
+    const queryOpts = session ? { session } : {};
+
     // Verify statement exists and belongs to user
-    const statement = await Statement.findOne({
-      _id: statementId,
-      user: userId,
-      isDeleted: false,
-    });
+    const statement = await Statement.findOne(
+      {
+        _id: statementId,
+        user: userId,
+        isDeleted: false,
+      },
+      null,
+      queryOpts
+    );
 
     if (!statement) {
       throw new ApiError(HTTP_STATUS.NOT_FOUND, "Statement not found");
     }
 
-    // Create all transactions
-    const createdTransactions = [];
-    for (const txData of transactions) {
-      const tx = await Transaction.create(
-        [
-          {
-            user: userId,
-            statementId,
-            ...txData,
-          },
-        ],
-        { session }
-      );
-      createdTransactions.push(tx[0]);
+    // Resolve final currency code
+    let resolvedCurrency = null;
+
+    if (currency) {
+      resolvedCurrency = normalizeCurrencyCode(currency);
+      if (!resolvedCurrency) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          `Invalid or unsupported currency code: ${currency}`
+        );
+      }
+    } else if (statement.currency) {
+      resolvedCurrency = normalizeCurrencyCode(statement.currency);
+    } else if (transactions.detectedCurrency) {
+      resolvedCurrency = normalizeCurrencyCode(transactions.detectedCurrency);
+    } else if (transactions[0]?.currency) {
+      resolvedCurrency = normalizeCurrencyCode(transactions[0].currency);
     }
 
-    // Update statement status
+    if (!resolvedCurrency) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Currency is required for statement import. Please select a valid currency."
+      );
+    }
+
+    // Create all transactions with statementId and resolved currency
+    const createdTransactionIds = [];
+    for (const txData of transactions) {
+      const normType = normalizeTransactionType(txData.type);
+      const { paymentMethod: rawPm, currency: _ignoredCurrency, ...restTx } = txData;
+
+      const docToCreate = {
+        user: userId,
+        statementId,
+        source: "statement",
+        ...restTx,
+        type: normType,
+        currency: resolvedCurrency,
+      };
+
+      // Handle paymentMethod: required for expense, omitted for non-expense
+      if (normType === "expense") {
+        const pm = rawPm ? String(rawPm).toLowerCase().trim() : "other";
+        docToCreate.paymentMethod = VALID_PAYMENT_METHODS.includes(pm) ? pm : "other";
+      } else {
+        delete docToCreate.paymentMethod;
+      }
+
+      const txDocs = await Transaction.create([docToCreate], queryOpts);
+      createdTransactionIds.push(txDocs[0]._id);
+    }
+
+    // Update statement status and persist currency
     statement.status = "Completed";
-    statement.transactionCount = createdTransactions.length;
+    statement.currency = resolvedCurrency;
+    statement.transactionCount = (statement.transactionCount || 0) + createdTransactionIds.length;
     statement.processedAt = new Date();
-    await statement.save({ session });
+    if (session) {
+      await statement.save({ session });
+      await session.commitTransaction();
+    } else {
+      await statement.save();
+    }
 
-    // Commit transaction
-    await session.commitTransaction();
-
-    // Delete temporary file after successful import
+    // Delete temporary file after successful import (outside session)
     try {
       // Use stored filePath from statement if not provided
       const pathToDelete =
@@ -369,18 +574,38 @@ const importTransactions = async (statementId, userId, transactions, filePath) =
     return {
       success: true,
       statementId,
-      transactionCount: createdTransactions.length,
-      message: `Successfully imported ${createdTransactions.length} transactions`,
+      currency: resolvedCurrency,
+      transactionCount: createdTransactionIds.length,
+      message: `Successfully imported ${createdTransactionIds.length} transactions in ${resolvedCurrency}`,
     };
   } catch (err) {
-    await session.abortTransaction();
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (e) {
+        // ignore session abort error
+      }
+    } else if (typeof createdTransactionIds !== "undefined" && createdTransactionIds.length > 0) {
+      // Safe cleanup rollback for standalone MongoDB: delete ONLY transactions created during THIS invocation
+      try {
+        await Transaction.deleteMany({ _id: { $in: createdTransactionIds } });
+      } catch (cleanupErr) {
+        console.error("[Standalone Rollback] Failed to clean up partial transactions:", cleanupErr.message);
+      }
+    }
     if (err instanceof ApiError) throw err;
     throw new ApiError(
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
       "Failed to import transactions: " + err.message
     );
   } finally {
-    session.endSession();
+    if (session) {
+      try {
+        session.endSession();
+      } catch (e) {
+        // ignore endSession error
+      }
+    }
   }
 };
 
@@ -411,6 +636,8 @@ const getUserTransactions = async (userId, options = {}) => {
     search,
     minAmount,
     maxAmount,
+    statementId,
+    source,
   } = options;
 
   const query = {
@@ -424,16 +651,37 @@ const getUserTransactions = async (userId, options = {}) => {
     if (toDate) query.date.$lte = new Date(toDate);
   }
 
+  const escapeRegex = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   if (merchant) {
-    query.merchant = { $regex: merchant, $options: "i" };
+    query.merchant = { $regex: escapeRegex(merchant), $options: "i" };
   }
 
   if (category) {
-    query.category = category;
+    query.category = { $regex: `^${escapeRegex(category)}$`, $options: "i" };
   }
 
   if (type) {
-    query.type = type;
+    const normalizedType = normalizeTransactionType(type);
+    if (normalizedType === "income") {
+      query.type = { $in: ["income", "Credit", "Income", "credit"] };
+    } else if (normalizedType === "expense") {
+      query.type = { $in: ["expense", "Debit", "Expense", "debit"] };
+    } else if (normalizedType === "asset") {
+      query.type = { $in: ["asset", "Asset"] };
+    } else if (normalizedType === "liability") {
+      query.type = { $in: ["liability", "Liability"] };
+    } else {
+      query.type = { $regex: `^${escapeRegex(type)}$`, $options: "i" };
+    }
+  }
+
+  if (statementId) {
+    query.statementId = statementId;
+  }
+
+  if (source) {
+    query.source = source;
   }
 
   if (minAmount !== undefined || maxAmount !== undefined) {
@@ -443,17 +691,22 @@ const getUserTransactions = async (userId, options = {}) => {
   }
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     // Full-text search across merchant and description
     query.$or = [
-      { merchant: { $regex: search, $options: "i" } },
-      { description: { $regex: search, $options: "i" } },
+      { merchant: { $regex: escapedSearch, $options: "i" } },
+      { description: { $regex: escapedSearch, $options: "i" } },
     ];
   }
+
+  console.log("\n[LIVE TRANSACTION FILTER]", JSON.stringify(query, null, 2));
 
   const [transactions, count] = await Promise.all([
     Transaction.find(query).sort({ date: -1 }).limit(limit).skip(skip).lean(),
     Transaction.countDocuments(query),
   ]);
+
+  console.log(`[LIVE TRANSACTION RESULT COUNT] Matched docs: ${transactions.length}, Total count: ${count}`);
 
   return { transactions: transactions.map(formatTransactionResponse), count };
 };
@@ -475,8 +728,11 @@ const formatTransactionResponse = (tx) => {
     merchant: tx.merchant,
     description: tx.description,
     category: tx.category,
+    paymentMethod: tx.paymentMethod || null,
     notes: tx.notes,
     currency: tx.currency || null,
+    statementId: tx.statementId || null,
+    source: tx.source || (tx.statementId ? "statement" : "manual"),
     isEdited: tx.isEdited,
     editedAt: tx.editedAt,
     // Original values only if edited
@@ -574,19 +830,29 @@ const getTransactionStats = async (userId, options = {}) => {
   const transactions = await Transaction.find(query).lean();
 
   // Calculate statistics
-  let totalDebit = 0;
-  let totalCredit = 0;
+  let totalDebit = 0; // Expenses
+  let totalCredit = 0; // Income
+  let totalAsset = 0;
+  let totalLiability = 0;
   const byCategory = {};
   const byMerchant = {};
-  const byType = { Debit: 0, Credit: 0 };
+  const byType = { income: 0, expense: 0, asset: 0, liability: 0 };
 
   for (const tx of transactions) {
-    if (tx.type === "Debit") {
+    const normType = normalizeTransactionType(tx.type);
+
+    if (normType === "expense") {
       totalDebit += tx.amount;
-      byType.Debit += tx.amount;
-    } else {
+      byType.expense += tx.amount;
+    } else if (normType === "income") {
       totalCredit += tx.amount;
-      byType.Credit += tx.amount;
+      byType.income += tx.amount;
+    } else if (normType === "asset") {
+      totalAsset += tx.amount;
+      byType.asset += tx.amount;
+    } else if (normType === "liability") {
+      totalLiability += tx.amount;
+      byType.liability += tx.amount;
     }
 
     // By Category
@@ -606,6 +872,8 @@ const getTransactionStats = async (userId, options = {}) => {
       totalTransactions: transactions.length,
       totalDebit: parseFloat(totalDebit.toFixed(2)),
       totalCredit: parseFloat(totalCredit.toFixed(2)),
+      totalAsset: parseFloat(totalAsset.toFixed(2)),
+      totalLiability: parseFloat(totalLiability.toFixed(2)),
       netFlow: parseFloat((totalCredit - totalDebit).toFixed(2)),
     },
     byType,

@@ -72,7 +72,7 @@ export const familyService = {
   },
 
   createFamily: async (name: string): Promise<Family> => {
-    const r = await api.post<{ success: boolean; message: string; data: { family: Family } }>('/families', { name })
+    const r = await api.post<{ success: boolean; message: string; data: { family: Family } }>('/families', { familyName: name })
     return r.data.data.family
   },
 

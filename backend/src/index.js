@@ -26,8 +26,11 @@ const startServer = async () => {
 
     // Start Express server
     app.listen(PORT, () => {
-      console.log(`\n🚀 FinanceOS Backend Server running on http://localhost:${PORT}`);
-      console.log(`📍 Health Check: http://localhost:${PORT}/api/v1/health\n`);
+      console.log(`\n==================================================`);
+      console.log(`FINANCEOS LIVE BACKEND BUILD: DASHBOARD-DEBUG-2026-09-05`);
+      console.log(`🚀 FinanceOS Backend Server running on http://localhost:${PORT}`);
+      console.log(`📍 Health Check: http://localhost:${PORT}/api/v1/health`);
+      console.log(`==================================================\n`);
     });
 
     // Graceful shutdown

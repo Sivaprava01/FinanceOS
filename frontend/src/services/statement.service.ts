@@ -20,15 +20,44 @@ export const statementService = {
     return response.data.data
   },
 
-  getStatements: async (limit?: number, skip?: number): Promise<GetStatementsResult> => {
+  getStatements: async (status?: string, limit?: number, skip?: number): Promise<GetStatementsResult> => {
     const response = await api.get<{ success: boolean; message: string; data: GetStatementsResult }>('/statements', {
-      params: { limit, skip },
+      params: { status, limit, skip },
     })
     return response.data.data
   },
 
   getStatement: async (id: string): Promise<Statement> => {
     const response = await api.get<{ success: boolean; message: string; data: Statement }>(`/statements/${id}`)
+    return response.data.data
+  },
+
+  retryWithPassword: async (statementId: string, password: string): Promise<{ _id: string; status: string }> => {
+    const response = await api.post<{ success: boolean; message: string; data: { _id: string; status: string } }>(
+      `/statements/${statementId}/retry-with-password`,
+      { password }
+    )
+    return response.data.data
+  },
+
+  deleteStatement: async (id: string): Promise<{ _id: string; deletedTransactionsCount: number }> => {
+    const response = await api.delete<{ success: boolean; message: string; data: { _id: string; deletedTransactionsCount: number } }>(
+      `/statements/${id}`
+    )
+    return response.data.data
+  },
+
+  clearFailedStatements: async (): Promise<{ count: number; message: string }> => {
+    const response = await api.delete<{ success: boolean; message: string; data: { count: number; message: string } }>(
+      '/statements/failed'
+    )
+    return response.data.data
+  },
+
+  retryStatement: async (id: string): Promise<Statement> => {
+    const response = await api.post<{ success: boolean; message: string; data: Statement }>(
+      `/statements/${id}/retry`
+    )
     return response.data.data
   },
 }

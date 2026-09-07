@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react'
 import { useAuth } from '@hooks/useAuth'
-import { formatCurrency } from '@lib/utils'
+import { formatCurrency, formatCompactCurrency, getCurrencySymbol } from '@lib/utils'
 
 export const useCurrency = () => {
   const { user } = useAuth()
@@ -17,5 +17,15 @@ export const useCurrency = () => {
     [currency]
   )
 
-  return { format, currency }
+  const formatCompact = useCallback(
+    (value: number) => formatCompactCurrency(value, currency),
+    [currency]
+  )
+
+  const getSymbol = useCallback(
+    () => getCurrencySymbol(currency),
+    [currency]
+  )
+
+  return { format, formatCompact, getSymbol, currency }
 }

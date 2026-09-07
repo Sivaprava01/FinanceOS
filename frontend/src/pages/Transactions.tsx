@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
 import { Plus, Search, X, Tag, Trash2, SlidersHorizontal } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
-import { TransactionRow } from '@components/transactions/TransactionRow'
+import { TransactionRow, TRANSACTION_GRID_LAYOUT } from '@components/transactions/TransactionRow'
 import { SkeletonLoader, ErrorState, EmptyState } from '@components/ui'
 import {
   useTransactions,
@@ -13,19 +13,29 @@ import {
   useBulkUpdate,
 } from '@hooks/useTransactions'
 import { useCategories } from '@hooks/useCategories'
+import { useStatement } from '@hooks/useStatements'
+import { useCurrencyConversion } from '@hooks/useCurrencyConversion'
 import CreateCategoryModal from '@components/modals/CreateCategoryModal'
-import type { Transaction, CreateTransactionInput, CreateCategoryInput } from '@/types'
+import { normalizeTransactionType } from '@lib/utils'
+import type {
+  Transaction,
+  CreateTransactionInput,
+  CreateCategoryInput,
+  TransactionType,
+  PaymentMethod,
+} from '@/types'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types & Constants ─────────────────────────────────────────────────────────
 
 interface FilterState {
   search: string
-  type: '' | 'Debit' | 'Credit'
+  type: '' | TransactionType
   category: string
   fromDate: string
   toDate: string
   minAmount: string
   maxAmount: string
+  source: '' | 'manual' | 'statement'
 }
 
 const emptyFilters = (): FilterState => ({
@@ -36,17 +46,37 @@ const emptyFilters = (): FilterState => ({
   toDate: '',
   minAmount: '',
   maxAmount: '',
+  source: '',
 })
 
 const emptyForm = (): CreateTransactionInput => ({
   date: new Date().toISOString().split('T')[0],
   amount: 0,
-  type: 'Debit',
+  type: 'expense',
   merchant: '',
   category: '',
+  paymentMethod: 'upi',  // Only for expenses
   description: '',
-  notes: '',
 })
+
+const TRANSACTION_TYPES: Array<{ value: TransactionType; label: string }> = [
+  { value: 'expense', label: 'Expense' },
+  { value: 'income', label: 'Income' },
+  { value: 'asset', label: 'Asset' },
+  { value: 'liability', label: 'Liability' },
+]
+
+const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'upi', label: 'UPI' },
+  { value: 'debit_card', label: 'Debit Card' },
+  { value: 'credit_card', label: 'Credit Card' },
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'net_banking', label: 'Net Banking' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'wallet', label: 'Wallet' },
+  { value: 'other', label: 'Other' },
+]
 
 // ─── DeleteConfirm dialog ────────────────────────────────────────────────────
 
@@ -166,6 +196,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const Transactions: React.FC = () => {
+  const formRef = useRef<HTMLDivElement>(null)
   // Form state
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -175,6 +206,7 @@ const Transactions: React.FC = () => {
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>(emptyFilters())
+  const [statementId, setStatementId] = useState<string | null>(null)
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -185,67 +217,135 @@ const Transactions: React.FC = () => {
     ids: [],
   })
 
+  // Load statementId from URL on mount
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('statementId')
+    if (id) {
+      setStatementId(id)
+      // Note: statementId alone is sufficient to isolate transactions
+      // No need to also filter by source, as that may exclude old transactions
+      // that don't have the source field set
+    }
+  }, [])
+
   // Hooks
   const { data: categories = [], createCategory, createIsLoading } = useCategories()
+  const { convertTransaction } = useCurrencyConversion()
   const createTransaction = useCreateTransaction()
   const updateTransaction = useUpdateTransaction()
   const deleteTransaction = useDeleteTransaction()
   const bulkUpdate = useBulkUpdate()
 
-  // Build query params — only pass non-empty values to avoid polluting cache key
+  // Dynamic category filtering based on selected transaction type
+  const normalizedFormType = normalizeTransactionType(formData.type)
+  const isExpense = normalizedFormType === 'expense'
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((cat) => normalizeTransactionType(cat.type) === normalizedFormType)
+  }, [categories, normalizedFormType])
+
+  // Build query params — only pass non-empty values to avoid polluting cache key.
+  // limit: 500 ensures all matching transactions are returned regardless of type/category
+  // filter — without this, the backend default of 50 silently hides older records.
   const queryParams = {
+    limit: 500,
     search: filters.search || undefined,
-    type: (filters.type || undefined) as 'Debit' | 'Credit' | undefined,
+    type: filters.type || undefined,
     category: filters.category || undefined,
     fromDate: filters.fromDate || undefined,
     toDate: filters.toDate || undefined,
     minAmount: filters.minAmount ? parseFloat(filters.minAmount) : undefined,
     maxAmount: filters.maxAmount ? parseFloat(filters.maxAmount) : undefined,
+    statementId: statementId || undefined,
+    source: (filters.source || undefined) as 'manual' | 'statement' | undefined,
   }
 
+  const { data: statement } = useStatement(statementId)
   const { data, isLoading, error } = useTransactions(queryParams)
   const transactions = data?.transactions ?? []
   const count = data?.count ?? 0
 
-  const hasActiveFilters = Object.values(filters).some(Boolean)
+  const hasActiveFilters = Object.values(filters).some(Boolean) || !!statementId
 
   // ─── Form handlers ───────────────────────────────────────────────────────────
 
+  const handleTypeChange = (newType: TransactionType) => {
+    const normNewType = normalizeTransactionType(newType)
+    const isNewExpense = normNewType === 'expense'
+
+    // Check if currently selected category is valid for new type
+    const isCatValid = categories.some(
+      (c) => c.name === formData.category && normalizeTransactionType(c.type) === normNewType
+    )
+
+    setFormData((prev) => ({
+      ...prev,
+      type: newType,
+      category: isCatValid ? prev.category : '',
+      // For non-expense types, use undefined (not null) so it doesn't get serialized
+      paymentMethod: isNewExpense ? (prev.paymentMethod || 'upi') : undefined,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const submissionData: CreateTransactionInput = {
+      date: formData.date,
+      amount: formData.amount,
+      type: formData.type,
+      category: formData.category,
+      merchant: formData.merchant || '',
+      description: formData.description || '',
+      ...(isExpense
+        ? { paymentMethod: formData.paymentMethod || 'upi' }
+        : {}),
+    }
+
     if (editingId) {
       await updateTransaction.mutateAsync({
         id: editingId,
         data: {
-          merchant: formData.merchant,
-          description: formData.description,
-          category: formData.category,
-          notes: formData.notes,
-          amount: formData.amount,
-          date: formData.date,
+          merchant: submissionData.merchant,
+          description: submissionData.description,
+          category: submissionData.category,
+          type: submissionData.type,
+          ...(isExpense ? { paymentMethod: formData.paymentMethod || 'upi' } : {}),
+          amount: submissionData.amount,
+          date: submissionData.date,
         },
       })
       setEditingId(null)
     } else {
-      await createTransaction.mutateAsync(formData)
+      await createTransaction.mutateAsync(submissionData)
     }
     setFormData(emptyForm())
     setShowForm(false)
   }
 
   const handleEdit = (t: Transaction) => {
+    const normType = normalizeTransactionType(t.type) as TransactionType
     setFormData({
       date: t.date.split('T')[0],
       amount: t.amount,
-      type: t.type,
+      type: normType,
       merchant: t.merchant,
       category: t.category,
-      description: t.description,
-      notes: t.notes,
+      paymentMethod: normType === 'expense' ? (t.paymentMethod || 'other') : undefined,
+      description: t.description || '',
     })
     setEditingId(t._id)
     setShowForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setTimeout(() => {
+      if (formRef.current) {
+        formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+      const mainContent = document.getElementById('main-content')
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }, 50)
   }
 
   const handleCancel = () => {
@@ -307,194 +407,274 @@ const Transactions: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Transactions</h1>
-          <p className="text-muted-foreground text-sm">View and manage your transactions</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Transactions</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isLoading ? 'Loading records…' : `${count} total recorded transaction${count !== 1 ? 's' : ''}${hasActiveFilters ? ' (filtered)' : ''}`}
+          </p>
         </div>
-        <Button onClick={() => (showForm ? handleCancel() : setShowForm(true))} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button
+          onClick={() => (showForm ? handleCancel() : setShowForm(true))}
+          size="sm"
+          className="gap-1.5 text-xs shadow-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
           {showForm ? 'Cancel' : 'Add Transaction'}
         </Button>
       </div>
 
-      {/* ─── Add / Edit Form ────────────────────────────────────────────────── */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingId ? 'Edit Transaction' : 'New Transaction'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium">Date *</label>
-                  <Input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium">Amount *</label>
-                  <Input
-                    type="number"
-                    value={formData.amount === 0 ? '' : formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0.01"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium">Type *</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as 'Debit' | 'Credit' })}
-                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    required
-                  >
-                    <option value="Debit">Expense (Debit)</option>
-                    <option value="Credit">Income (Credit)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium">Merchant *</label>
-                  <Input
-                    value={formData.merchant}
-                    onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                    placeholder="e.g., Amazon"
-                    className="mt-1"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium">Category *</label>
-                  <div className="mt-1 space-y-2">
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                      required
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map((cat) => (
-                        <option key={cat._id} value={cat.name}>{cat.name}</option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-xs"
-                      onClick={() => setShowCreateCategoryModal(true)}
-                    >
-                      + Create New Category
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium">Description</label>
-                  <Input
-                    value={formData.description ?? ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Optional"
-                    className="mt-1"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 col-span-1">
-                  <label className="block text-sm font-medium">Notes</label>
-                  <Input
-                    value={formData.notes ?? ''}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Optional"
-                    className="mt-1"
-                  />
-                </div>
+      {/* ─── Statement View Banner ────────────────────────────────────────────── */}
+      {statementId && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold bg-primary text-primary-foreground">
+                  Statement Filter
+                </span>
+                {statement?._id && (
+                  <span className="text-[11px] text-muted-foreground font-mono">{statement._id}</span>
+                )}
               </div>
-
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" type="button" onClick={handleCancel}>Cancel</Button>
-                <Button type="submit" isLoading={isMutating}>
-                  {editingId ? 'Update' : 'Create'} Transaction
-                </Button>
-              </div>
-            </form>
+              <h2 className="mt-1 text-sm font-bold text-foreground">
+                From: {statement?.originalFileName || 'Statement Import'}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Viewing {count} transactions imported from this statement file
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="xs"
+              className="self-start sm:self-auto gap-1 text-xs"
+              onClick={() => {
+                setStatementId(null)
+                setFilters((f) => ({ ...f, source: '' }))
+                window.history.replaceState({}, '', '/transactions')
+              }}
+            >
+              <X className="h-3 w-3" /> Clear Statement View
+            </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* ─── Filters ────────────────────────────────────────────────────────── */}
+      {/* ─── Add / Edit Form ────────────────────────────────────────────────── */}
+      {showForm && (
+        <div ref={formRef}>
+          <Card className="border-primary/30 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle>{editingId ? 'Edit Transaction' : 'Create Transaction'}</CardTitle>
+              <CardDescription>
+                Select transaction type, category, and enter transaction details below
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Form fields arranged in recommended order */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {/* 1. Date */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Date *</label>
+                    <Input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  {/* 2. Merchant / Payee */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Merchant / Payee</label>
+                    <Input
+                      value={formData.merchant ?? ''}
+                      onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
+                      placeholder="e.g., Apple Store, Payroll, Bank"
+                    />
+                  </div>
+
+                  {/* 3. Transaction Type */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Transaction Type *</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => handleTypeChange(e.target.value as TransactionType)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                      required
+                    >
+                      {TRANSACTION_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 4. Category (Dynamic Filtering) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground">Category *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateCategoryModal(true)}
+                        className="text-[11px] text-primary hover:underline"
+                      >
+                        + New
+                      </button>
+                    </div>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      required
+                    >
+                      <option value="">
+                        {filteredCategories.length > 0 ? 'Select a category' : 'No categories found for this type'}
+                      </option>
+                      {filteredCategories.map((cat) => (
+                        <option key={cat._id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 5. Payment Method (Shown only for Expense) */}
+                  {isExpense && (
+                    <div className="animate-in fade-in duration-200">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        Payment Method * <span className="text-[10px] text-muted-foreground/80 font-normal">(Expense only)</span>
+                      </label>
+                      <select
+                        value={formData.paymentMethod || 'upi'}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            paymentMethod: e.target.value as PaymentMethod,
+                          })
+                        }
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                        required={isExpense}
+                      >
+                        {PAYMENT_METHODS.map((pm) => (
+                          <option key={pm.value} value={pm.value}>
+                            {pm.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 6. Amount */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount *</label>
+                    <Input
+                      type="number"
+                      value={formData.amount === 0 ? '' : formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0.01"
+                      required
+                    />
+                  </div>
+
+                  {/* 7. Description */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+                    <Input
+                      value={formData.description ?? ''}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Optional memo"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" type="button" onClick={handleCancel}>Cancel</Button>
+                  <Button size="sm" type="submit" isLoading={isMutating}>
+                    {editingId ? 'Update' : 'Save'} Transaction
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ─── Filter Bar ────────────────────────────────────────────────────────── */}
       <Card>
-        <CardContent className="pt-6">
-          {/* Search + toggle row */}
-          <div className="flex flex-col gap-3 sm:flex-row">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="transaction-search"
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
                 placeholder="Search merchant or description…"
-                className="pl-9"
+                className="pl-8 text-xs h-8"
               />
             </div>
-            <Button
-              variant="outline"
-              className="gap-2 w-full sm:w-auto sm:shrink-0"
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              {hasActiveFilters && (
-                <span className="flex h-2 w-2 rounded-full bg-primary" />
-              )}
-            </Button>
-            {hasActiveFilters && (
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
+                variant={showFilters ? 'secondary' : 'outline'}
                 size="sm"
-                className="w-full sm:w-auto sm:shrink-0 gap-1 text-muted-foreground"
-                onClick={() => setFilters(emptyFilters())}
+                className="gap-1.5 text-xs h-8"
+                onClick={() => setShowFilters((v) => !v)}
               >
-                <X className="h-3.5 w-3.5" />
-                Clear
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filters
+                {hasActiveFilters && (
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />
+                )}
               </Button>
-            )}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs h-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setFilters(emptyFilters())
+                    if (statementId) {
+                      setStatementId(null)
+                      window.history.replaceState({}, '', '/transactions')
+                    }
+                  }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Reset
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Expanded filter panel */}
+          {/* Expanded filter options */}
           {showFilters && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 border-t border-border pt-4">
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 border-t border-border pt-3">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Type</label>
                 <select
                   value={filters.type}
                   onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value as FilterState['type'] }))}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Types</option>
-                  <option value="Credit">Income</option>
-                  <option value="Debit">Expense</option>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                  <option value="asset">Asset</option>
+                  <option value="liability">Liability</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Category</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Category</label>
                 <select
                   value={filters.category}
                   onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Categories</option>
                   {categories.map((cat) => (
@@ -504,46 +684,47 @@ const Transactions: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">From Date</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Source</label>
+                <select
+                  value={filters.source}
+                  onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value as FilterState['source'] }))}
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">All Sources</option>
+                  <option value="manual">Manual</option>
+                  <option value="statement">Imported</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">From Date</label>
                 <Input
                   type="date"
                   value={filters.fromDate}
                   onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
-                  className="text-sm"
+                  className="text-xs h-7"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">To Date</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">To Date</label>
                 <Input
                   type="date"
                   value={filters.toDate}
                   onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
-                  className="text-sm"
+                  className="text-xs h-7"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Min Amount</label>
+                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Min Amount</label>
                 <Input
                   type="number"
                   value={filters.minAmount}
                   onChange={(e) => setFilters((f) => ({ ...f, minAmount: e.target.value }))}
-                  placeholder="0"
+                  placeholder="0.00"
                   min="0"
-                  className="text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Max Amount</label>
-                <Input
-                  type="number"
-                  value={filters.maxAmount}
-                  onChange={(e) => setFilters((f) => ({ ...f, maxAmount: e.target.value }))}
-                  placeholder="Any"
-                  min="0"
-                  className="text-sm"
+                  className="text-xs h-7"
                 />
               </div>
             </div>
@@ -561,78 +742,75 @@ const Transactions: React.FC = () => {
       />
 
       {/* ─── Transactions Table ──────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Transaction History</CardTitle>
-              <CardDescription>
-                {isLoading ? 'Loading…' : `${count} transaction${count !== 1 ? 's' : ''}${hasActiveFilters ? ' (filtered)' : ''}`}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-3 py-4">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <SkeletonLoader key={i} type="row" />
+            <div className="py-2">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <SkeletonLoader key={i} type="table-row" />
               ))}
             </div>
           ) : error ? (
-            <ErrorState
-              title="Failed to Load Transactions"
-              message="There was an error loading your transactions. Please try again."
-              onRetry={() => window.location.reload()}
-            />
+            <div className="p-6">
+              <ErrorState
+                title="Failed to Load Transactions"
+                message="There was an error loading your transactions. Please try again."
+                onRetry={() => window.location.reload()}
+              />
+            </div>
           ) : transactions.length === 0 ? (
-            <EmptyState
-              icon={Tag}
-              title={hasActiveFilters ? 'No Transactions Found' : 'No Transactions Yet'}
-              description={
-                hasActiveFilters
-                  ? 'Try adjusting your filters to find transactions.'
-                  : 'Upload a statement or create a transaction to get started.'
-              }
-              action={
-                hasActiveFilters
-                  ? {
-                      label: 'Clear Filters',
-                      onClick: () => setFilters(emptyFilters()),
-                    }
-                  : undefined
-              }
-            />
+            <div className="p-8">
+              <EmptyState
+                icon={Tag}
+                title={hasActiveFilters ? 'No Transactions Found' : 'No Transactions Recorded'}
+                description={
+                  hasActiveFilters
+                    ? 'Try adjusting your search query or filters to find records.'
+                    : 'Add a manual transaction or import a statement to get started.'
+                }
+                action={
+                  hasActiveFilters
+                    ? {
+                        label: 'Clear Filters',
+                        onClick: () => setFilters(emptyFilters()),
+                      }
+                    : {
+                        label: 'Add Transaction',
+                        onClick: () => setShowForm(true),
+                      }
+                }
+              />
+            </div>
           ) : (
-            <div className="space-y-3">
-              {/* Desktop table - hidden on mobile */}
+            <div>
+              {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="px-3 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.size === transactions.length && transactions.length > 0}
-                          ref={(el) => {
-                            if (el) {
-                              el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
-                            }
-                          }}
-                          onChange={toggleSelectAll}
-                          className="rounded border-border accent-primary cursor-pointer"
-                          aria-label="Select all"
-                        />
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Merchant</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Amount</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Type</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <div className="min-w-[800px]">
+                  {/* Table Header */}
+                  <div className={`border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ${TRANSACTION_GRID_LAYOUT}`}>
+                    <div>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === transactions.length && transactions.length > 0}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
+                          }
+                        }}
+                        onChange={toggleSelectAll}
+                        className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
+                        aria-label="Select all"
+                      />
+                    </div>
+                    <div>Date</div>
+                    <div>Merchant / Description</div>
+                    <div>Category</div>
+                    <div className="text-right">Amount</div>
+                    <div className="text-right">Actions</div>
+                  </div>
+
+                  {/* Table Body */}
+                  <div className="divide-y divide-border/60">
                     {transactions.map((transaction: Transaction) => (
                       <TransactionRow
                         key={transaction._id}
@@ -643,65 +821,91 @@ const Transactions: React.FC = () => {
                         onSelect={toggleSelect}
                       />
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
 
               {/* Mobile card layout - shown on mobile */}
-              <div className="md:hidden space-y-3">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === transactions.length && transactions.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-border accent-primary cursor-pointer"
-                      aria-label="Select all"
-                    />
-                    <span className="text-sm font-medium">Select all</span>
-                  </label>
-                </div>
-                {transactions.map((transaction: Transaction) => (
-                  <div key={transaction._id} className="rounded-lg border border-border bg-card p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(transaction._id)}
-                        onChange={() => toggleSelect(transaction._id)}
-                        className="rounded border-border accent-primary cursor-pointer mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{transaction.merchant}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+              <div className="md:hidden divide-y divide-border border-t border-border">
+                {transactions.map((transaction: Transaction) => {
+                  const normType = normalizeTransactionType(transaction.type)
+                  const isIncome = normType === 'income'
+                  const isAsset = normType === 'asset'
+                  const isLiability = normType === 'liability'
+                  const { isForeign, primaryFormatted, preferredFormatted } = convertTransaction(
+                    transaction.amount || 0,
+                    transaction.currency
+                  )
+                  return (
+                    <div key={transaction._id} className="p-3.5 space-y-2.5 hover:bg-secondary/30 transition-colors">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(transaction._id)}
+                          onChange={() => toggleSelect(transaction._id)}
+                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant || transaction.description || 'Transaction'}</p>
+                            <span
+                              className={`rounded px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider ${
+                                isIncome
+                                  ? 'bg-success/15 text-success'
+                                  : isAsset
+                                  ? 'bg-primary/15 text-primary'
+                                  : isLiability
+                                  ? 'bg-amber-500/15 text-amber-500'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {normType}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 shrink-0">
+                          <p
+                            className={`text-xs font-bold tabular-nums font-numeric ${
+                              isIncome ? 'text-success' : 'text-foreground'
+                            }`}
+                          >
+                            {isIncome ? '+' : '-'}{primaryFormatted}
+                          </p>
+                          {isForeign && preferredFormatted && (
+                            <p className="text-[11px] font-medium text-muted-foreground tabular-nums font-numeric" title="Converted using the latest available exchange rate">
+                              ≈ {isIncome ? '+' : ''}{preferredFormatted}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <p className={`text-sm font-semibold whitespace-nowrap ${transaction.type === 'Credit' ? 'text-success' : 'text-destructive'}`}>
-                        {transaction.type === 'Credit' ? '+' : '-'}{transaction.amount.toFixed(2)}
-                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pl-6">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-medium">{transaction.category || 'General'}</span>
+                          {transaction.paymentMethod && (
+                            <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase">
+                              {transaction.paymentMethod.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="text-[11px] font-medium text-muted-foreground hover:text-primary"
+                            onClick={() => handleEdit(transaction)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteRequest(transaction._id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-2">
-                      <span className="rounded-full bg-muted px-2 py-0.5">{transaction.category || '—'}</span>
-                      <span className="capitalize">{transaction.type}</span>
-                    </div>
-                    <div className="flex gap-2 pt-2 border-t border-border">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => handleEdit(transaction)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:bg-destructive hover:text-white"
-                        onClick={() => handleDeleteRequest(transaction._id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -723,6 +927,7 @@ const Transactions: React.FC = () => {
         onClose={() => setShowCreateCategoryModal(false)}
         isLoading={createIsLoading}
         onSubmit={handleCreateCategory}
+        initialType={normalizedFormType as any}
       />
     </div>
   )

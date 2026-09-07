@@ -63,17 +63,50 @@ const transactionSchema = new Schema(
       min: [0.01, "Amount must be greater than 0"],
     },
 
-    // Debit or Credit
+    // Transaction type: income, expense, asset, liability (supports legacy Debit, Credit, etc.)
     type: {
       type: String,
-      enum: ["Debit", "Credit"],
+      enum: [
+        "income",
+        "expense",
+        "asset",
+        "liability",
+        "Debit",
+        "Credit",
+        "Income",
+        "Expense",
+        "Asset",
+        "Liability",
+      ],
       required: [true, "Transaction type is required"],
+    },
+
+    // Payment method (for expense transactions only)
+    paymentMethod: {
+      type: String,
+      enum: {
+        values: [
+          "cash",
+          "upi",
+          "debit_card",
+          "credit_card",
+          "bank_transfer",
+          "net_banking",
+          "cheque",
+          "wallet",
+          "other",
+        ],
+        message: "{VALUE} is not a valid payment method",
+      },
+      required: false,
+      default: undefined,
+      set: (v) => (v ? String(v).toLowerCase().trim() : undefined),
     },
 
     // Merchant name (user can correct if OCR extracted wrong name)
     merchant: {
       type: String,
-      required: [true, "Merchant name is required"],
+      default: '',
       trim: true,
     },
 
@@ -158,6 +191,16 @@ const transactionSchema = new Schema(
       trim: true,
       default: null,
     },
+
+    // Source of this transaction: "manual" or "statement"
+    // "manual" = user-created transaction with statementId = null
+    // "statement" = parsed from bank statement import with statementId set
+    source: {
+      type: String,
+      enum: ["manual", "statement"],
+      default: "manual",
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -168,6 +211,12 @@ const transactionSchema = new Schema(
 
 // Query transactions for a specific user
 transactionSchema.index({ user: 1, date: -1 });
+
+// Query transactions by user and type
+transactionSchema.index({ user: 1, type: 1 });
+
+// Query transactions by user and payment method
+transactionSchema.index({ user: 1, paymentMethod: 1 });
 
 // Query transactions by merchant (for merchant learning)
 transactionSchema.index({ user: 1, merchant: 1 });
@@ -181,5 +230,14 @@ transactionSchema.index({ statementId: 1 });
 // ─── Model ────────────────────────────────────────────────────────────────────
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
+
+// Diagnostic logging for runtime schema verification
+if (process.env.NODE_ENV !== "production") {
+  console.log("\n[RUNTIME] Transaction Model Loaded");
+  console.log("[RUNTIME] paymentMethod enum values:", transactionSchema.path("paymentMethod").enumValues);
+  console.log("[RUNTIME] paymentMethod required:", transactionSchema.path("paymentMethod").isRequired);
+  console.log("[RUNTIME] paymentMethod default:", transactionSchema.path("paymentMethod").defaultValue);
+  console.log("");
+}
 
 export default Transaction;

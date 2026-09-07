@@ -105,7 +105,8 @@ const getSharing = async (familyId, userId) => {
  * @returns {Promise<object>}
  */
 const createFamily = async (userId, data) => {
-  const { familyName, description } = data;
+  const familyName = data.familyName || data.name;
+  const description = data.description;
 
   const family = await Family.create({
     familyHead: userId,
@@ -644,9 +645,9 @@ const getFamilyDashboard = async (familyId, requestingUserId) => {
   // Aggregate shared data
   let totalSharedAssets = 0;
   let totalSharedLiabilities = 0;
-  let sharedTransactions = [];
+  const sharedTransactions = [];
   let sharedExpenses = 0;
-  let spendingByMember = [];
+  const spendingByMember = [];
 
   // Get transactions from members who share
   if (memberIds.length > 0) {
@@ -662,12 +663,12 @@ const getFamilyDashboard = async (familyId, requestingUserId) => {
           _id: "$user",
           income: {
             $sum: {
-              $cond: [{ $eq: ["$type", "Credit"] }, "$amount", 0],
+              $cond: [{ $in: ["$type", ["Credit", "income", "Income"]] }, "$amount", 0],
             },
           },
           expenses: {
             $sum: {
-              $cond: [{ $eq: ["$type", "Debit"] }, "$amount", 0],
+              $cond: [{ $in: ["$type", ["Debit", "expense", "Expense"]] }, "$amount", 0],
             },
           },
           transactions: { $push: "$$ROOT" },

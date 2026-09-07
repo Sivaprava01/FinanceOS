@@ -1,5 +1,5 @@
 import api from './api'
-import type { Transaction, CreateTransactionInput } from '@/types'
+import type { Transaction, CreateTransactionInput, TransactionType, PaymentMethod } from '@/types'
 
 export interface GetTransactionsParams {
   limit?: number
@@ -8,10 +8,12 @@ export interface GetTransactionsParams {
   toDate?: string
   merchant?: string
   category?: string
-  type?: 'Debit' | 'Credit'
+  type?: TransactionType
   search?: string
   minAmount?: number
   maxAmount?: number
+  statementId?: string
+  source?: 'manual' | 'statement'
 }
 
 export interface GetTransactionsResult {
@@ -23,6 +25,8 @@ export interface UpdateTransactionInput {
   merchant?: string
   description?: string
   category?: string
+  type?: TransactionType
+  paymentMethod?: PaymentMethod
   notes?: string
   amount?: number
   date?: string
@@ -48,6 +52,7 @@ export const transactionService = {
   },
 
   createTransaction: async (input: CreateTransactionInput): Promise<Transaction> => {
+    console.log("[FRONTEND] Creating transaction with payload:", JSON.stringify(input, null, 2));
     const response = await api.post<{ success: boolean; message: string; data: Transaction }>('/transactions', input)
     return response.data.data
   },
@@ -74,6 +79,28 @@ export const transactionService = {
       message: string
       data: { matched: number; modified: number }
     }>('/transactions/bulk-update', input)
+    return response.data.data
+  },
+
+  extractTransactions: async (statementId: string): Promise<any> => {
+    const response = await api.post<{ success: boolean; message: string; data: any }>(
+      '/transactions/extract',
+      { statementId }
+    )
+    return response.data.data
+  },
+
+  importTransactions: async (input: {
+    statementId: string
+    currency: string
+    transactions: any[]
+    filePath?: string
+  }): Promise<{ statementId: string; transactionCount: number; currency: string; message: string }> => {
+    const response = await api.post<{
+      success: boolean
+      message: string
+      data: { statementId: string; transactionCount: number; currency: string; message: string }
+    }>('/transactions/import', input)
     return response.data.data
   },
 }

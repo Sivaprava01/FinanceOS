@@ -26,31 +26,34 @@ export const KPICard: React.FC<KPICardProps> = ({
 
   const trendColor =
     trend === 'up'
-      ? 'text-green-600'
+      ? 'text-success bg-success/10'
       : trend === 'down'
-        ? 'text-red-600'
-        : 'text-muted-foreground'
+        ? 'text-destructive bg-destructive/10'
+        : 'text-muted-foreground bg-muted'
 
   const trendSymbol = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '—'
 
   return (
-    <Card className={cn('shadow-sm', className)}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="mt-2 text-2xl font-bold tracking-tight">
+    <Card className={cn('overflow-hidden transition-all duration-150 hover:border-border/80', className)}>
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">{title}</p>
+            <p className="mt-1.5 text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums">
               {prefix && <span>{prefix}</span>}
               {formatCurrency(value, currency)}
-              {suffix && <span className="text-base font-medium"> {suffix}</span>}
+              {suffix && <span className="text-xs font-medium text-muted-foreground"> {suffix}</span>}
             </p>
             {trend && (
-              <p className={cn('mt-1 text-xs font-medium', trendColor)}>
-                {trendSymbol} {trend.charAt(0).toUpperCase() + trend.slice(1)}
-              </p>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold', trendColor)}>
+                  {trendSymbol} {trend.charAt(0).toUpperCase() + trend.slice(1)}
+                </span>
+                <span className="text-[11px] text-muted-foreground">vs last month</span>
+              </div>
             )}
           </div>
-          <div className="ml-4 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground">
             {icon}
           </div>
         </div>

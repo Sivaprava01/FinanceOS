@@ -9,7 +9,7 @@ import { Input } from '@components/ui/Input'
 import { useAuth } from '@hooks/useAuth'
 
 const registerSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, 'Full name is required'),
   email: z.string().email('Invalid email address'),
   password: z
     .string()
@@ -39,12 +39,11 @@ const Register: React.FC = () => {
     setServerError('')
     try {
       await registerUser(data.name, data.email, data.password)
-      // Check if user has already skipped onboarding
       const onboardingSkipped = localStorage.getItem('onboarding_skipped')
       if (!onboardingSkipped) {
-        navigate('/onboarding')
+        navigate('/onboarding', { replace: true })
       } else {
-        navigate('/dashboard')
+        navigate('/dashboard', { replace: true })
       }
     } catch (err) {
       const message =
@@ -58,21 +57,21 @@ const Register: React.FC = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Account</CardTitle>
-        <CardDescription>Join FinanceOS today</CardDescription>
+    <Card className="border border-border shadow-xs">
+      <CardHeader className="pb-3 text-center">
+        <CardTitle className="text-lg">Create Account</CardTitle>
+        <CardDescription className="text-xs">Get started with FinanceOS in seconds</CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <CardContent className="pt-2 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
           {serverError && (
-            <div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive font-medium">
               {serverError}
             </div>
           )}
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium">
+            <label htmlFor="name" className="block text-xs font-medium text-muted-foreground mb-1">
               Full Name
             </label>
             <Input
@@ -80,31 +79,29 @@ const Register: React.FC = () => {
               type="text"
               placeholder="John Doe"
               {...register('name')}
-              className="mt-1"
             />
             {errors.name && (
-              <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
+              <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>
             )}
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium">
-              Email
+            <label htmlFor="email" className="block text-xs font-medium text-muted-foreground mb-1">
+              Email Address
             </label>
             <Input
               id="email"
               type="email"
               placeholder="you@example.com"
               {...register('email')}
-              className="mt-1"
             />
             {errors.email && (
-              <p className="mt-1 text-sm text-destructive">{errors.email.message}</p>
+              <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>
             )}
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
+            <label htmlFor="password" className="block text-xs font-medium text-muted-foreground mb-1">
               Password
             </label>
             <Input
@@ -112,25 +109,25 @@ const Register: React.FC = () => {
               type="password"
               placeholder="••••••••"
               {...register('password')}
-              className="mt-1"
             />
-            {errors.password && (
-              <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
+            {errors.password ? (
+              <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>
+            ) : (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Min 8 characters, 1 uppercase letter, 1 number
+              </p>
             )}
-            <p className="mt-1 text-xs text-muted-foreground">
-              Min 8 characters, one uppercase letter, one number
-            </p>
           </div>
 
-          <Button type="submit" className="w-full" isLoading={isSubmitting}>
+          <Button type="submit" size="sm" className="w-full text-xs font-semibold mt-2" isLoading={isSubmitting}>
             Create Account
           </Button>
         </form>
 
-        <div className="mt-6 border-t border-border pt-6">
-          <p className="text-center text-sm text-muted-foreground">
+        <div className="pt-3 border-t border-border/80 text-center">
+          <p className="text-xs text-muted-foreground">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:underline">
+            <Link to="/login" className="font-semibold text-primary hover:underline">
               Sign in
             </Link>
           </p>
