@@ -32,6 +32,7 @@ export const API_PREFIX = "/api/v1";
 export const CORS_ORIGINS = process.env.CORS_ORIGINS?.split(",") || [
   "http://localhost:3000",
   "http://localhost:3001",
+  "https://financeos.netlify.app",
 ];
 
 // ─── Cookies ─────────────────────────────────────────────────────────────────
