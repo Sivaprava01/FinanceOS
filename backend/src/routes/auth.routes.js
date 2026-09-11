@@ -46,14 +46,36 @@ const ensureGoogleOAuthConfigured = (req, res, next) => {
   next();
 };
 
+// Helper to determine target frontend URL from state or headers or env
+const getFrontendOrigin = (req) => {
+  if (req.query.state) {
+    try {
+      return new URL(req.query.state).origin;
+    } catch {
+      // fallback
+    }
+  }
+  const referer = req.headers.referer;
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // fallback
+    }
+  }
+  return process.env.FRONTEND_URL || "http://localhost:3000";
+};
+
 // Step 1: Redirect user to Google's consent screen
 router.get(
   "/google",
   ensureGoogleOAuthConfigured,
   (req, res, next) => {
+    const frontendOrigin = req.query.returnTo || getFrontendOrigin(req);
     passport.authenticate("google", {
       scope: ["profile", "email"],
       session: false,
+      state: frontendOrigin,
     })(req, res, next);
   }
 );
@@ -63,7 +85,7 @@ router.get(
   "/google/callback",
   ensureGoogleOAuthConfigured,
   (req, res, next) => {
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const frontendUrl = getFrontendOrigin(req);
     passport.authenticate("google", {
       session: false,
       failureRedirect: `${frontendUrl}/login?error=google_auth_failed`,
@@ -73,7 +95,7 @@ router.get(
   (req, res) => {
     // req.user is the token pair returned by passport strategy's done(null, tokens)
     const { accessToken, refreshToken: newRefreshToken } = req.user;
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const frontendUrl = getFrontendOrigin(req);
 
     const maxAge = parseInt(process.env.JWT_REFRESH_EXPIRE_MS, 10) || 30 * 24 * 60 * 60 * 1000;
 
