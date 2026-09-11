@@ -18,14 +18,19 @@ const profileSchema = z.object({
   timeZone: z.string().min(1, 'Time zone is required'),
 })
 
-const passwordSchema = z.object({
-  oldPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Must contain one uppercase letter')
-    .regex(/[0-9]/, 'Must contain one number'),
-})
+const passwordSchema = z
+  .object({
+    oldPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Must contain one uppercase letter')
+      .regex(/[0-9]/, 'Must contain one number'),
+  })
+  .refine((data) => data.newPassword !== data.oldPassword, {
+    message: 'New password must be different from current password',
+    path: ['newPassword'],
+  })
 
 type ProfileFormData = z.infer<typeof profileSchema>
 type PasswordFormData = z.infer<typeof passwordSchema>

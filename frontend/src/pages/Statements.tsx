@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
+import { EmptyState } from '@components/ui/EmptyState'
 import {
   useStatements,
   useUploadStatement,
@@ -741,20 +742,37 @@ const Statements: React.FC = () => {
               <p className="text-sm text-destructive">Failed to load statements. Please refresh.</p>
             </div>
           ) : filteredStatements.length === 0 ? (
-            <div className="py-12 text-center">
-              <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
-              <p className="mt-2 font-medium text-sm text-muted-foreground">
-                {activeTab === 'active'
-                  ? 'No active or failed statement imports'
-                  : searchQuery
-                  ? 'No statements match your search'
-                  : 'No completed statement imports yet'}
-              </p>
-              <p className="text-xs text-muted-foreground/80 mt-1">
-                {activeTab === 'active'
-                  ? 'Upload a bank statement above to get started.'
-                  : 'Completed imports will appear here once processed.'}
-              </p>
+            <div className="py-6">
+              <EmptyState
+                icon={FileText}
+                title={
+                  activeTab === 'active'
+                    ? 'No active or failed statement imports'
+                    : searchQuery
+                    ? 'No statements match your search'
+                    : 'No completed statement imports yet'
+                }
+                description={
+                  activeTab === 'active'
+                    ? 'Upload a bank statement above in PDF, CSV, or Excel format to begin automated transaction extraction.'
+                    : searchQuery
+                    ? 'Try searching with a different file name or clear your search term.'
+                    : 'Completed bank statement imports will appear here once processed and confirmed.'
+                }
+                action={
+                  searchQuery
+                    ? {
+                        label: 'Clear Search Query',
+                        onClick: () => setSearchQuery(''),
+                      }
+                    : {
+                        label: 'Upload New Statement',
+                        onClick: () => {
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        },
+                      }
+                }
+              />
             </div>
           ) : (
             <div className="space-y-3">

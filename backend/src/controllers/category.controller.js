@@ -66,8 +66,8 @@ export const getCategories = asyncHandler(async (req, res) => {
     normalizedType === "debit"
       ? "expense"
       : normalizedType === "credit"
-      ? "income"
-      : normalizedType;
+        ? "income"
+        : normalizedType;
 
   // Get custom categories
   const customCategories = await categoryService.getCategories(user._id, {

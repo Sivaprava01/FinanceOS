@@ -37,6 +37,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(response.data.user)
   }
 
+  const loginWithToken = async (token: string): Promise<void> => {
+    localStorage.setItem('accessToken', token)
+    setIsLoading(true)
+    try {
+      const currentUser = await authService.getCurrentUser()
+      setUser(currentUser)
+    } catch (err) {
+      localStorage.removeItem('accessToken')
+      setUser(null)
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const register = async (name: string, email: string, password: string): Promise<void> => {
     const response = await authService.register(name, email, password)
     localStorage.setItem('accessToken', response.data.accessToken)
@@ -63,6 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     isAuthenticated: !!user,
     login,
+    loginWithToken,
     register,
     logout,
     updateUser,

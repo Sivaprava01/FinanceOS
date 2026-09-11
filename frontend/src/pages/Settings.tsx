@@ -8,13 +8,15 @@ import { Input } from '@components/ui/Input'
 import { useAuth } from '@hooks/useAuth'
 import { useTheme } from '@hooks/useTheme'
 import { userService } from '@services/user.service'
+import { SUPPORTED_CURRENCIES } from '@lib/utils'
 
-// ─── Preferences form (language, theme, dateFormat, notifications) ─────────────
+// ─── Preferences form (language, theme, dateFormat, currency, notifications) ────
 
 const preferencesSchema = z.object({
   language: z.string().min(1, 'Language is required'),
   theme: z.enum(['light', 'dark', 'system']),
   dateFormat: z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']),
+  preferredCurrency: z.string().length(3, 'Currency code must be 3 characters'),
   notifications: z.object({
     email: z.boolean(),
     push: z.boolean(),
@@ -25,14 +27,24 @@ type PreferencesFormData = z.infer<typeof preferencesSchema>
 
 // ─── Password Change form ──────────────────────────────────────────────────────
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-})
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z
+      .string()
+      .min(8, 'New password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+      .regex(/[0-9]/, 'Must contain at least one number'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: 'New password must be different from current password',
+    path: ['newPassword'],
+  })
 
 type PasswordFormData = z.infer<typeof passwordSchema>
 
@@ -145,6 +157,7 @@ const Settings: React.FC = () => {
       language: user?.preferences?.language ?? 'en',
       theme: user?.preferences?.theme ?? 'system',
       dateFormat: user?.preferences?.dateFormat ?? 'DD/MM/YYYY',
+      preferredCurrency: user?.preferredCurrency ?? 'USD',
       notifications: {
         email: user?.preferences?.notifications?.email ?? true,
         push: user?.preferences?.notifications?.push ?? false,
@@ -161,13 +174,18 @@ const Settings: React.FC = () => {
     setPrefError('')
     setPrefSuccess(false)
     try {
-      const updated = await userService.updatePreferences({
-        language: data.language,
-        theme: data.theme,
-        dateFormat: data.dateFormat,
-        notifications: { email: data.notifications.email, push: data.notifications.push },
-      })
-      updateUser(updated)
+      const [updatedPref, updatedProfile] = await Promise.all([
+        userService.updatePreferences({
+          language: data.language,
+          theme: data.theme,
+          dateFormat: data.dateFormat,
+          notifications: { email: data.notifications.email, push: data.notifications.push },
+        }),
+        userService.updateProfile({
+          preferredCurrency: data.preferredCurrency,
+        }),
+      ])
+      updateUser({ ...updatedProfile, preferences: updatedPref.preferences })
       setPrefSuccess(true)
       setTimeout(() => setPrefSuccess(false), 3000)
     } catch (err) {
@@ -198,13 +216,13 @@ const Settings: React.FC = () => {
           <div className="rounded-lg bg-success/10 px-3.5 py-2 text-xs text-success">Preferences saved successfully.</div>
         )}
 
-        {/* Language & Date Format */}
+        {/* Language, Date Format & Currency */}
         <Card>
           <CardHeader className="pb-3 border-b border-border">
             <CardTitle>Regional & Formatting</CardTitle>
-            <CardDescription>Language and calendar presentation</CardDescription>
+            <CardDescription>Language, currency and calendar presentation</CardDescription>
           </CardHeader>
-          <CardContent className="pt-4 grid gap-4 sm:grid-cols-2">
+          <CardContent className="pt-4 grid gap-4 sm:grid-cols-3">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Language</label>
               <select
@@ -212,6 +230,20 @@ const Settings: React.FC = () => {
                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="en">English (US)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Base Currency</label>
+              <select
+                {...prefForm.register('preferredCurrency')}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} — {c.name} ({c.symbol})
+                  </option>
+                ))}
               </select>
             </div>
 

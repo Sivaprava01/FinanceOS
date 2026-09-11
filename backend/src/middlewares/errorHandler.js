@@ -8,7 +8,7 @@
 
 import { HTTP_STATUS, APP_MESSAGES } from "../constants/index.js";
 
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   // Default error properties
   let statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
   let message = err.message || APP_MESSAGES.INTERNAL_ERROR;

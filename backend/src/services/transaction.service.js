@@ -25,7 +25,7 @@ import ApiError from "../utils/ApiError.js";
 import { HTTP_STATUS, VALID_PAYMENT_METHODS } from "../constants/index.js";
 import { parserService } from "./parser.service.js";
 import { categoryService } from "./category.service.js";
-import { normalizeCurrencyCode, isValidCurrency } from "../utils/currency.js";
+import { normalizeCurrencyCode } from "../utils/currency.js";
 
 // Get project root directory for path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -468,6 +468,7 @@ const applyMerchantMappings = async (userId, transactions) => {
  */
 const importTransactions = async (statementId, userId, transactions, filePath, currency) => {
   let session = null;
+  const createdTransactionIds = [];
   try {
     session = await Transaction.startSession();
     session.startTransaction();
@@ -520,7 +521,6 @@ const importTransactions = async (statementId, userId, transactions, filePath, c
     }
 
     // Create all transactions with statementId and resolved currency
-    const createdTransactionIds = [];
     for (const txData of transactions) {
       const normType = normalizeTransactionType(txData.type);
       const { paymentMethod: rawPm, currency: _ignoredCurrency, ...restTx } = txData;

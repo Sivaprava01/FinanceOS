@@ -23,6 +23,7 @@ import type {
   CreateCategoryInput,
   TransactionType,
   PaymentMethod,
+  CategoryType,
 } from '@/types'
 
 // ─── Types & Constants ─────────────────────────────────────────────────────────
@@ -927,7 +928,7 @@ const Transactions: React.FC = () => {
         onClose={() => setShowCreateCategoryModal(false)}
         isLoading={createIsLoading}
         onSubmit={handleCreateCategory}
-        initialType={normalizedFormType as any}
+        initialType={normalizedFormType as CategoryType}
       />
     </div>
   )

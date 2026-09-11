@@ -21,7 +21,6 @@
 
 import fs from "fs";
 import { Readable } from "stream";
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import csv from "csv-parser";
 import XLSX from "xlsx";
 import ApiError from "../utils/ApiError.js";
@@ -411,7 +410,7 @@ const parseExcel = async (filePath) => {
     }
 
     if (!headerFound) {
-      console.warn(`[Excel Parser] Could not detect header row, trying row 0`);
+      console.warn("[Excel Parser] Could not detect header row, trying row 0");
       headerRowIdx = 0;
     }
 
@@ -456,7 +455,7 @@ const parseExcel = async (filePath) => {
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    console.error(`[Excel Parser] Error parsing Excel:`, err.message);
+    console.error("[Excel Parser] Error parsing Excel:", err.message);
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to parse Excel file: " + err.message);
   }
 };
@@ -472,7 +471,7 @@ const parseExcel = async (filePath) => {
  * @param {string} source - "CSV" or "XLSX"
  * @returns {object|null} Normalized transaction or null if invalid
  */
-const normalizeRow = (row, source) => {
+const normalizeRow = (row, _source) => {
   if (!row || typeof row !== "object") return null;
 
   const keys = Object.keys(row);
@@ -679,7 +678,7 @@ const extractTransactionsFromText = (text) => {
   //   2. DD.MM.YYYY / DD-MM-YYYY / DD/MM/YYYY  (day 01-31, month 01-12)
   //   3. DD MMM YYYY  (word-month)
   const DATE_ANYWHERE =
-    /((?:19|20)\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2}|(?:0[1-9]|[12]\d|3[01])[\/\-\.](?:0[1-9]|1[0-2])[\/\-\.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
+    /((?:19|20)\d{2}[/\-.]\d{2}[/\-.]\d{2}|(?:0[1-9]|[12]\d|3[01])[/\-.](?:0[1-9]|1[0-2])[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
 
   // Matches a currency amount with mandatory decimal and exactly 2 decimal places.
   // \d+ (not \d{1,3}) so that "5000.00" is captured whole, not as "000.00".
@@ -813,7 +812,7 @@ const extractTransactionsFromText = (text) => {
     const isCredit = creditKeywords.test(fullNarration);
 
     // Last amount is closing balance; first transaction amount is the actual tx
-    const balance = amounts.length >= 2 ? amounts[amounts.length - 1] : null;
+    const _balance = amounts.length >= 2 ? amounts[amounts.length - 1] : null;
     const txAmount = amounts[0];
 
     transactions.push({
@@ -871,7 +870,7 @@ const parseDate = (dateStr) => {
   const s = String(dateStr).trim();
 
   // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD — test before DD-MM-YYYY
-  const iso = s.match(/^(\d{4})[\/\-\.](\d{2})[\/\-\.](\d{2})$/);
+  const iso = s.match(/^(\d{4})[/\-.](\d{2})[/\-.](\d{2})$/);
   if (iso) {
     const year = parseInt(iso[1]);
     const month = parseInt(iso[2]);
@@ -881,7 +880,7 @@ const parseDate = (dateStr) => {
   }
 
   // DD/MM/YYYY  DD-MM-YYYY  DD.MM.YYYY  (and 2-digit year variants)
-  const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  const dmy = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
   if (dmy) {
     const day = parseInt(dmy[1]);
     const month = parseInt(dmy[2]);
@@ -893,7 +892,7 @@ const parseDate = (dateStr) => {
 
   // DD MMM YYYY  or  DD MMM YY  (e.g. "10 Jul 2025", "01 Jan 25")
   const dMonthY = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2,4})$/);
-    if (dMonthY) {
+  if (dMonthY) {
     const months = {
       jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
       jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
@@ -935,7 +934,7 @@ const parseAmount = (amountStr) => {
   // Strip everything except digits, a single dot, and a leading minus
   const cleaned = String(amountStr)
     .replace(/,/g, "") // remove thousand separators (1,24,550 → 124550)
-    .replace(/[^0-9.\-]/g, "") // strip any other non-numeric characters
+    .replace(/[^0-9.-]/g, "") // strip any other non-numeric characters
     .trim();
 
   const amount = parseFloat(cleaned);

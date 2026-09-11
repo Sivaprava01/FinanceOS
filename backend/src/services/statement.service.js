@@ -300,7 +300,7 @@ const processStatementAsync = async (statementId, userId, password = "") => {
         statement.processedAt = new Date();
         await statement.save();
       } catch (saveErr) {
-        console.error(`[Statement Processing] Could not update statement status:`, saveErr);
+        console.error("[Statement Processing] Could not update statement status:", saveErr);
       }
     }
   }

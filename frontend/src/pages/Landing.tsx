@@ -4,13 +4,16 @@
  */
 
 import { motion } from 'framer-motion'
-import { ArrowRight, BarChart3, Lock, Users, Zap, TrendingUp, PieChart, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, BarChart3, Lock, Users, Zap, TrendingUp, PieChart, CheckCircle2, LayoutDashboard } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@components/ui/Button'
 import { Badge } from '@components/ui/Badge'
 import { Card, CardContent } from '@components/ui/Card'
+import { useAuth } from '@hooks/useAuth'
 
 export default function Landing() {
+  const { isAuthenticated, user } = useAuth()
+
   const features = [
     {
       icon: BarChart3,
@@ -56,12 +59,23 @@ export default function Landing() {
             <span className="text-sm font-bold tracking-tight text-foreground">FinanceOS</span>
           </Link>
           <div className="flex gap-2 items-center">
-            <Button asChild variant="ghost" size="xs" className="text-xs">
-              <Link to="/login">Sign In</Link>
-            </Button>
-            <Button asChild size="xs" className="text-xs font-semibold">
-              <Link to="/register">Get Started</Link>
-            </Button>
+            {isAuthenticated ? (
+              <Button asChild size="xs" className="text-xs font-semibold gap-1.5">
+                <Link to="/dashboard">
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  Dashboard ({user?.name?.split(' ')[0] || 'Account'})
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="xs" className="text-xs">
+                  <Link to="/login">Sign In</Link>
+                </Button>
+                <Button asChild size="xs" className="text-xs font-semibold">
+                  <Link to="/register">Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -100,14 +114,29 @@ export default function Landing() {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-3 justify-center pt-2"
           >
-            <Button asChild size="default" className="text-xs font-semibold gap-1.5">
-              <Link to="/register">
-                Start Tracking Free <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="default" className="text-xs">
-              <Link to="/login">Sign In to Dashboard</Link>
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Button asChild size="default" className="text-xs font-semibold gap-1.5">
+                  <Link to="/dashboard">
+                    Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="default" className="text-xs">
+                  <Link to="/statements">Upload Statement</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button asChild size="default" className="text-xs font-semibold gap-1.5">
+                  <Link to="/register">
+                    Start Tracking Free <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="default" className="text-xs">
+                  <Link to="/login">Sign In to Dashboard</Link>
+                </Button>
+              </>
+            )}
           </motion.div>
 
           <div className="pt-4 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
@@ -158,9 +187,15 @@ export default function Landing() {
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
             Create an account in seconds and upload your first bank statement.
           </p>
-          <Button asChild size="sm" className="text-xs font-semibold">
-            <Link to="/register">Create Free Account</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button asChild size="sm" className="text-xs font-semibold">
+              <Link to="/dashboard">Open Your Dashboard</Link>
+            </Button>
+          ) : (
+            <Button asChild size="sm" className="text-xs font-semibold">
+              <Link to="/register">Create Free Account</Link>
+            </Button>
+          )}
         </div>
       </section>
 

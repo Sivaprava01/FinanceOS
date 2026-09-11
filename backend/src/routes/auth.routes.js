@@ -21,8 +21,7 @@ import {
   refreshToken,
   getProfile,
 } from "../controllers/auth.controller.js";
-import { COOKIE_NAMES, COOKIE_OPTIONS, AUTH_MESSAGES } from "../constants/index.js";
-import { HTTP_STATUS } from "../constants/index.js";
+import { COOKIE_NAMES, COOKIE_OPTIONS } from "../constants/index.js";
 
 const router = express.Router();
 
@@ -48,14 +47,18 @@ router.get(
 // Step 2: Google redirects back with auth code; Passport exchanges it for tokens
 router.get(
   "/google/callback",
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: `${process.env.FRONTEND_URL}/login?error=google_auth_failed`,
-  }),
+  (req, res, next) => {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3001";
+    passport.authenticate("google", {
+      session: false,
+      failureRedirect: `${frontendUrl}/login?error=google_auth_failed`,
+    })(req, res, next);
+  },
 
   (req, res) => {
     // req.user is the token pair returned by passport strategy's done(null, tokens)
     const { accessToken, refreshToken: newRefreshToken } = req.user;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3001";
 
     const maxAge = parseInt(process.env.JWT_REFRESH_EXPIRE_MS, 10) || 30 * 24 * 60 * 60 * 1000;
 
@@ -65,8 +68,8 @@ router.get(
       maxAge,
     });
 
-    // Redirect to frontend dashboard — frontend fetches /me to get user data
-    res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${accessToken}`);
+    // Redirect to frontend auth callback handler with accessToken
+    res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}`);
   }
 );
 

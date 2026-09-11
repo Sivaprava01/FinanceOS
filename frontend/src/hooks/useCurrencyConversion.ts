@@ -223,6 +223,7 @@ export function useDualCurrencyConversion() {
   useEffect(() => {
     if (import.meta.env.DEV && ratesData?.rates) {
       const sampleRate = ratesData.rates['INR']
+      // eslint-disable-next-line no-console
       console.log(
         `[FinanceOS Currency]\n` +
         `Preferred currency: ${prefUpper}\n` +

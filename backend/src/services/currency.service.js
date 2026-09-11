@@ -21,7 +21,7 @@ import {
   SUPPORTED_CURRENCIES,
 } from "../utils/currency.js";
 import { ApiError } from "../utils/index.js";
-import { HTTP_STATUS, SETTINGS_MESSAGES } from "../constants/index.js";
+import { HTTP_STATUS } from "../constants/index.js";
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 

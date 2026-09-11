@@ -33,6 +33,7 @@ import {
   validateCreateTransaction,
   validateUpdateTransaction,
   validateTransactionId,
+  validateGetTransactions,
 } from "../validations/transaction.validation.js";
 
 const router = express.Router();
@@ -150,7 +151,7 @@ router.get("/review/:statementId", getTransactionsForReview);
  *   }
  * }
  */
-router.post("/learn-merchant", learnMerchantMapping);
+router.post("/learn-merchant", validateLearnMerchant, learnMerchantMapping);
 
 // ─── Import Transactions ───────────────────────────────────────────────────────
 
@@ -190,7 +191,7 @@ router.post("/learn-merchant", learnMerchantMapping);
  *   }
  * }
  */
-router.post("/import", importTransactions);
+router.post("/import", express.json({ limit: "10mb" }), validateImportTransactions, importTransactions);
 
 // ─── Get All Transactions ─────────────────────────────────────────────────────
 
@@ -216,7 +217,7 @@ router.post("/import", importTransactions);
  *   }
  * }
  */
-router.get("/", getUserTransactions);
+router.get("/", validateGetTransactions, getUserTransactions);
 
 // ─── Get Single Transaction ────────────────────────────────────────────────────
 
@@ -244,7 +245,7 @@ router.get("/", getUserTransactions);
  *   }
  * }
  */
-router.get("/:id", getTransaction);
+router.get("/:id", validateTransactionId, getTransaction);
 
 // ─── Update Transaction ────────────────────────────────────────────────────────
 
@@ -280,7 +281,7 @@ router.get("/:id", getTransaction);
  *   }
  * }
  */
-router.put("/:id", updateTransaction);
+router.put("/:id", validateUpdateTransaction, updateTransaction);
 
 // ─── PHASE 06: Transaction Management ──────────────────────────────────────
 
@@ -300,7 +301,7 @@ router.put("/:id", updateTransaction);
  *   }
  * }
  */
-router.delete("/:id", deleteTransaction);
+router.delete("/:id", validateTransactionId, deleteTransaction);
 
 // ─── Get Transaction Statistics ────────────────────────────────────────────
 

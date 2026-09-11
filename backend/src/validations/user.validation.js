@@ -37,15 +37,6 @@ export const validateUpdateProfile = [
     .withMessage("Currency must contain only letters")
     .toUpperCase(),
 
-  body("preferredCurrency")
-    .optional()
-    .trim()
-    .isLength({ min: 3, max: 3 })
-    .withMessage("Currency must be a 3-letter ISO 4217 code")
-    .isAlpha()
-    .withMessage("Currency must contain only letters")
-    .toUpperCase(),
-
   body("timeZone")
     .optional()
     .trim()
@@ -122,7 +113,16 @@ export const validateChangePassword = [
     .withMessage("New password is required")
     .isLength({ min: 8 })
     .withMessage("New password must be at least 8 characters")
-    .withMessage("New password must be different from current password"),
+    .matches(/[A-Z]/)
+    .withMessage("New password must contain at least one uppercase letter")
+    .matches(/[0-9]/)
+    .withMessage("New password must contain at least one number")
+    .custom((value, { req }) => {
+      if (value === req.body.oldPassword) {
+        throw new Error("New password must be different from current password");
+      }
+      return true;
+    }),
 
   handleValidationErrors,
 ];

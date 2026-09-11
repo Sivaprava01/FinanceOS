@@ -10,14 +10,11 @@
  *   Asset model       — total asset value, net worth
  */
 
-import mongoose from "mongoose";
 import Transaction from "../models/transaction.model.js";
 import Loan from "../models/loan.model.js";
 import Asset from "../models/asset.model.js";
 import { LOAN_STATUS, HEALTH_SCORE_GRADES } from "../constants/index.js";
 import { generateInsights } from "../utils/insights.engine.js";
-
-const { Types } = mongoose;
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 
@@ -77,18 +74,6 @@ const isExpenseType = (type) => {
   if (!type) return false;
   const t = String(type).toLowerCase().trim();
   return t === "expense" || t === "debit";
-};
-
-const isAssetType = (type) => {
-  if (!type) return false;
-  const t = String(type).toLowerCase().trim();
-  return t === "asset";
-};
-
-const isLiabilityType = (type) => {
-  if (!type) return false;
-  const t = String(type).toLowerCase().trim();
-  return t === "liability";
 };
 
 /**

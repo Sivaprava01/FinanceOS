@@ -106,7 +106,7 @@ const transactionSchema = new Schema(
     // Merchant name (user can correct if OCR extracted wrong name)
     merchant: {
       type: String,
-      default: '',
+      default: "",
       trim: true,
     },
 

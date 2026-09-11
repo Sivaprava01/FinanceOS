@@ -12,6 +12,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ForgotPassword from '../pages/auth/ForgotPassword'
 import ResetPassword from '../pages/auth/ResetPassword'
+import AuthCallback from '../pages/auth/AuthCallback'
 import Dashboard from '../pages/Dashboard'
 import Transactions from '../pages/Transactions'
 import Statements from '../pages/Statements'
@@ -31,6 +32,10 @@ export const routes = [
   {
     path: '/',
     element: <Landing />,
+  },
+  {
+    path: '/auth/callback',
+    element: <AuthCallback />,
   },
   {
     element: <PublicLayout />,
