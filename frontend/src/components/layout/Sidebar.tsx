@@ -136,13 +136,18 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Header & Logo */}
           <div className="flex h-14 items-center justify-between border-b border-border px-3.5">
             <Link to="/dashboard" className="flex items-center gap-2.5 outline-none min-w-0">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-xs">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-serif font-bold text-sm shadow-xs">
                 F
               </div>
               {!isCollapsed && (
-                <span className="text-sm font-bold tracking-tight text-foreground truncate">
-                  FinanceOS
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-serif font-bold tracking-tight text-foreground leading-tight truncate">
+                    FinanceOS
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-sans leading-none tracking-normal">
+                    Calm Intelligence
+                  </span>
+                </div>
               )}
             </Link>
 
@@ -185,8 +190,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </nav>
 
-          {/* Bottom Navigation */}
-          <div className="border-t border-border p-2.5 space-y-0.5">
+          {/* Bottom Navigation & Enclave Status */}
+          <div className="border-t border-border p-2.5 space-y-1 bg-secondary/30">
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
@@ -199,7 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }}
               title={isCollapsed ? 'Log out' : undefined}
               className={cn(
-                'group flex w-full items-center rounded-md text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors mt-1',
+                'group flex w-full items-center rounded-md text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
                 isCollapsed ? 'justify-center p-2.5' : 'px-3 py-2'
               )}
               aria-label="Logout from your account"
@@ -212,6 +217,18 @@ const Sidebar: React.FC<SidebarProps> = ({
               />
               {!isCollapsed && <span>Log out</span>}
             </button>
+
+            {!isCollapsed && (
+              <div className="mt-2 flex items-center justify-between px-2.5 py-1.5 rounded-md bg-secondary border border-border/60">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-foreground leading-none">Client Enclave</span>
+                    <span className="text-[9px] text-muted-foreground leading-none mt-0.5">Local Sandbox Active</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>

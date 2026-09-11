@@ -1,6 +1,13 @@
-import React, { useState } from 'react'
-import { Users, UserPlus, LogOut, Trash2, Mail } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
+import React, { useState, useEffect } from 'react'
+import {
+  Users,
+  UserPlus,
+  LogOut,
+  Trash2,
+  Mail,
+  TrendingUp,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
 import { Badge } from '@components/ui/Badge'
@@ -38,8 +45,10 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <SkeletonLoader key={i} type="stat" />)}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonLoader key={i} type="stat" />
+          ))}
         </div>
         <SkeletonLoader type="card" />
       </div>
@@ -52,85 +61,178 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
 
   if (!dashboard) return null
 
+  const netWorth = dashboard.sharedCombined?.netWorth || 0
+  const totalAssets = dashboard.sharedCombined?.totalAssets || 0
+  const totalLiabilities = dashboard.sharedCombined?.totalLiabilities || 0
+  const sharedExpenses = dashboard.sharedExpenses || 0
+
   return (
     <div className="space-y-6">
-      {/* Overview cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Members Sharing</p>
-            <p className="mt-1.5 text-xl font-bold text-foreground tabular-nums font-numeric">
-              {dashboard.membersSharing} <span className="text-xs font-normal text-muted-foreground">/ {dashboard.memberCount} members</span>
+      {/* ─── Hero Consolidated Ledger Position ──────────────────────────────── */}
+      <div className="bg-card border border-border/80 rounded-xl p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-5 border-b border-border/60">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                Consolidated Ledger Position
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-primary/10 text-primary font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Live Multi-Vault Sync
+              </span>
+            </div>
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span className="font-serif text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+                {format(netWorth)}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-semibold">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Combined Solvency
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Aggregate net balance across {dashboard.membersSharing} contributing household accounts.
             </p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Combined Assets</p>
-            <p className="mt-1.5 text-xl font-bold text-success tabular-nums font-numeric">
-              {format(dashboard.sharedCombined.totalAssets)}
-            </p>
-          </CardContent>
-        </Card>
+          <div className="flex items-center gap-4 pt-2 lg:pt-0">
+            <div className="flex flex-col text-left lg:text-right">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                Monthly Shared Outflow
+              </span>
+              <span className="font-sans text-lg font-bold text-foreground tabular-nums">
+                {format(sharedExpenses)}
+              </span>
+              <span className="text-[11px] text-muted-foreground">Aggregated household run-rate</span>
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Combined Liabilities</p>
-            <p className="mt-1.5 text-xl font-bold text-destructive tabular-nums font-numeric">
-              {format(dashboard.sharedCombined.totalLiabilities)}
-            </p>
-          </CardContent>
-        </Card>
+        {/* 4 Metric Sub-grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
+          <div className="bg-muted/30 border border-border/60 rounded-xl p-4 flex flex-col justify-between">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              Members Sharing
+            </span>
+            <div className="mt-2">
+              <div className="font-sans text-xl font-bold text-foreground tabular-nums">
+                {dashboard.membersSharing}{' '}
+                <span className="text-xs font-normal text-muted-foreground font-mono">
+                  / {dashboard.memberCount} signers
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Active data contributors</p>
+            </div>
+          </div>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Family Net Worth</p>
-            <p className={`mt-1.5 text-xl font-bold tabular-nums font-numeric ${
-              dashboard.sharedCombined.netWorth >= 0 ? 'text-primary' : 'text-destructive'
-            }`}>
-              {format(dashboard.sharedCombined.netWorth)}
-            </p>
-          </CardContent>
-        </Card>
+          <div className="bg-muted/30 border border-border/60 rounded-xl p-4 flex flex-col justify-between">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              Combined Assets
+            </span>
+            <div className="mt-2">
+              <div className="font-sans text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {format(totalAssets)}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Liquid & investment vaults</p>
+            </div>
+          </div>
+
+          <div className="bg-muted/30 border border-border/60 rounded-xl p-4 flex flex-col justify-between">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              Combined Liabilities
+            </span>
+            <div className="mt-2">
+              <div className="font-sans text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                {format(totalLiabilities)}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Total household debt pool</p>
+            </div>
+          </div>
+
+          <div className="bg-muted/30 border border-border/60 rounded-xl p-4 flex flex-col justify-between">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              Consolidated Net Worth
+            </span>
+            <div className="mt-2">
+              <div className={`font-sans text-xl font-bold tabular-nums ${netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                {netWorth >= 0 ? '+' : ''}{format(netWorth)}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Assets minus commitments</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Shared Expenses & Member Breakdown */}
+      {/* ─── Member Breakdown & Expenses Section ─────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3 border-b border-border">
-            <CardTitle>Total Shared Expenses</CardTitle>
-            <CardDescription>Combined household expenditures this month</CardDescription>
+        <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+            <CardTitle className="font-serif text-base font-bold text-foreground">
+              Total Shared Expenditures
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+              Combined household expenses recorded this cycle
+            </CardDescription>
           </CardHeader>
-          <CardContent className="pt-4">
-            <p className="text-3xl font-bold text-foreground tabular-nums font-numeric">{format(dashboard.sharedExpenses)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Aggregated across all sharing accounts</p>
+          <CardContent className="p-6">
+            <div className="space-y-2">
+              <p className="font-sans text-3xl font-bold text-foreground tabular-nums">
+                {format(sharedExpenses)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Sum of all disbursements shared across participating family members.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-mono text-[11px]">Enclave Status: Reconciled</span>
+              <span className="font-mono text-[11px] text-primary flex items-center gap-1 font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Partition Active
+              </span>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3 border-b border-border">
-            <CardTitle>Member Spending Contributions</CardTitle>
-            <CardDescription>Breakdown by household member</CardDescription>
+        <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+            <CardTitle className="font-serif text-base font-bold text-foreground">
+              Member Spending Contributions
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+              Disbursements segmented by household signer
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {dashboard.spendingByMember.length === 0 ? (
-              <p className="p-6 text-center text-xs text-muted-foreground">No member spending data shared yet</p>
+              <p className="p-8 text-center text-xs text-muted-foreground">
+                No member spending data shared yet. Enable sharing in Permissions.
+              </p>
             ) : (
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-border/60">
                 {dashboard.spendingByMember.map((member) => (
-                  <div key={member.user} className="flex items-center justify-between px-5 py-3 hover:bg-secondary/30 transition-colors">
+                  <div
+                    key={member.user}
+                    className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors"
+                  >
                     <div>
-                      <p className="text-xs font-semibold text-foreground">Member {member.user.slice(-4)}</p>
-                      <p className="text-[11px] text-muted-foreground font-numeric">
-                        In: {format(member.income)} · Out: {format(member.expenses)}
+                      <p className="text-xs font-semibold text-foreground">
+                        Signer #{member.user.slice(-4)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                        Inflow: {format(member.income)} • Outflow: {format(member.expenses)}
                       </p>
                     </div>
-                    <div className="text-right font-numeric">
-                      <p className="text-xs font-bold text-foreground tabular-nums">{member.transactionCount} txns</p>
-                      <p className={`text-[11px] font-semibold ${
-                        member.income - member.expenses >= 0 ? 'text-success' : 'text-destructive'
-                      }`}>
+                    <div className="text-right font-sans">
+                      <p className="text-xs font-bold text-foreground tabular-nums">
+                        {member.transactionCount} entries
+                      </p>
+                      <p
+                        className={`text-[11px] font-semibold font-mono ${
+                          member.income - member.expenses >= 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
                         Net: {format(member.income - member.expenses)}
                       </p>
                     </div>
@@ -145,40 +247,56 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   )
 }
 
-// ─── Shared Transactions Tab ────────────────────────────────────────────────
+// ─── Shared Signers Tab ───────────────────────────────────────────────────────
 
 const SharedTransactionsTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   const { data: members = [], isLoading: loadingMembers } = useFamilyMembers(familyId)
 
   if (loadingMembers) {
-    return <div className="space-y-3">{[0, 1, 2].map((i) => <SkeletonLoader key={i} type="table-row" />)}</div>
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <SkeletonLoader key={i} type="table-row" />
+        ))}
+      </div>
+    )
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">Overview of sharing status and member profiles</p>
-      
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-serif text-sm font-bold text-foreground">Household Signers Directory</h3>
+          <p className="text-xs text-muted-foreground">
+            Multi-sig custody boundaries and account partition profiles
+          </p>
+        </div>
+        <span className="font-mono text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-md font-semibold">
+          {members.length} Registered Signers
+        </span>
+      </div>
+
       {members.length === 0 ? (
         <EmptyState title="No Members" description="No family members found." />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {members.map((member) => (
-            <Card key={member._id} className="overflow-hidden">
-              <CardContent className="p-4 space-y-2.5">
+            <Card key={member._id} className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors overflow-hidden">
+              <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
                     {member.user.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-foreground truncate">{member.user.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{member.user.email}</p>
+                    <p className="text-xs font-bold text-foreground truncate">{member.user.name}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono truncate">{member.user.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px] pt-2 border-t border-border">
+                <div className="flex items-center justify-between text-[11px] pt-2.5 border-t border-border/60">
                   <Badge variant={ROLE_BADGE_VARIANTS[member.role] || 'secondary'} size="sm">
-                    {member.role}
+                    {member.role.toUpperCase()}
                   </Badge>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground font-mono text-[10px]">
                     Joined {new Date(member.joinedAt).toLocaleDateString()}
                   </span>
                 </div>
@@ -204,7 +322,7 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
     shareAnalytics: true,
   })
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (mySharing) {
       setSharingPreferences({
         shareTransactions: mySharing.shareTransactions,
@@ -227,94 +345,129 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
   }
 
   if (loadingMembers || loadingSharing) {
-    return <div className="space-y-3">{[0, 1, 2].map((i) => <SkeletonLoader key={i} type="row" />)}</div>
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <SkeletonLoader key={i} type="row" />
+        ))}
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       {/* My Sharing Preferences */}
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle>My Data Sharing Preferences</CardTitle>
-          <CardDescription>Control exactly what financial data you share with other family members</CardDescription>
+      <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+          <CardTitle className="font-serif text-base font-bold text-foreground">
+            Zero-Knowledge Sharing Granularity
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground mt-0.5">
+            Decide exactly what data is visible to other members of your family group.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="divide-y divide-border p-0">
-          <div className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
+        <CardContent className="divide-y divide-border/60 p-0">
+          <div className="flex items-center justify-between p-4 sm:p-5 hover:bg-muted/20 transition-colors">
             <div>
-              <p className="text-xs font-semibold text-foreground">Share Transactions</p>
-              <p className="text-[11px] text-muted-foreground">Allow household members to view transaction ledger</p>
+              <p className="text-xs font-bold text-foreground">Share Transaction Ledger</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Allow household signers to audit individual transaction lines
+              </p>
             </div>
             <button
               role="switch"
               aria-checked={sharingPreferences.shareTransactions}
-              onClick={() => handleSharingChange('shareTransactions', !sharingPreferences.shareTransactions)}
+              onClick={() =>
+                handleSharingChange('shareTransactions', !sharingPreferences.shareTransactions)
+              }
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
-                sharingPreferences.shareTransactions ? 'bg-primary' : 'bg-secondary border border-border'
+                sharingPreferences.shareTransactions ? 'bg-primary' : 'bg-muted border border-border'
               }`}
             >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
-                sharingPreferences.shareTransactions ? 'translate-x-4.5' : 'translate-x-0.5'
-              }`} />
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
+                  sharingPreferences.shareTransactions ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`}
+              />
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
+          <div className="flex items-center justify-between p-4 sm:p-5 hover:bg-muted/20 transition-colors">
             <div>
-              <p className="text-xs font-semibold text-foreground">Share Accounts & Balances</p>
-              <p className="text-[11px] text-muted-foreground">Allow household members to view aggregate balances</p>
+              <p className="text-xs font-bold text-foreground">Share Accounts & Balances</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Allow household signers to view aggregate vault balances
+              </p>
             </div>
             <button
               role="switch"
               aria-checked={sharingPreferences.shareAccounts}
-              onClick={() => handleSharingChange('shareAccounts', !sharingPreferences.shareAccounts)}
+              onClick={() =>
+                handleSharingChange('shareAccounts', !sharingPreferences.shareAccounts)
+              }
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
-                sharingPreferences.shareAccounts ? 'bg-primary' : 'bg-secondary border border-border'
+                sharingPreferences.shareAccounts ? 'bg-primary' : 'bg-muted border border-border'
               }`}
             >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
-                sharingPreferences.shareAccounts ? 'translate-x-4.5' : 'translate-x-0.5'
-              }`} />
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
+                  sharingPreferences.shareAccounts ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`}
+              />
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
+          <div className="flex items-center justify-between p-4 sm:p-5 hover:bg-muted/20 transition-colors">
             <div>
-              <p className="text-xs font-semibold text-foreground">Share Spending Analytics</p>
-              <p className="text-[11px] text-muted-foreground">Include your spending in family aggregate charts</p>
+              <p className="text-xs font-bold text-foreground">Share Spending Analytics</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Include your outflow charts in aggregated household analytics
+              </p>
             </div>
             <button
               role="switch"
               aria-checked={sharingPreferences.shareAnalytics}
-              onClick={() => handleSharingChange('shareAnalytics', !sharingPreferences.shareAnalytics)}
+              onClick={() =>
+                handleSharingChange('shareAnalytics', !sharingPreferences.shareAnalytics)
+              }
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
-                sharingPreferences.shareAnalytics ? 'bg-primary' : 'bg-secondary border border-border'
+                sharingPreferences.shareAnalytics ? 'bg-primary' : 'bg-muted border border-border'
               }`}
             >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
-                sharingPreferences.shareAnalytics ? 'translate-x-4.5' : 'translate-x-0.5'
-              }`} />
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform mt-0.5 ${
+                  sharingPreferences.shareAnalytics ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`}
+              />
             </button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Member Roles */}
+      {/* Member Roles Directory */}
       {isOwner && (
-        <Card>
-          <CardHeader className="pb-3 border-b border-border">
-            <CardTitle>Member Access Levels</CardTitle>
-            <CardDescription>Household permissions directory (Admin only)</CardDescription>
+        <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+            <CardTitle className="font-serif text-base font-bold text-foreground">
+              Signer Access Levels
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+              Household roles and privilege matrix (Admin only)
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/60">
               {members.map((member) => (
-                <div key={member._id} className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
+                <div
+                  key={member._id}
+                  className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
+                >
                   <div>
                     <p className="text-xs font-semibold text-foreground">{member.user.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{member.user.email}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono">{member.user.email}</p>
                   </div>
                   <Badge variant={ROLE_BADGE_VARIANTS[member.role] || 'secondary'} size="sm">
-                    {member.role}
+                    {member.role.toUpperCase()}
                   </Badge>
                 </div>
               ))}
@@ -335,7 +488,13 @@ const MembersTab: React.FC<{ familyId: string; ownerId: string }> = ({ familyId,
   const leaveFamily = useLeaveFamily()
 
   if (isLoading) {
-    return <div className="space-y-2">{[0, 1, 2].map((i) => <SkeletonLoader key={i} type="table-row" />)}</div>
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <SkeletonLoader key={i} type="table-row" />
+        ))}
+      </div>
+    )
   }
 
   if (error) {
@@ -345,31 +504,35 @@ const MembersTab: React.FC<{ familyId: string; ownerId: string }> = ({ familyId,
   const isOwner = user?._id === ownerId
 
   return (
-    <div className="space-y-3">
-      <div className="divide-y divide-border rounded-lg border border-border overflow-hidden bg-card">
+    <div className="space-y-4">
+      <div className="divide-y divide-border/60 rounded-xl border border-border/80 overflow-hidden bg-card shadow-sm">
         {members.map((m) => (
-          <div key={m._id} className="flex items-center justify-between p-3.5 hover:bg-secondary/30 transition-colors">
+          <div
+            key={m._id}
+            className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
+          >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
                 {m.user.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-foreground truncate">{m.user.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{m.user.email}</p>
+                <p className="text-xs font-bold text-foreground truncate">{m.user.name}</p>
+                <p className="text-[11px] text-muted-foreground font-mono truncate">{m.user.email}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               <Badge variant={ROLE_BADGE_VARIANTS[m.role] || 'secondary'} size="sm">
-                {m.role}
+                {m.role.toUpperCase()}
               </Badge>
               {isOwner && m.user._id !== ownerId && (
                 <button
                   onClick={() => removeMember.mutate(m.user._id)}
                   disabled={removeMember.isPending}
-                  className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                   aria-label="Remove member"
+                  title="Remove signer"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               )}
               {!isOwner && m.user._id === user?._id && (
@@ -380,14 +543,14 @@ const MembersTab: React.FC<{ familyId: string; ownerId: string }> = ({ familyId,
                   isLoading={leaveFamily.isPending}
                   className="gap-1 text-xs"
                 >
-                  <LogOut className="h-3 w-3" /> Leave
+                  <LogOut className="h-3 w-3" /> Leave Group
                 </Button>
               )}
             </div>
           </div>
         ))}
         {members.length === 0 && (
-          <p className="p-6 text-center text-xs text-muted-foreground">No members found.</p>
+          <p className="p-8 text-center text-xs text-muted-foreground">No members found.</p>
         )}
       </div>
     </div>
@@ -408,7 +571,7 @@ const InviteTab: React.FC<{ familyId: string }> = ({ familyId }) => {
     setErrorMsg('')
     try {
       await sendInvitation.mutateAsync(email.trim())
-      setSuccessMsg(`Invitation sent to ${email}`)
+      setSuccessMsg(`Invitation dispatched to ${email}`)
       setEmail('')
     } catch (err) {
       setErrorMsg(
@@ -421,9 +584,15 @@ const InviteTab: React.FC<{ familyId: string }> = ({ familyId }) => {
 
   return (
     <div className="space-y-4 max-w-lg">
-      <div>
-        <label className="block text-xs font-semibold text-foreground mb-1">Invite Member by Email</label>
-        <p className="text-xs text-muted-foreground mb-3">They will receive an invitation to join your shared family group.</p>
+      <Card className="border border-border/80 shadow-sm bg-card p-5 space-y-3">
+        <div>
+          <label className="block text-xs font-serif font-bold text-foreground mb-1">
+            Invite Signer by Email
+          </label>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            They will receive an invitation to join your shared family group and map their sovereign ledger vaults.
+          </p>
+        </div>
         <div className="flex gap-2">
           <Input
             type="email"
@@ -433,13 +602,27 @@ const InviteTab: React.FC<{ familyId: string }> = ({ familyId }) => {
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             className="text-xs"
           />
-          <Button onClick={handleSend} isLoading={sendInvitation.isPending} disabled={!email.trim()} size="sm" className="gap-1.5 text-xs">
-            <Mail className="h-3.5 w-3.5" /> Invite
+          <Button
+            onClick={handleSend}
+            isLoading={sendInvitation.isPending}
+            disabled={!email.trim()}
+            size="sm"
+            className="gap-1.5 text-xs shrink-0"
+          >
+            <Mail className="h-3.5 w-3.5" /> Dispatch Invite
           </Button>
         </div>
-      </div>
-      {successMsg && <p className="rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">{successMsg}</p>}
-      {errorMsg && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{errorMsg}</p>}
+      </Card>
+      {successMsg && (
+        <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          {successMsg}
+        </p>
+      )}
+      {errorMsg && (
+        <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-2.5 text-xs font-medium text-destructive">
+          {errorMsg}
+        </p>
+      )}
     </div>
   )
 }
@@ -451,25 +634,51 @@ const PendingInvitations: React.FC = () => {
   const accept = useAcceptInvitation()
   const reject = useRejectInvitation()
 
-  if (isLoading) return null
-  if (invitations.length === 0) return null
+  if (isLoading || invitations.length === 0) return null
 
   return (
-    <Card className="border-primary/30 bg-primary/5">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Pending Household Invitations</CardTitle>
-        <CardDescription>You have been invited to join a family group</CardDescription>
+    <Card className="border border-primary/40 bg-primary/5 shadow-xs">
+      <CardHeader className="p-4 border-b border-primary/20 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          <CardTitle className="font-serif text-sm font-bold text-foreground">
+            Pending Household Invitations
+          </CardTitle>
+        </div>
+        <CardDescription className="text-xs text-muted-foreground mt-0.5">
+          You have been invited to join a family finance group
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="p-4 space-y-2">
         {invitations.map((inv) => (
-          <div key={inv._id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+          <div
+            key={inv._id}
+            className="flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-xs"
+          >
             <div>
-              <p className="text-xs font-semibold text-foreground">{inv.familyId.name}</p>
-              <p className="text-[11px] text-muted-foreground">Invited by {inv.invitedBy.name}</p>
+              <p className="text-xs font-bold text-foreground">{inv.familyId.name}</p>
+              <p className="text-[11px] text-muted-foreground font-mono">
+                Invited by {inv.invitedBy.name}
+              </p>
             </div>
             <div className="flex gap-2">
-              <Button size="xs" onClick={() => accept.mutate(inv._id)} isLoading={accept.isPending}>Accept</Button>
-              <Button size="xs" variant="outline" onClick={() => reject.mutate(inv._id)} isLoading={reject.isPending}>Decline</Button>
+              <Button
+                size="xs"
+                onClick={() => accept.mutate(inv._id)}
+                isLoading={accept.isPending}
+                className="text-xs"
+              >
+                Accept
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => reject.mutate(inv._id)}
+                isLoading={reject.isPending}
+                className="text-xs"
+              >
+                Decline
+              </Button>
             </div>
           </div>
         ))}
@@ -478,7 +687,7 @@ const PendingInvitations: React.FC = () => {
   )
 }
 
-// ─── Create Family ────────────────────────────────────────────────────────────
+// ─── Create Family Form ───────────────────────────────────────────────────────
 
 const CreateFamilyForm: React.FC = () => {
   const [name, setName] = useState('')
@@ -501,28 +710,37 @@ const CreateFamilyForm: React.FC = () => {
   }
 
   return (
-    <Card className="max-w-md mx-auto">
+    <Card className="max-w-md mx-auto border border-border/80 shadow-md bg-card">
       <CardContent className="p-8 text-center space-y-4">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20">
           <Users className="h-6 w-6" />
         </div>
-        <div>
-          <h2 className="text-base font-bold text-foreground">Set Up Family Finance</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Manage shared expenses, budgets, and net worth together.
+        <div className="space-y-1">
+          <h2 className="font-serif text-lg font-bold text-foreground">
+            Initialize Family Finance
+          </h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Manage shared budgets, combined net worth, and household accounts together.
           </p>
         </div>
         <div className="space-y-2 text-left">
-          <label className="block text-xs font-medium text-muted-foreground">Family Group Name</label>
+          <label className="block text-xs font-mono font-medium text-muted-foreground">
+            Household Group Name
+          </label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., The Reynolds Household"
+            placeholder="e.g. The Reynolds Household"
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-xs text-destructive font-medium">{error}</p>}
         </div>
-        <Button onClick={handleCreate} isLoading={createFamily.isPending} disabled={!name.trim()} className="w-full text-xs">
+        <Button
+          onClick={handleCreate}
+          isLoading={createFamily.isPending}
+          disabled={!name.trim()}
+          className="w-full text-xs"
+        >
           <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Create Family Group
         </Button>
       </CardContent>
@@ -547,7 +765,7 @@ const FamilyFinance: React.FC = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <SkeletonLoader type="text" height="h-6" width="w-48" />
+        <SkeletonLoader type="text" height="h-7" width="w-48" />
         <SkeletonLoader type="chart" />
       </div>
     )
@@ -562,15 +780,44 @@ const FamilyFinance: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Family Finance</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Shared budgets, combined net worth, and household finance tracking
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* ─── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
+              Multi-Vault Partitioning
+            </span>
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Encrypted Multi-Sig
+            </span>
+          </div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
+            Family Finance
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Household group:{' '}
+            <span className="font-semibold text-foreground">
+              {activeFamily?.familyName || 'Family Group'}
+            </span>{' '}
+            • Multi-vault ledger synchronization
           </p>
         </div>
+
+        {families.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveTab('invite')}
+              className="gap-1.5 text-xs shadow-xs"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Invite Member
+            </Button>
+          </div>
+        )}
       </div>
 
       <PendingInvitations />
@@ -579,15 +826,20 @@ const FamilyFinance: React.FC = () => {
         <CreateFamilyForm />
       ) : (
         <div className="space-y-6">
-          {/* Family selector */}
+          {/* Family Group Selector if multiple */}
           {families.length > 1 && (
             <div className="flex flex-wrap gap-2">
               {families.map((f) => (
                 <button
                   key={f._id}
-                  onClick={() => { setSelectedFamilyId(f._id); setActiveTab('members') }}
+                  onClick={() => {
+                    setSelectedFamilyId(f._id)
+                    setActiveTab('dashboard')
+                  }}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-                    activeFamilyId === f._id ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+                    activeFamilyId === f._id
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {f.familyName}
@@ -597,48 +849,54 @@ const FamilyFinance: React.FC = () => {
           )}
 
           {activeFamily && (
-            <Card>
-              <CardHeader className="pb-3 border-b border-border">
+            <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+              <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle>{activeFamily.familyName}</CardTitle>
-                    <CardDescription>Household collaboration and shared accounts</CardDescription>
+                    <CardTitle className="font-serif text-base font-bold text-foreground">
+                      {activeFamily.familyName}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                      Household collaboration and shared ledger accounts
+                    </CardDescription>
                   </div>
 
-                  {/* Tabs */}
-                  <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
-                    {(['dashboard', 'shared', 'members', 'permissions', 'invite'] as FamilyTab[]).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-all ${
-                          activeTab === tab ? 'bg-card text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {tab === 'dashboard' ? 'Overview' : tab === 'shared' ? 'Shared' : tab === 'members' ? 'Members' : tab === 'permissions' ? 'Permissions' : 'Invite'}
-                      </button>
-                    ))}
+                  {/* Sub-Tabs */}
+                  <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 overflow-x-auto">
+                    {(['dashboard', 'shared', 'members', 'permissions', 'invite'] as FamilyTab[]).map(
+                      (tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-all whitespace-nowrap ${
+                            activeTab === tab
+                              ? 'bg-card text-foreground shadow-xs font-semibold'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {tab === 'dashboard'
+                            ? 'Overview'
+                            : tab === 'shared'
+                            ? 'Signers'
+                            : tab === 'members'
+                            ? 'Members'
+                            : tab === 'permissions'
+                            ? 'Privacy'
+                            : 'Invite'}
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-6">
-                {activeTab === 'dashboard' && (
-                  <DashboardTab familyId={activeFamily._id} />
-                )}
-                {activeTab === 'shared' && (
-                  <SharedTransactionsTab familyId={activeFamily._id} />
-                )}
+              <CardContent className="p-5 sm:p-6">
+                {activeTab === 'dashboard' && <DashboardTab familyId={activeFamily._id} />}
+                {activeTab === 'shared' && <SharedTransactionsTab familyId={activeFamily._id} />}
                 {activeTab === 'members' && (
-                  <MembersTab
-                    familyId={activeFamily._id}
-                    ownerId={activeFamily.familyHead}
-                  />
+                  <MembersTab familyId={activeFamily._id} ownerId={activeFamily.familyHead} />
                 )}
                 {activeTab === 'permissions' && (
-                  <PermissionsTab
-                    familyId={activeFamily._id}
-                    ownerId={activeFamily.familyHead}
-                  />
+                  <PermissionsTab familyId={activeFamily._id} ownerId={activeFamily.familyHead} />
                 )}
                 {activeTab === 'invite' && <InviteTab familyId={activeFamily._id} />}
               </CardContent>

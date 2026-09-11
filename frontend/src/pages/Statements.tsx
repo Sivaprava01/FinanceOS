@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Upload,
@@ -13,8 +13,10 @@ import {
   Search,
   X,
   Sparkles,
+  Lock,
+  FileSpreadsheet,
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { EmptyState } from '@components/ui/EmptyState'
 import {
@@ -31,34 +33,35 @@ import { SUPPORTED_CURRENCIES, formatCurrency } from '@lib/utils'
 import type { Statement, ExtractedTransaction } from '@/types'
 
 const COMMON_CURRENCIES = [
-  'USD', 'EUR', 'GBP', 'INR', 'AUD', 'CAD', 'SGD', 'JPY', 'AED', 'NZD',
+  'INR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD', 'JPY', 'AED', 'NZD',
   'CHF', 'CNY', 'MYR', 'THB', 'PHP', 'ZAR', 'BRL', 'TRY', 'KRW', 'SEK',
 ]
 
 const STATUS_STYLES: Record<Statement['status'], { badge: string; icon: React.ReactNode }> = {
   Uploaded: {
-    badge: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    badge: 'bg-primary/10 text-primary border border-primary/20',
     icon: <Clock className="h-3.5 w-3.5 mr-1 animate-pulse" />,
   },
   Processing: {
-    badge: 'bg-info/10 text-info border-info/20',
-    icon: <div className="h-3 w-3 mr-1 animate-spin rounded-full border-2 border-muted border-t-info" />,
+    badge: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20',
+    icon: <div className="h-3 w-3 mr-1 animate-spin rounded-full border-2 border-muted border-t-sky-500" />,
   },
   'Password Required': {
-    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30',
     icon: <KeyRound className="h-3.5 w-3.5 mr-1" />,
   },
   Completed: {
-    badge: 'bg-success/10 text-success border-success/20',
+    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
     icon: <CheckCircle2 className="h-3.5 w-3.5 mr-1" />,
   },
   Failed: {
-    badge: 'bg-destructive/10 text-destructive border-destructive/20',
+    badge: 'bg-destructive/10 text-destructive border border-destructive/20',
     icon: <AlertCircle className="h-3.5 w-3.5 mr-1" />,
   },
 }
 
 const formatFileSize = (bytes: number): string => {
+  if (!bytes || bytes === 0) return '0 B'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -75,34 +78,36 @@ const DeleteStatementDialog: React.FC<{
   if (!statement) return null
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={onCancel}
     >
       <div
         className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10">
-            <Trash2 className="h-5 w-5 text-destructive" />
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
+            <Trash2 className="h-5 w-5" />
           </div>
-          <div>
-            <h3 className="font-semibold text-lg">Delete Import?</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <div className="space-y-1">
+            <h3 className="font-serif text-lg font-semibold text-foreground">
+              Delete Statement Import?
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               This will remove <strong className="text-foreground">{statement.originalFileName}</strong>
               {statement.transactionCount > 0 ? (
-                <> and its <strong className="text-foreground">{statement.transactionCount}</strong> imported transactions.</>
+                <> and its <strong className="text-foreground">{statement.transactionCount}</strong> imported transactions from the ledger.</>
               ) : (
-                <> record.</>
+                <> record permanently.</>
               )}
             </p>
           </div>
         </div>
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={onCancel} disabled={isDeleting}>
+        <div className="flex justify-end gap-2.5 pt-2 border-t border-border">
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={isDeleting}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={onConfirm} isLoading={isDeleting}>
+          <Button variant="destructive" size="sm" onClick={onConfirm} isLoading={isDeleting}>
             Delete Import
           </Button>
         </div>
@@ -120,30 +125,32 @@ const ClearFailedDialog: React.FC<{
   isClearing: boolean
 }> = ({ count, onConfirm, onCancel, isClearing }) => (
   <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
     onClick={onCancel}
   >
     <div
       className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10">
-          <Trash2 className="h-5 w-5 text-destructive" />
+      <div className="flex items-start gap-3.5">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
+          <Trash2 className="h-5 w-5" />
         </div>
-        <div>
-          <h3 className="font-semibold text-lg">Clear Failed Imports?</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="space-y-1">
+          <h3 className="font-serif text-lg font-semibold text-foreground">
+            Clear Failed Imports?
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
             This will remove all <strong className="text-foreground">{count}</strong> failed and pending-password statement import records.
           </p>
         </div>
       </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button variant="outline" onClick={onCancel} disabled={isClearing}>
+      <div className="flex justify-end gap-2.5 pt-2 border-t border-border">
+        <Button variant="outline" size="sm" onClick={onCancel} disabled={isClearing}>
           Cancel
         </Button>
-        <Button variant="destructive" onClick={onConfirm} isLoading={isClearing}>
-          Clear Failed
+        <Button variant="destructive" size="sm" onClick={onConfirm} isLoading={isClearing}>
+          Clear All Failed
         </Button>
       </div>
     </div>
@@ -170,13 +177,13 @@ const ImportPreviewDialog: React.FC<{
   const confidence = preview?.confidence ?? 'none'
   const detectedSources = preview?.detectedSources || []
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (detectedCurrency && !selectedCurrency) {
       setSelectedCurrency(detectedCurrency)
     } else if (!selectedCurrency && user?.preferredCurrency) {
       setSelectedCurrency(user.preferredCurrency)
     } else if (!selectedCurrency) {
-      setSelectedCurrency('USD')
+      setSelectedCurrency('INR')
     }
   }, [detectedCurrency, user?.preferredCurrency, selectedCurrency])
 
@@ -211,7 +218,7 @@ const ImportPreviewDialog: React.FC<{
         await deleteStatement.mutateAsync(statement._id)
       }
     } catch {
-      // ignore deletion error
+      // ignore
     } finally {
       onClose()
     }
@@ -219,7 +226,7 @@ const ImportPreviewDialog: React.FC<{
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={handleCancel}
     >
       <div
@@ -227,21 +234,23 @@ const ImportPreviewDialog: React.FC<{
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border p-5">
+        <div className="flex items-center justify-between border-b border-border p-5 bg-muted/20">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
               <FileText className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Review & Confirm Statement Import</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {statement.originalFileName} • {statement.fileType} • {formatFileSize(statement.fileSize)} • {transactions.length} transactions extracted
+              <h3 className="font-serif text-lg font-bold text-foreground">
+                Review & Confirm Ledger Import
+              </h3>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                {statement.originalFileName} • {statement.fileType} • {formatFileSize(statement.fileSize)} • {transactions.length} rows parsed
               </p>
             </div>
           </div>
           <button
             onClick={handleCancel}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -251,27 +260,27 @@ const ImportPreviewDialog: React.FC<{
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Currency Detection Status Banner */}
           {detectedCurrency && !isAmbiguous && confidence !== 'none' ? (
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs space-y-1">
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs space-y-1">
               <div className="flex items-center gap-2 font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Detected Statement Currency: {detectedCurrency}</span>
-                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider">
+                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono uppercase font-bold tracking-wider">
                   {confidence} confidence
                 </span>
               </div>
-              <p className="text-muted-foreground">
-                We detected <strong>{detectedCurrency}</strong>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                Extracted currency <strong>{detectedCurrency}</strong>
                 {detectedSources.length > 0 ? ` from statement ${detectedSources.join(', ')}` : ''}.
                 You can override it below if needed.
               </p>
             </div>
           ) : (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs space-y-1">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs space-y-1">
               <div className="flex items-center gap-2 font-semibold text-amber-500 text-sm">
                 <AlertCircle className="h-4 w-4" />
                 <span>Currency Confirmation Required</span>
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-xs leading-relaxed">
                 {isAmbiguous
                   ? 'The currency symbol in this statement is ambiguous. Please confirm or select the target currency for all transactions in this statement.'
                   : 'Currency could not be automatically detected. Please select the currency below to proceed with importing.'}
@@ -280,72 +289,70 @@ const ImportPreviewDialog: React.FC<{
           )}
 
           {/* Currency Dropdown Selector */}
-          <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2">
-            <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+            <label className="text-xs font-mono font-medium text-foreground flex items-center justify-between">
               <span>Target Currency for Imported Transactions:</span>
-              <span className="text-[11px] text-muted-foreground font-normal">Applies to all transactions in this file</span>
+              <span className="text-[11px] text-muted-foreground font-normal">Applies to all entries</span>
             </label>
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-              >
-                <option value="" disabled>Select currency...</option>
-                {SUPPORTED_CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} - {c.name} ({c.symbol})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            >
+              <option value="" disabled>Select currency...</option>
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} - {c.name} ({c.symbol})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Extracted Transactions Preview List */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span className="font-semibold text-foreground">Extracted Transactions Preview ({transactions.length})</span>
-              <span>Formatted in {selectedCurrency || 'selected currency'}</span>
+              <span className="font-mono text-[11px]">Formatted in {selectedCurrency || 'selected currency'}</span>
             </div>
 
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-xl border border-border overflow-hidden bg-card">
               <div className="max-h-60 overflow-y-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-muted/50 text-muted-foreground font-medium sticky top-0">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-muted/40 text-muted-foreground font-mono font-medium sticky top-0 uppercase tracking-wider text-[10px]">
                     <tr className="border-b border-border">
-                      <th className="py-2 px-3">Date</th>
-                      <th className="py-2 px-3">Description</th>
-                      <th className="py-2 px-3">Type</th>
-                      <th className="py-2 px-3">Category</th>
-                      <th className="py-2 px-3 text-right">Amount</th>
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Description</th>
+                      <th className="py-2.5 px-3">Type</th>
+                      <th className="py-2.5 px-3">Category</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/60">
                     {transactions.slice(0, 15).map((tx, idx) => (
-                      <tr key={idx} className="hover:bg-muted/30">
-                        <td className="py-2 px-3 whitespace-nowrap text-muted-foreground">
+                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground font-mono">
                           {tx.date ? new Date(tx.date).toLocaleDateString() : 'N/A'}
                         </td>
-                        <td className="py-2 px-3 font-medium text-foreground max-w-[200px] truncate" title={tx.description}>
+                        <td className="py-2.5 px-3 font-medium text-foreground max-w-[200px] truncate" title={tx.description}>
                           {tx.description || 'Transaction'}
                         </td>
-                        <td className="py-2 px-3">
+                        <td className="py-2.5 px-3">
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase ${
                               tx.type === 'income'
-                                ? 'bg-success/10 text-success'
-                                : 'bg-destructive/10 text-destructive'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-muted text-muted-foreground border border-border'
                             }`}
                           >
                             {tx.type}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-muted-foreground">
-                          {tx.category || 'Uncategorized'}
+                        <td className="py-2.5 px-3 text-muted-foreground">
+                          {tx.category || 'General'}
                         </td>
-                        <td className="py-2 px-3 text-right font-semibold whitespace-nowrap">
-                          <span className={tx.type === 'income' ? 'text-success' : 'text-foreground'}>
-                            {formatCurrency(tx.amount, selectedCurrency || 'USD')}
+                        <td className="py-2.5 px-3 text-right font-semibold whitespace-nowrap font-sans">
+                          <span className={tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}>
+                            {formatCurrency(tx.amount, selectedCurrency || 'INR')}
                           </span>
                         </td>
                       </tr>
@@ -354,7 +361,7 @@ const ImportPreviewDialog: React.FC<{
                 </table>
               </div>
               {transactions.length > 15 && (
-                <div className="bg-muted/30 py-1.5 px-3 text-center text-[11px] text-muted-foreground border-t border-border">
+                <div className="bg-muted/30 py-2 px-3 text-center text-[11px] text-muted-foreground border-t border-border font-mono">
                   + {transactions.length - 15} more transactions will be imported
                 </div>
               )}
@@ -362,7 +369,7 @@ const ImportPreviewDialog: React.FC<{
           </div>
 
           {importError && (
-            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive font-medium">
+            <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs text-destructive font-medium border border-destructive/20">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <span>{importError}</span>
             </div>
@@ -370,11 +377,12 @@ const ImportPreviewDialog: React.FC<{
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-border p-4 bg-muted/20">
-          <Button variant="outline" onClick={handleCancel} disabled={importTransactions.isPending}>
+        <div className="flex items-center justify-end gap-2.5 border-t border-border p-4 bg-muted/20">
+          <Button variant="outline" size="sm" onClick={handleCancel} disabled={importTransactions.isPending}>
             Cancel
           </Button>
           <Button
+            size="sm"
             onClick={handleConfirmImport}
             isLoading={importTransactions.isPending}
             disabled={!selectedCurrency || transactions.length === 0}
@@ -416,8 +424,7 @@ const Statements: React.FC = () => {
   const clearFailedStatements = useClearFailedStatements()
   const retryStatement = useRetryStatement()
 
-  // Default to user's preferred currency
-  React.useEffect(() => {
+  useEffect(() => {
     if (user?.preferredCurrency && !statementCurrency) {
       setStatementCurrency(user.preferredCurrency)
     }
@@ -425,12 +432,10 @@ const Statements: React.FC = () => {
 
   const statements = data?.statements ?? []
 
-  // Count failed / password-required statements for active view
   const failedCount = statements.filter(
     (s: Statement) => s.status === 'Failed' || s.status === 'Password Required'
   ).length
 
-  // Filter completed statements by search query
   const filteredStatements = statements.filter((s: Statement) =>
     s.originalFileName.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -470,20 +475,20 @@ const Statements: React.FC = () => {
     setUploadError('')
     setUploadSuccess(false)
 
-    if (!validTypes.includes(file.type)) {
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv') && !file.name.endsWith('.pdf') && !file.name.endsWith('.xlsx')) {
       setUploadError('Please upload a valid file (PDF, Excel, or CSV)')
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File size must be less than 10MB')
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadError('File size must be less than 15MB')
       return
     }
 
     try {
       const result = await uploadStatement.mutateAsync({
         file,
-        currency: statementCurrency || user?.preferredCurrency || '',
+        currency: statementCurrency || user?.preferredCurrency || 'INR',
       })
       if (result?.preview?.transactions && result.preview.transactions.length > 0) {
         setPreviewStatement(result)
@@ -564,209 +569,268 @@ const Statements: React.FC = () => {
         />
       )}
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Statements</h1>
-        <p className="text-muted-foreground mt-1">Upload and manage your bank statement imports.</p>
+      {/* ─── Editorial Header ──────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
+              Ingestion Subsystem
+            </span>
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Local Sandbox Active
+            </span>
+          </div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
+            Statements
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Upload and manage your bank statement imports. Processed locally with encrypted hashing.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60">
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                activeTab === 'active'
+                  ? 'bg-card text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Active Imports
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                activeTab === 'completed'
+                  ? 'bg-card text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Completed History
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Upload Dropzone Card */}
-      <Card
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        className={`relative overflow-hidden transition-all duration-200 border-2 border-dashed ${
-          dragActive ? 'border-primary bg-primary/5 scale-[1.005]' : 'border-border hover:border-primary/50'
-        }`}
-      >
-        <CardContent className="p-8 sm:p-10">
-          <div className="text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Upload className="h-7 w-7" />
+      {/* ─── Institutional Upload Console ──────────────────────────────────── */}
+      <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+              <Upload className="h-4 w-4" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">Upload Bank Statement</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Drag and drop your file here, or click browse below
-            </p>
+            <div>
+              <h2 className="font-serif text-sm font-bold text-foreground">
+                Document Ingestion Console
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Automatic table extraction for PDF, Excel (.xlsx, .xls), and CSV files
+              </p>
+            </div>
+          </div>
 
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-              {/* Currency Selector */}
-              <div className="flex items-center gap-2 rounded-lg border border-input bg-background/80 px-3 py-1.5 text-sm">
-                <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Currency:</span>
-                <select
-                  value={statementCurrency}
-                  onChange={(e) => setStatementCurrency(e.target.value)}
-                  className="bg-transparent font-medium focus:outline-none cursor-pointer"
-                >
-                  {COMMON_CURRENCIES.map((c) => (
-                    <option key={c} value={c} className="bg-card text-foreground">
-                      {c}
-                    </option>
-                  ))}
-                </select>
+          <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-lg border border-border shadow-xs">
+            <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">
+              Base Currency:
+            </label>
+            <select
+              value={statementCurrency}
+              onChange={(e) => setStatementCurrency(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+            >
+              {COMMON_CURRENCIES.map((c) => (
+                <option key={c} value={c} className="bg-card text-foreground">
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <CardContent className="p-6 sm:p-8">
+          {/* Dropzone Area */}
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            className={`relative group rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer ${
+              dragActive
+                ? 'border-primary bg-primary/5 scale-[1.005]'
+                : 'border-border/80 hover:border-primary/50 bg-muted/10'
+            }`}
+          >
+            <div className="flex flex-col items-center max-w-md mx-auto space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                <FileSpreadsheet className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-serif text-base font-bold text-foreground">
+                  Drag and drop bank statements here
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  or{' '}
+                  <label
+                    htmlFor="file-input"
+                    className="text-primary font-semibold underline underline-offset-2 cursor-pointer hover:text-primary/80"
+                  >
+                    browse files
+                  </label>{' '}
+                  from your device
+                </p>
               </div>
 
-              {/* File Input Trigger */}
-              <div>
-                <input
-                  type="file"
-                  id="file-input"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  accept=".pdf,.xls,.xlsx,.csv"
-                />
-                <Button asChild disabled={uploadStatement.isPending} size="default">
-                  <label htmlFor="file-input" className="cursor-pointer">
-                    Browse Files
-                  </label>
-                </Button>
+              <input
+                type="file"
+                id="file-input"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".pdf,.xls,.xlsx,.csv"
+              />
+
+              {/* Supported Presets Badge */}
+              <div className="pt-2">
+                <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider block mb-2 font-medium">
+                  Verified Format Presets:
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {['HDFC Bank', 'ICICI Bank', 'SBI Retail', 'Axis Bank', 'Amex', 'Chase', 'HSBC', 'Zerodha'].map(
+                    (bank) => (
+                      <span
+                        key={bank}
+                        className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-medium text-foreground border border-border/60"
+                      >
+                        {bank}
+                      </span>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Security Footnote */}
+              <div className="flex items-center gap-1.5 text-muted-foreground pt-2 text-[11px]">
+                <Lock className="h-3 w-3 text-primary" />
+                <span>Client encrypted sandbox. Documents parsed without remote leakage.</span>
               </div>
             </div>
-
-            <p className="mt-4 text-xs text-muted-foreground">
-              Supported formats: PDF (password-protected supported), Excel (.xls, .xlsx), CSV (Max 10MB)
-            </p>
 
             {uploadStatement.isPending && (
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs text-primary font-medium">
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                Uploading & queuing for processing...
+                Parsing document structure...
               </div>
             )}
 
             {uploadError && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-2 text-xs text-destructive font-medium">
-                <AlertCircle className="h-4 w-4" />
+              <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-2 text-xs text-destructive font-medium border border-destructive/20">
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 {uploadError}
               </div>
             )}
 
             {uploadSuccess && !uploadStatement.isPending && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-success/10 px-4 py-2 text-xs text-success font-medium">
-                <Sparkles className="h-4 w-4" />
-                Statement uploaded successfully!
+              <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/20">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                Statement uploaded and processed successfully!
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Section - Import Management */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ─── Import Management Section ───────────────────────────────────────── */}
+      <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+        <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-xl">Import Management</CardTitle>
-              <CardDescription>
+              <CardTitle className="font-serif text-base font-bold text-foreground">
+                {activeTab === 'active' ? 'Active Ingestion Pipeline' : 'Completed Import Archives'}
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
                 {activeTab === 'active'
-                  ? 'Active imports requiring processing or attention'
-                  : 'Successfully processed statement imports'}
+                  ? 'Imports currently parsing, pending verification, or requiring credentials'
+                  : 'Permanently reconciled statements linked to ledger records'}
               </CardDescription>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex rounded-lg border border-border bg-muted/30 p-1 self-start sm:self-auto">
-              <button
-                onClick={() => setActiveTab('active')}
-                className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition-all ${
-                  activeTab === 'active'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Active Imports
-              </button>
-              <button
-                onClick={() => setActiveTab('completed')}
-                className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition-all ${
-                  activeTab === 'completed'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Completed History
-              </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {activeTab === 'completed' && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Filter statements..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-48 sm:w-56 rounded-lg border border-input bg-background pl-8 pr-7 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'active' && failedCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="text-xs text-destructive hover:bg-destructive hover:text-white border-destructive/30 gap-1.5"
+                  onClick={() => setShowClearFailedModal(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Clear Failed ({failedCount})
+                </Button>
+              )}
             </div>
-          </div>
-
-          {/* Secondary Header Row: Search & Bulk Action */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-border/50">
-            {activeTab === 'completed' ? (
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search statements..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Showing pending, failed, or password-required statement imports
-              </p>
-            )}
-
-            {activeTab === 'active' && failedCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs text-destructive hover:bg-destructive hover:text-white self-end sm:self-auto gap-1.5"
-                onClick={() => setShowClearFailedModal(true)}
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Clear Failed Imports ({failedCount})
-              </Button>
-            )}
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-3 py-4">
+            <div className="p-5 space-y-3">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-16 animate-pulse rounded-lg bg-muted/50" />
+                <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/40" />
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-lg bg-destructive/10 p-4 text-center">
-              <p className="text-sm text-destructive">Failed to load statements. Please refresh.</p>
+            <div className="p-8 text-center">
+              <p className="text-sm text-destructive font-medium">
+                Failed to load statement ledger records. Please refresh.
+              </p>
             </div>
           ) : filteredStatements.length === 0 ? (
-            <div className="py-6">
+            <div className="p-10">
               <EmptyState
                 icon={FileText}
                 title={
                   activeTab === 'active'
-                    ? 'No active or failed statement imports'
+                    ? 'No Active Statements Pending'
                     : searchQuery
-                    ? 'No statements match your search'
-                    : 'No completed statement imports yet'
+                    ? 'No Statements Found'
+                    : 'No Completed Statements Yet'
                 }
                 description={
                   activeTab === 'active'
-                    ? 'Upload a bank statement above in PDF, CSV, or Excel format to begin automated transaction extraction.'
+                    ? 'All uploaded bank statements have been successfully parsed and committed.'
                     : searchQuery
-                    ? 'Try searching with a different file name or clear your search term.'
-                    : 'Completed bank statement imports will appear here once processed and confirmed.'
+                    ? 'No archive records match your search filter.'
+                    : 'Completed bank statements will appear here with audited row counts.'
                 }
                 action={
                   searchQuery
                     ? {
-                        label: 'Clear Search Query',
+                        label: 'Clear Search',
                         onClick: () => setSearchQuery(''),
                       }
                     : {
-                        label: 'Upload New Statement',
+                        label: 'Upload Statement',
                         onClick: () => {
                           window.scrollTo({ top: 0, behavior: 'smooth' })
                         },
@@ -775,7 +839,7 @@ const Statements: React.FC = () => {
               />
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-border/60">
               {filteredStatements.map((statement: Statement) => {
                 const statusInfo = STATUS_STYLES[statement.status] || STATUS_STYLES.Uploaded
                 const isPasswordModalOpen = passwordStatementId === statement._id
@@ -783,32 +847,34 @@ const Statements: React.FC = () => {
                 return (
                   <div
                     key={statement._id}
-                    className="rounded-lg border border-border bg-card p-4 hover:border-border/80 transition-all space-y-3"
+                    className="p-4 sm:p-5 hover:bg-muted/20 transition-colors space-y-3"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       {/* Left: Metadata */}
                       <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground border border-border">
                           <FileText className="h-5 w-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium text-sm truncate">{statement.originalFileName}</p>
+                            <p className="font-semibold text-xs text-foreground truncate">
+                              {statement.originalFileName}
+                            </p>
                             <span
-                              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusInfo.badge}`}
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider ${statusInfo.badge}`}
                             >
                               {statusInfo.icon}
                               {statement.status}
                             </span>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground font-mono text-[11px]">
                             <span>{statement.fileType}</span>
                             <span>•</span>
                             <span>{formatFileSize(statement.fileSize)}</span>
                             {statement.currency && (
                               <>
                                 <span>•</span>
-                                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.2 font-semibold text-primary">
                                   {statement.currency}
                                 </span>
                               </>
@@ -816,7 +882,7 @@ const Statements: React.FC = () => {
                             {statement.status === 'Completed' && (
                               <>
                                 <span>•</span>
-                                <span className="font-medium text-foreground">
+                                <span className="font-semibold text-foreground">
                                   {statement.transactionCount} transaction{statement.transactionCount !== 1 ? 's' : ''}
                                 </span>
                               </>
@@ -832,7 +898,7 @@ const Statements: React.FC = () => {
                         {statement.status === 'Uploaded' && statement.preview && (
                           <Button
                             size="sm"
-                            className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                            className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-xs"
                             onClick={() => setPreviewStatement(statement)}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" /> Review & Import
@@ -843,10 +909,10 @@ const Statements: React.FC = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1.5 text-xs"
+                            className="gap-1.5 text-xs shadow-xs"
                             onClick={() => handleViewTransactions(statement._id)}
                           >
-                            <Eye className="h-3.5 w-3.5" /> View Transactions
+                            <Eye className="h-3.5 w-3.5" /> View Ledger
                           </Button>
                         )}
 
@@ -855,7 +921,7 @@ const Statements: React.FC = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1.5 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                            className="gap-1.5 text-xs border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
                             onClick={() => {
                               setPasswordStatementId(isPasswordModalOpen ? null : statement._id)
                               setPasswordInput('')
@@ -885,27 +951,27 @@ const Statements: React.FC = () => {
                           variant="ghost"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           onClick={() => setDeleteTarget(statement)}
-                          title="Delete statement import"
+                          title="Delete statement record"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
 
-                    {/* Error Summary Banner if present */}
+                    {/* Error Summary Banner */}
                     {statement.failureReason && (
-                      <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-2.5 text-xs text-destructive">
+                      <div className="flex items-start gap-2 rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive border border-destructive/20">
                         <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                         <span className="font-medium">{statement.failureReason}</span>
                       </div>
                     )}
 
-                    {/* Password Input Modal / Inline Form */}
+                    {/* Password Input Inline Drawer */}
                     {isPasswordModalOpen && (
-                      <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 animate-in fade-in duration-150">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
                           <KeyRound className="h-4 w-4" />
-                          <span>This PDF is password protected</span>
+                          <span>Protected Document: Enter Unlock Password</span>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
                           <input
@@ -920,7 +986,7 @@ const Statements: React.FC = () => {
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-medium"
+                              className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                               onClick={() => handlePasswordSubmit(statement._id)}
                               disabled={retryWithPassword.isPending || !passwordInput.trim()}
                             >
@@ -940,7 +1006,7 @@ const Statements: React.FC = () => {
                             </Button>
                           </div>
                         </div>
-                        {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
+                        {passwordError && <p className="text-xs text-destructive font-medium">{passwordError}</p>}
                       </div>
                     )}
                   </div>

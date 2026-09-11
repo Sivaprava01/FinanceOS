@@ -4,82 +4,82 @@
 
 @layer base {
   :root {
-    /* Light theme - Minimal, clean, fintech aesthetic */
-    --background: 0 0% 100%;           /* #FFFFFF */
-    --foreground: 222.2 84% 4.9%;      /* #0F172A */
+    /* Light theme - Calm Financial Intelligence */
+    --background: 48 14% 97%;           /* #F7F7F4 warm stone */
+    --foreground: 150 5% 10%;           /* #171918 deep carbon ink */
 
-    --card: 0 0% 100%;                 /* #FFFFFF */
-    --card-foreground: 222.2 84% 4.9%; /* #0F172A */
+    --card: 0 0% 100%;                 /* #FFFFFF crisp card */
+    --card-foreground: 150 5% 10%;
 
-    --primary: 217 91% 53%;            /* #1d63ed - Modern Fintech Blue */
+    --primary: 164 65% 26%;            /* #176B52 Pine Green */
     --primary-foreground: 0 0% 100%;   /* White */
 
-    --secondary: 218 14% 96%;          /* #F1F5F9 */
-    --secondary-foreground: 222 47% 11%; /* #1E293B */
+    --secondary: 42 16% 94%;          /* #F2F2EE */
+    --secondary-foreground: 150 5% 15%; /* #171918 */
 
-    --accent: 217 91% 53%;
+    --accent: 164 65% 26%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 45% 50%;          /* #B84A4A Ledger Crimson */
     --destructive-foreground: 0 0% 100%;
 
-    --muted: 218 14% 96%;              /* #F1F5F9 */
-    --muted-foreground: 215 16% 46.9%; /* #64748B */
+    --muted: 48 10% 93%;              /* #EEEEEC */
+    --muted-foreground: 120 2% 42%;   /* #696D69 */
 
-    --border: 218 14% 90%;
-    --input: 218 14% 90%;
-    --ring: 217 91% 53%;
+    --border: 75 7% 89%;              /* #E4E6E1 Hairline neutral border */
+    --input: 75 7% 89%;
+    --ring: 164 65% 26%;
 
     /* Semantic colors */
-    --success: 142 76% 36%;            /* Green */
+    --success: 164 65% 26%;            /* Pine Green */
     --success-foreground: 0 0% 100%;
     
-    --warning: 38 92% 50%;
+    --warning: 40 40% 50%;             /* Gold-slate */
     --warning-foreground: 0 0% 0%;
     
-    --info: 217 91% 53%;
+    --info: 164 65% 26%;
     --info-foreground: 0 0% 100%;
 
     --radius: 0.5rem;
-    --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
-    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Source Serif 4', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
   }
 
   .dark {
-    /* Dark theme - Sophisticated, high contrast, matching primary palette */
-    --background: 224 71.4% 4.1%;      /* #0b0f19 */
-    --foreground: 210 20% 98%;         /* #f8fafc */
+    /* Dark theme - Sovereign Deep Carbon & Emerald Enclave */
+    --background: 222 47% 7%;          /* #0B0F17 */
+    --foreground: 210 20% 98%;         /* #F8FAFC */
 
-    --card: 224 71.4% 6.5%;            /* #0f1523 */
+    --card: 220 35% 12%;               /* #131B28 */
     --card-foreground: 210 20% 98%;
 
-    --primary: 217 91% 60%;            /* #3b82f6 - Cohesive blue */
-    --primary-foreground: 0 0% 100%;
+    --primary: 155 55% 48%;            /* #32BA82 Vivid Pine Emerald */
+    --primary-foreground: 222 47% 7%;
 
-    --secondary: 215 27.9% 13%;        /* #151d2f */
+    --secondary: 220 30% 16%;          /* #1A2436 */
     --secondary-foreground: 210 20% 98%;
 
-    --accent: 217 91% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 155 55% 48%;
+    --accent-foreground: 222 47% 7%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 65% 58%;          /* #E05252 */
     --destructive-foreground: 0 0% 100%;
 
-    --muted: 215 27.9% 12%;
-    --muted-foreground: 217.9 10.6% 64.9%;
+    --muted: 220 30% 16%;              /* #1A2436 */
+    --muted-foreground: 215 15% 65%;   /* #94A3B8 */
 
-    --border: 215 27.9% 16%;
-    --input: 215 27.9% 16%;
-    --ring: 217 91% 60%;
+    --border: 218 25% 20%;             /* #243245 */
+    --input: 218 25% 20%;
+    --ring: 155 55% 48%;
 
-    --success: 142 70% 45%;
-    --success-foreground: 0 0% 100%;
+    --success: 155 55% 48%;
+    --success-foreground: 222 47% 7%;
 
-    --warning: 38 92% 50%;
+    --warning: 40 50% 55%;
     --warning-foreground: 0 0% 0%;
 
-    --info: 217 91% 60%;
-    --info-foreground: 0 0% 100%;
+    --info: 155 55% 48%;
+    --info-foreground: 222 47% 7%;
   }
 }
 

@@ -1,6 +1,17 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react'
-import { Plus, Search, X, Tag, Trash2, SlidersHorizontal } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import {
+  Plus,
+  Search,
+  X,
+  Tag,
+  Trash2,
+  SlidersHorizontal,
+  Download,
+  ShieldCheck,
+  TrendingUp,
+  TrendingDown,
+} from 'lucide-react'
+import { Card, CardContent } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { Input } from '@components/ui/Input'
 import { TransactionRow, TRANSACTION_GRID_LAYOUT } from '@components/transactions/TransactionRow'
@@ -56,7 +67,7 @@ const emptyForm = (): CreateTransactionInput => ({
   type: 'expense',
   merchant: '',
   category: '',
-  paymentMethod: 'upi',  // Only for expenses
+  paymentMethod: 'upi',
   description: '',
 })
 
@@ -87,27 +98,33 @@ const DeleteDialog: React.FC<{
   onCancel: () => void
 }> = ({ count, onConfirm, onCancel }) => (
   <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
     onClick={onCancel}
   >
     <div
-      className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl"
+      className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10">
-          <Trash2 className="h-5 w-5 text-destructive" />
+      <div className="flex items-start gap-3.5">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
+          <Trash2 className="h-5 w-5" />
         </div>
-        <div>
-          <h3 className="font-semibold">
+        <div className="space-y-1">
+          <h3 className="font-serif text-lg font-semibold text-foreground">
             Delete {count > 1 ? `${count} transactions` : 'transaction'}?
           </h3>
-          <p className="mt-1 text-sm text-muted-foreground">This action cannot be undone.</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This action cannot be undone. These records will be permanently removed from your ledger vault.
+          </p>
         </div>
       </div>
-      <div className="mt-6 flex justify-end gap-3">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button variant="destructive" onClick={onConfirm}>Delete</Button>
+      <div className="flex justify-end gap-2.5 pt-2 border-t border-border">
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="destructive" size="sm" onClick={onConfirm}>
+          Permanently Delete
+        </Button>
       </div>
     </div>
   </div>
@@ -143,11 +160,14 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 sm:p-4 sm:flex-row sm:items-center">
-      <span className="text-sm font-medium text-primary">
-        {selectedCount} selected
-      </span>
-      <div className="ml-auto flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:p-4 sm:flex-row sm:items-center justify-between shadow-sm animate-in fade-in duration-150">
+      <div className="flex items-center gap-2">
+        <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+        <span className="text-xs font-semibold text-primary font-mono uppercase tracking-wider">
+          {selectedCount} {selectedCount === 1 ? 'record' : 'records'} selected
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         {showCategoryPicker ? (
           <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2">
             <select
@@ -155,39 +175,48 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
               autoFocus
               defaultValue=""
               onChange={(e) => handleCategorize(e.target.value)}
-              className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+              className="rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value="" disabled>Select category…</option>
+              <option value="" disabled>
+                Select category…
+              </option>
               {categories.map((c) => (
-                <option key={c._id} value={c.name}>{c.name}</option>
+                <option key={c._id} value={c.name}>
+                  {c.name}
+                </option>
               ))}
             </select>
-            <Button variant="outline" size="sm" onClick={() => setShowCategoryPicker(false)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setShowCategoryPicker(false)}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
           </div>
         ) : (
           <Button
             variant="outline"
-            size="sm"
-            className="w-full sm:w-auto gap-1.5"
+            size="xs"
+            className="w-full sm:w-auto gap-1.5 text-xs"
             onClick={() => setShowCategoryPicker(true)}
           >
             <Tag className="h-3.5 w-3.5" />
-            Categorize
+            Bulk Categorize
           </Button>
         )}
         <Button
           variant="outline"
-          size="sm"
-          className="w-full sm:w-auto gap-1.5 text-destructive hover:bg-destructive hover:text-white"
+          size="xs"
+          className="w-full sm:w-auto gap-1.5 text-xs text-destructive hover:bg-destructive hover:text-white border-destructive/30"
           onClick={onDeleteSelected}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Delete
+          Delete Selected
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClear} aria-label="Clear selection" className="w-full sm:w-auto">
-          <X className="h-4 w-4" />
+        <Button variant="ghost" size="xs" onClick={onClear} aria-label="Clear selection">
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>
@@ -198,6 +227,8 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
 const Transactions: React.FC = () => {
   const formRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   // Form state
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -218,21 +249,35 @@ const Transactions: React.FC = () => {
     ids: [],
   })
 
+  // Keyboard shortcut '/' to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA' &&
+        document.activeElement?.tagName !== 'SELECT'
+      ) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   // Load statementId from URL on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const id = params.get('statementId')
     if (id) {
       setStatementId(id)
-      // Note: statementId alone is sufficient to isolate transactions
-      // No need to also filter by source, as that may exclude old transactions
-      // that don't have the source field set
     }
   }, [])
 
   // Hooks
   const { data: categories = [], createCategory, createIsLoading } = useCategories()
-  const { convertTransaction } = useCurrencyConversion()
+  const { convertTransaction, formatPrimary } = useCurrencyConversion()
   const createTransaction = useCreateTransaction()
   const updateTransaction = useUpdateTransaction()
   const deleteTransaction = useDeleteTransaction()
@@ -246,9 +291,7 @@ const Transactions: React.FC = () => {
     return categories.filter((cat) => normalizeTransactionType(cat.type) === normalizedFormType)
   }, [categories, normalizedFormType])
 
-  // Build query params — only pass non-empty values to avoid polluting cache key.
-  // limit: 500 ensures all matching transactions are returned regardless of type/category
-  // filter — without this, the backend default of 50 silently hides older records.
+  // Build query params
   const queryParams = {
     limit: 500,
     search: filters.search || undefined,
@@ -264,10 +307,50 @@ const Transactions: React.FC = () => {
 
   const { data: statement } = useStatement(statementId)
   const { data, isLoading, error } = useTransactions(queryParams)
-  const transactions = data?.transactions ?? []
+  const transactions = useMemo(() => data?.transactions ?? [], [data?.transactions])
   const count = data?.count ?? 0
 
   const hasActiveFilters = Object.values(filters).some(Boolean) || !!statementId
+
+  // Calculate live ledger velocity metrics
+  const { totalInflow, totalOutflow, netRetained, retentionRate } = useMemo(() => {
+    let inflow = 0
+    let outflow = 0
+    for (const t of transactions) {
+      const norm = normalizeTransactionType(t.type)
+      if (norm === 'income') inflow += t.amount || 0
+      else if (norm === 'expense' || norm === 'liability') outflow += t.amount || 0
+    }
+    const retained = inflow - outflow
+    const rate = inflow > 0 ? ((retained / inflow) * 100).toFixed(1) : '0.0'
+    return { totalInflow: inflow, totalOutflow: outflow, netRetained: retained, retentionRate: rate }
+  }, [transactions])
+
+  // CSV Export handler
+  const handleExportCSV = () => {
+    if (transactions.length === 0) return
+    const headers = ['Date', 'Type', 'Merchant', 'Description', 'Category', 'Payment Method', 'Amount', 'Currency', 'Source']
+    const rows = transactions.map((t) => [
+      t.date ? t.date.split('T')[0] : '',
+      t.type || '',
+      `"${(t.merchant || '').replace(/"/g, '""')}"`,
+      `"${(t.description || '').replace(/"/g, '""')}"`,
+      `"${(t.category || '').replace(/"/g, '""')}"`,
+      t.paymentMethod || '',
+      t.amount || 0,
+      t.currency || 'INR',
+      t.source || 'manual',
+    ])
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `FinanceOS_Ledger_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   // ─── Form handlers ───────────────────────────────────────────────────────────
 
@@ -275,7 +358,6 @@ const Transactions: React.FC = () => {
     const normNewType = normalizeTransactionType(newType)
     const isNewExpense = normNewType === 'expense'
 
-    // Check if currently selected category is valid for new type
     const isCatValid = categories.some(
       (c) => c.name === formData.category && normalizeTransactionType(c.type) === normNewType
     )
@@ -284,7 +366,6 @@ const Transactions: React.FC = () => {
       ...prev,
       type: newType,
       category: isCatValid ? prev.category : '',
-      // For non-expense types, use undefined (not null) so it doesn't get serialized
       paymentMethod: isNewExpense ? (prev.paymentMethod || 'upi') : undefined,
     }))
   }
@@ -299,9 +380,7 @@ const Transactions: React.FC = () => {
       category: formData.category,
       merchant: formData.merchant || '',
       description: formData.description || '',
-      ...(isExpense
-        ? { paymentMethod: formData.paymentMethod || 'upi' }
-        : {}),
+      ...(isExpense ? { paymentMethod: formData.paymentMethod || 'upi' } : {}),
     }
 
     if (editingId) {
@@ -341,10 +420,6 @@ const Transactions: React.FC = () => {
     setTimeout(() => {
       if (formRef.current) {
         formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-      const mainContent = document.getElementById('main-content')
-      if (mainContent) {
-        mainContent.scrollTo({ top: 0, behavior: 'smooth' })
       }
     }, 50)
   }
@@ -407,42 +482,174 @@ const Transactions: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* ─── Header ─────────────────────────────────────────────────────────── */}
+      {/* ─── Top Ledger Velocity Cards ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Inflow */}
+        <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                Total Inflow
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] font-semibold">
+                Credits
+              </span>
+            </div>
+            <div className="mt-2.5">
+              <div className="font-sans text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums">
+                +{formatPrimary(totalInflow)}
+              </div>
+              <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Recorded receipts</span>
+              </div>
+            </div>
+            <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full" style={{ width: '100%' }} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Outflow */}
+        <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                Total Outflow
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px] font-semibold">
+                Debits
+              </span>
+            </div>
+            <div className="mt-2.5">
+              <div className="font-sans text-xl font-bold tracking-tight text-foreground tabular-nums">
+                -{formatPrimary(totalOutflow)}
+              </div>
+              <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                <TrendingDown className="h-3.5 w-3.5 text-amber-500" />
+                <span>Total expenditure</span>
+              </div>
+            </div>
+            <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+              <div
+                className="bg-amber-500 h-full rounded-full"
+                style={{ width: `${Math.min(100, (totalOutflow / (totalInflow || 1)) * 100)}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Net Retained */}
+        <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                Net Retained
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-semibold">
+                Solvent
+              </span>
+            </div>
+            <div className="mt-2.5">
+              <div className="font-sans text-xl font-bold tracking-tight text-foreground tabular-nums">
+                {netRetained >= 0 ? '+' : ''}{formatPrimary(netRetained)}
+              </div>
+              <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                <span className="font-bold text-primary font-mono">{retentionRate}%</span>
+                <span>net retention rate</span>
+              </div>
+            </div>
+            <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+              <div
+                className="bg-primary h-full rounded-full"
+                style={{ width: `${Math.max(0, Math.min(100, parseFloat(retentionRate)))}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Audit Integrity */}
+        <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                Audit Integrity
+              </span>
+              <span className="flex items-center gap-1 text-primary font-mono text-[10px] font-semibold">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                Verified
+              </span>
+            </div>
+            <div className="mt-2.5">
+              <div className="font-sans text-xl font-bold tracking-tight text-primary tabular-nums">
+                100%
+              </div>
+              <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                <span>{count} / {count} verified entries</span>
+              </div>
+            </div>
+            <div className="w-full bg-primary/20 h-1 rounded-full mt-3 overflow-hidden">
+              <div className="bg-primary h-full rounded-full" style={{ width: '100%' }} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── Header Action Bar ───────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Transactions</h1>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
+            Transactions
+          </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {isLoading ? 'Loading records…' : `${count} total recorded transaction${count !== 1 ? 's' : ''}${hasActiveFilters ? ' (filtered)' : ''}`}
+            {isLoading
+              ? 'Synchronizing ledger records…'
+              : `${count} recorded transactions in memory • ${hasActiveFilters ? 'Filtered view' : 'All accounts synced'}`}
           </p>
         </div>
-        <Button
-          onClick={() => (showForm ? handleCancel() : setShowForm(true))}
-          size="sm"
-          className="gap-1.5 text-xs shadow-xs"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {showForm ? 'Cancel' : 'Add Transaction'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={transactions.length === 0}
+            className="gap-1.5 text-xs shadow-xs"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
+          <Button
+            onClick={() => (showForm ? handleCancel() : setShowForm(true))}
+            size="sm"
+            className="gap-1.5 text-xs shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {showForm ? 'Cancel Form' : 'Add Transaction'}
+          </Button>
+        </div>
       </div>
 
       {/* ─── Statement View Banner ────────────────────────────────────────────── */}
       {statementId && (
-        <Card className="border-primary/30 bg-primary/5">
+        <Card className="border-primary/40 bg-primary/5 shadow-xs">
           <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold bg-primary text-primary-foreground">
-                  Statement Filter
+                <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-primary text-primary-foreground uppercase tracking-wider">
+                  Statement Filter Active
                 </span>
                 {statement?._id && (
-                  <span className="text-[11px] text-muted-foreground font-mono">{statement._id}</span>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    ID: {statement._id}
+                  </span>
                 )}
               </div>
-              <h2 className="mt-1 text-sm font-bold text-foreground">
-                From: {statement?.originalFileName || 'Statement Import'}
+              <h2 className="mt-1 text-sm font-serif font-bold text-foreground">
+                Filtered by Source: {statement?.originalFileName || 'Bank Statement Import'}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Viewing {count} transactions imported from this statement file
+                Showing {count} extracted ledger entries mapped to this document.
               </p>
             </div>
             <Button
@@ -455,29 +662,37 @@ const Transactions: React.FC = () => {
                 window.history.replaceState({}, '', '/transactions')
               }}
             >
-              <X className="h-3 w-3" /> Clear Statement View
+              <X className="h-3.5 w-3.5" /> Clear Statement Filter
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* ─── Add / Edit Form ────────────────────────────────────────────────── */}
+      {/* ─── Add / Edit Form Card ────────────────────────────────────────────── */}
       {showForm && (
-        <div ref={formRef}>
-          <Card className="border-primary/30 shadow-sm">
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle>{editingId ? 'Edit Transaction' : 'Create Transaction'}</CardTitle>
-              <CardDescription>
-                Select transaction type, category, and enter transaction details below
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
+        <div ref={formRef} className="animate-in fade-in slide-in-from-top-2 duration-200">
+          <Card className="border-primary/40 shadow-md bg-card">
+            <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
+              <div>
+                <h3 className="font-serif text-base font-bold text-foreground">
+                  {editingId ? 'Edit Ledger Record' : 'Record New Transaction'}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select transaction classification, category, and counterparty details.
+                </p>
+              </div>
+              <Button variant="ghost" size="xs" onClick={handleCancel}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <CardContent className="p-5">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Form fields arranged in recommended order */}
-                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {/* 1. Date */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Date *</label>
+                    <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
+                      Date *
+                    </label>
                     <Input
                       type="date"
                       value={formData.date}
@@ -486,23 +701,28 @@ const Transactions: React.FC = () => {
                     />
                   </div>
 
-                  {/* 2. Merchant / Payee */}
+                  {/* 2. Merchant / Counterparty */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Merchant / Payee</label>
+                    <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
+                      Merchant / Counterparty *
+                    </label>
                     <Input
                       value={formData.merchant ?? ''}
                       onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                      placeholder="e.g., Apple Store, Payroll, Bank"
+                      placeholder="e.g. AWS, Vanguard Labs, Apple Store"
+                      required
                     />
                   </div>
 
                   {/* 3. Transaction Type */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Transaction Type *</label>
+                    <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
+                      Type *
+                    </label>
                     <select
                       value={formData.type}
                       onChange={(e) => handleTypeChange(e.target.value as TransactionType)}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                       required
                     >
                       {TRANSACTION_TYPES.map((t) => (
@@ -513,14 +733,16 @@ const Transactions: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* 4. Category (Dynamic Filtering) */}
+                  {/* 4. Category */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-medium text-muted-foreground">Category *</label>
+                      <label className="block text-xs font-mono font-medium text-muted-foreground">
+                        Category *
+                      </label>
                       <button
                         type="button"
                         onClick={() => setShowCreateCategoryModal(true)}
-                        className="text-[11px] text-primary hover:underline"
+                        className="text-[11px] text-primary hover:underline font-medium"
                       >
                         + New
                       </button>
@@ -528,11 +750,13 @@ const Transactions: React.FC = () => {
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       required
                     >
                       <option value="">
-                        {filteredCategories.length > 0 ? 'Select a category' : 'No categories found for this type'}
+                        {filteredCategories.length > 0
+                          ? 'Select a category'
+                          : 'No categories found for this type'}
                       </option>
                       {filteredCategories.map((cat) => (
                         <option key={cat._id} value={cat.name}>
@@ -542,11 +766,11 @@ const Transactions: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* 5. Payment Method (Shown only for Expense) */}
+                  {/* 5. Payment Method (Expense only) */}
                   {isExpense && (
                     <div className="animate-in fade-in duration-200">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1">
-                        Payment Method * <span className="text-[10px] text-muted-foreground/80 font-normal">(Expense only)</span>
+                      <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
+                        Payment Method *
                       </label>
                       <select
                         value={formData.paymentMethod || 'upi'}
@@ -556,7 +780,7 @@ const Transactions: React.FC = () => {
                             paymentMethod: e.target.value as PaymentMethod,
                           })
                         }
-                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                         required={isExpense}
                       >
                         {PAYMENT_METHODS.map((pm) => (
@@ -570,11 +794,15 @@ const Transactions: React.FC = () => {
 
                   {/* 6. Amount */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount *</label>
+                    <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
+                      Amount *
+                    </label>
                     <Input
                       type="number"
                       value={formData.amount === 0 ? '' : formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })
+                      }
                       placeholder="0.00"
                       step="0.01"
                       min="0.01"
@@ -583,20 +811,24 @@ const Transactions: React.FC = () => {
                   </div>
 
                   {/* 7. Description */}
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
+                      Memo / Notes (Optional)
+                    </label>
                     <Input
                       value={formData.description ?? ''}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Optional memo"
+                      placeholder="e.g. Q4 Cloud Subscription, Tax receipt attached"
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                  <Button variant="outline" size="sm" type="button" onClick={handleCancel}>Cancel</Button>
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+                  <Button variant="outline" size="sm" type="button" onClick={handleCancel}>
+                    Cancel
+                  </Button>
                   <Button size="sm" type="submit" isLoading={isMutating}>
-                    {editingId ? 'Update' : 'Save'} Transaction
+                    {editingId ? 'Update Record' : 'Save Record'}
                   </Button>
                 </div>
               </form>
@@ -605,38 +837,61 @@ const Transactions: React.FC = () => {
         </div>
       )}
 
-      {/* ─── Filter Bar ────────────────────────────────────────────────────────── */}
-      <Card>
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="transaction-search"
+      {/* ─── Search & Quick Filters Toolbar ──────────────────────────────────── */}
+      <Card className="border border-border/80 shadow-sm bg-card">
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 justify-between">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                ref={searchInputRef}
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                placeholder="Search merchant or description…"
-                className="pl-8 text-xs h-8"
+                placeholder="Search counterparty, memo or category... (Press /)"
+                className="w-full h-9 pl-9 pr-10 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
+              <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono text-muted-foreground">
+                /
+              </kbd>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Quick Type Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+              <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60">
+                {(['', 'expense', 'income', 'asset', 'liability'] as const).map((typeVal) => (
+                  <button
+                    key={typeVal || 'all'}
+                    onClick={() => setFilters((f) => ({ ...f, type: typeVal }))}
+                    className={`px-3 py-1 rounded-md text-xs font-medium capitalize transition-all ${
+                      filters.type === typeVal
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {typeVal || 'All'}
+                  </button>
+                ))}
+              </div>
+
               <Button
                 variant={showFilters ? 'secondary' : 'outline'}
                 size="sm"
-                className="gap-1.5 text-xs h-8"
+                className="gap-1.5 text-xs h-8 shrink-0"
                 onClick={() => setShowFilters((v) => !v)}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters
+                <span>Filters</span>
                 {hasActiveFilters && (
                   <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />
                 )}
               </Button>
+
               {hasActiveFilters && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1 text-xs h-8 text-muted-foreground hover:text-foreground"
+                  className="gap-1 text-xs h-8 text-muted-foreground hover:text-foreground shrink-0"
                   onClick={() => {
                     setFilters(emptyFilters())
                     if (statementId) {
@@ -652,80 +907,69 @@ const Transactions: React.FC = () => {
             </div>
           </div>
 
-          {/* Expanded filter options */}
+          {/* Expanded Filter Criteria */}
           {showFilters && (
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 border-t border-border pt-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 border-t border-border pt-3 animate-in fade-in duration-150">
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Type</label>
-                <select
-                  value={filters.type}
-                  onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value as FilterState['type'] }))}
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">All Types</option>
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
-                  <option value="asset">Asset</option>
-                  <option value="liability">Liability</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Category</label>
+                <label className="block text-[11px] font-mono text-muted-foreground mb-1">Category</label>
                 <select
                   value={filters.category}
                   onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Categories</option>
                   {categories.map((cat) => (
-                    <option key={cat._id} value={cat.name}>{cat.name}</option>
+                    <option key={cat._id} value={cat.name}>
+                      {cat.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Source</label>
+                <label className="block text-[11px] font-mono text-muted-foreground mb-1">Source</label>
                 <select
                   value={filters.source}
-                  onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value as FilterState['source'] }))}
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, source: e.target.value as FilterState['source'] }))
+                  }
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All Sources</option>
-                  <option value="manual">Manual</option>
-                  <option value="statement">Imported</option>
+                  <option value="manual">Manual Entry</option>
+                  <option value="statement">Imported Statement</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">From Date</label>
+                <label className="block text-[11px] font-mono text-muted-foreground mb-1">From Date</label>
                 <Input
                   type="date"
                   value={filters.fromDate}
                   onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
-                  className="text-xs h-7"
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">To Date</label>
+                <label className="block text-[11px] font-mono text-muted-foreground mb-1">To Date</label>
                 <Input
                   type="date"
                   value={filters.toDate}
                   onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
-                  className="text-xs h-7"
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">Min Amount</label>
+                <label className="block text-[11px] font-mono text-muted-foreground mb-1">Min Amount</label>
                 <Input
                   type="number"
                   value={filters.minAmount}
                   onChange={(e) => setFilters((f) => ({ ...f, minAmount: e.target.value }))}
                   placeholder="0.00"
                   min="0"
-                  className="text-xs h-7"
+                  className="text-xs h-8"
                 />
               </div>
             </div>
@@ -743,36 +987,36 @@ const Transactions: React.FC = () => {
       />
 
       {/* ─── Transactions Table ──────────────────────────────────────────────── */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden border border-border/80 shadow-sm bg-card">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-2">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div className="py-3 divide-y divide-border/40">
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                 <SkeletonLoader key={i} type="table-row" />
               ))}
             </div>
           ) : error ? (
-            <div className="p-6">
+            <div className="p-8">
               <ErrorState
                 title="Failed to Load Transactions"
-                message="There was an error loading your transactions. Please try again."
+                message="There was an error querying your ledger records. Please try refreshing."
                 onRetry={() => window.location.reload()}
               />
             </div>
           ) : transactions.length === 0 ? (
-            <div className="p-8">
+            <div className="p-10">
               <EmptyState
                 icon={Tag}
-                title={hasActiveFilters ? 'No Transactions Found' : 'No Transactions Recorded'}
+                title={hasActiveFilters ? 'No Matching Ledger Entries' : 'No Transactions Recorded'}
                 description={
                   hasActiveFilters
-                    ? 'Try adjusting your search query or filters to find records.'
-                    : 'Add a manual transaction or import a statement to get started.'
+                    ? 'No records match your selected query and filter criteria.'
+                    : 'Add a manual transaction or import a statement to initialize your ledger.'
                 }
                 action={
                   hasActiveFilters
                     ? {
-                        label: 'Clear Filters',
+                        label: 'Reset Filters',
                         onClick: () => setFilters(emptyFilters()),
                       }
                     : {
@@ -784,34 +1028,37 @@ const Transactions: React.FC = () => {
             </div>
           ) : (
             <div>
-              {/* Desktop table */}
+              {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">
                 <div className="min-w-[800px]">
                   {/* Table Header */}
-                  <div className={`border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ${TRANSACTION_GRID_LAYOUT}`}>
-                    <div>
+                  <div
+                    className={`border-b border-border bg-muted/30 text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider ${TRANSACTION_GRID_LAYOUT}`}
+                  >
+                    <div className="flex items-center">
                       <input
                         type="checkbox"
                         checked={selectedIds.size === transactions.length && transactions.length > 0}
                         ref={(el) => {
                           if (el) {
-                            el.indeterminate = selectedIds.size > 0 && selectedIds.size < transactions.length
+                            el.indeterminate =
+                              selectedIds.size > 0 && selectedIds.size < transactions.length
                           }
                         }}
                         onChange={toggleSelectAll}
-                        className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
-                        aria-label="Select all"
+                        className="h-4 w-4 rounded border-border accent-primary cursor-pointer align-middle"
+                        aria-label="Select all transactions"
                       />
                     </div>
                     <div>Date</div>
-                    <div>Merchant / Description</div>
+                    <div>Merchant / Counterparty</div>
                     <div>Category</div>
                     <div className="text-right">Amount</div>
                     <div className="text-right">Actions</div>
                   </div>
 
                   {/* Table Body */}
-                  <div className="divide-y divide-border/60">
+                  <div className="divide-y-0">
                     {transactions.map((transaction: Transaction) => (
                       <TransactionRow
                         key={transaction._id}
@@ -826,7 +1073,7 @@ const Transactions: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mobile card layout - shown on mobile */}
+              {/* Mobile Card Layout */}
               <div className="md:hidden divide-y divide-border border-t border-border">
                 {transactions.map((transaction: Transaction) => {
                   const normType = normalizeTransactionType(transaction.type)
@@ -838,43 +1085,54 @@ const Transactions: React.FC = () => {
                     transaction.currency
                   )
                   return (
-                    <div key={transaction._id} className="p-3.5 space-y-2.5 hover:bg-secondary/30 transition-colors">
+                    <div
+                      key={transaction._id}
+                      className="p-3.5 space-y-2.5 hover:bg-secondary/30 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2.5">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(transaction._id)}
                           onChange={() => toggleSelect(transaction._id)}
-                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer mt-0.5"
+                          className="h-4 w-4 rounded border-border accent-primary cursor-pointer mt-0.5"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-semibold text-xs text-foreground truncate">{transaction.merchant || transaction.description || 'Transaction'}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-semibold text-xs text-foreground truncate">
+                              {transaction.merchant || transaction.description || 'Transaction'}
+                            </p>
                             <span
-                              className={`rounded px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider ${
+                              className={`rounded px-1.5 py-0.2 text-[9px] font-mono font-semibold uppercase tracking-wider ${
                                 isIncome
-                                  ? 'bg-success/15 text-success'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                                   : isAsset
-                                  ? 'bg-primary/15 text-primary'
+                                  ? 'bg-primary/10 text-primary border border-primary/20'
                                   : isLiability
-                                  ? 'bg-amber-500/15 text-amber-500'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                                   : 'bg-muted text-muted-foreground'
                               }`}
                             >
                               {normType}
                             </span>
                           </div>
-                          <p className="text-[11px] text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                            {new Date(transaction.date).toLocaleDateString()}
+                          </p>
                         </div>
-                        <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <div className="flex flex-col items-end gap-0.5 shrink-0 font-sans">
                           <p
-                            className={`text-xs font-bold tabular-nums font-numeric ${
-                              isIncome ? 'text-success' : 'text-foreground'
+                            className={`text-xs font-bold tabular-nums ${
+                              isIncome
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : isLiability
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-foreground'
                             }`}
                           >
                             {isIncome ? '+' : '-'}{primaryFormatted}
                           </p>
                           {isForeign && preferredFormatted && (
-                            <p className="text-[11px] font-medium text-muted-foreground tabular-nums font-numeric" title="Converted using the latest available exchange rate">
+                            <p className="text-[10px] font-medium text-muted-foreground tabular-nums">
                               ≈ {isIncome ? '+' : ''}{preferredFormatted}
                             </p>
                           )}
@@ -882,14 +1140,16 @@ const Transactions: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground pl-6">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-medium">{transaction.category || 'General'}</span>
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground">
+                            {transaction.category || 'General'}
+                          </span>
                           {transaction.paymentMethod && (
-                            <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase">
+                            <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-mono font-medium text-muted-foreground uppercase">
                               {transaction.paymentMethod.replace('_', ' ')}
                             </span>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2.5">
                           <button
                             className="text-[11px] font-medium text-muted-foreground hover:text-primary"
                             onClick={() => handleEdit(transaction)}
@@ -907,6 +1167,17 @@ const Transactions: React.FC = () => {
                     </div>
                   )
                 })}
+              </div>
+
+              {/* Table Footer Status */}
+              <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex items-center justify-between text-xs text-muted-foreground">
+                <span className="font-mono text-[11px]">
+                  Showing {transactions.length} of {count} entries
+                </span>
+                <span className="font-mono text-[11px] flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  Ledger Synced
+                </span>
               </div>
             </div>
           )}

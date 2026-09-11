@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   PieChart,
   Pie,
   Cell,
@@ -20,19 +20,19 @@ import {
   Percent,
   Globe,
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/Card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/Card'
 import { SkeletonLoader, ErrorState } from '@components/ui'
 import { useSpendingAnalysis, useMonthlyComparison } from '@hooks/useDashboard'
 import { useCurrency } from '@hooks/useCurrency'
 
-const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ef4444', '#ec4899', '#f97316']
+const CHART_COLORS = ['#176B52', '#2A9D8F', '#E76F51', '#F4A261', '#E9C46A', '#6B7280', '#8B5CF6', '#EC4899']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 type Tab = 'overview' | 'expenses' | 'categories' | 'cashflow'
 
 interface CustomTooltipProps {
   active?: boolean
-  payload?: Array<{ name?: string; value: number }>
+  payload?: Array<{ name?: string; value: number; color?: string }>
   label?: string
   formatter?: (value: number) => string
 }
@@ -40,9 +40,9 @@ interface CustomTooltipProps {
 const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, formatter }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-border bg-card/95 p-2.5 shadow-md backdrop-blur-xs text-xs">
-        <p className="font-semibold text-foreground mb-1">{label || payload[0]?.name}</p>
-        <p className="text-primary font-medium font-numeric tabular-nums">
+      <div className="rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur-md text-xs space-y-1">
+        <p className="font-serif font-bold text-foreground">{label || payload[0]?.name}</p>
+        <p className="text-primary font-mono font-bold text-sm tabular-nums">
           {formatter ? formatter(payload[0].value) : payload[0].value}
         </p>
       </div>
@@ -63,9 +63,9 @@ const Analytics: React.FC = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="space-y-1">
-          <SkeletonLoader type="text" height="h-6" width="w-40" />
-          <SkeletonLoader type="text" height="h-4" width="w-64" />
+        <div className="space-y-2">
+          <SkeletonLoader type="text" height="h-7" width="w-48" />
+          <SkeletonLoader type="text" height="h-4" width="w-80" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
@@ -84,18 +84,21 @@ const Analytics: React.FC = () => {
     const errorObj = aError || cError
     const errorMessage =
       (errorObj as { message?: string })?.message ||
-      'There was an error loading your analytics data. Please try again.'
+      'There was an error loading your analytics ledger. Please try again.'
 
     return (
       <div className="space-y-6">
         <div className="pb-2 border-b border-border">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Analytics</h1>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">Analytics</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Detailed breakdown of your financial activity</p>
         </div>
         <ErrorState
           title="Failed to Load Analytics"
           message={errorMessage}
-          onRetry={() => { refetchA(); refetchC() }}
+          onRetry={() => {
+            refetchA()
+            refetchC()
+          }}
         />
       </div>
     )
@@ -121,28 +124,40 @@ const Analytics: React.FC = () => {
     { id: 'cashflow', label: 'Cash Flow' },
   ]
 
-  const savingsRate = analysis.incomeVsExpense.income > 0
-    ? Math.round((analysis.incomeVsExpense.savings / analysis.incomeVsExpense.income) * 100)
-    : 0
+  const totalIncome = analysis.incomeVsExpense.income || 0
+  const totalExpenses = analysis.incomeVsExpense.expenses || 0
+  const netSavings = analysis.incomeVsExpense.savings || 0
+  const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0
 
   return (
-    <div className="space-y-6">
-      {/* Header & Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Analytics</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Financial trends, spending distribution, and comparative analysis
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* ─── Control Header ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
+              Financial Intelligence
+            </span>
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Realtime Aggregation
+            </span>
+          </div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
+            Analytics
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Multi-period financial trajectory, category dispersion, and month-over-month variances.
           </p>
         </div>
 
-        {/* Tab Selector */}
-        <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1 w-full sm:w-auto">
+        {/* Tab Navigation */}
+        <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-all whitespace-nowrap flex-1 sm:flex-none ${
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-card text-foreground shadow-xs font-semibold'
                   : 'text-muted-foreground hover:text-foreground'
@@ -154,140 +169,273 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Currency Context Notice */}
-      <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-medium text-primary">
+      {/* ─── Settlement Currency Notice ────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/5 border border-primary/20 text-xs text-primary font-medium">
         <Globe className="h-3.5 w-3.5 shrink-0" />
-        <span>All analytics totals & charts are converted to <strong>{currency}</strong> using live market exchange rates.</span>
+        <span>
+          Settlement Base Currency: <strong>{currency}</strong> • Cross-currency transactions converted at current market rates.
+        </span>
       </div>
 
-      {/* Overview Tab */}
+      {/* ─── Overview Tab ──────────────────────────────────────────────────── */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* KPI grid */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Income</p>
-                    <p className="mt-1.5 text-xl font-bold text-success tabular-nums font-numeric">
-                      {format(analysis.incomeVsExpense.income)}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Current period inflow</p>
+          {/* KPI Matrix (4 Cards) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Total Inflow */}
+            <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+              <CardContent className="p-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Total Income
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] font-semibold">
+                    Inflow
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <div className="font-sans text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    +{format(totalIncome)}
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success">
-                    <TrendingUp className="h-4 w-4" />
+                  <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Current period revenue</span>
                   </div>
+                </div>
+                <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '100%' }} />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Expenses</p>
-                    <p className="mt-1.5 text-xl font-bold text-destructive tabular-nums font-numeric">
-                      {format(analysis.incomeVsExpense.expenses)}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Current period outflow</p>
+            {/* Total Expenses */}
+            <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+              <CardContent className="p-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Total Expenses
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px] font-semibold">
+                    Outflow
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <div className="font-sans text-xl font-bold tracking-tight text-foreground tabular-nums">
+                    -{format(totalExpenses)}
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-                    <TrendingDown className="h-4 w-4" />
+                  <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                    <TrendingDown className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Current period debits</span>
                   </div>
+                </div>
+                <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+                  <div
+                    className="bg-amber-500 h-full rounded-full"
+                    style={{ width: `${Math.min(100, (totalExpenses / (totalIncome || 1)) * 100)}%` }}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Net Savings</p>
-                    <p className={`mt-1.5 text-xl font-bold tabular-nums font-numeric ${
-                      analysis.incomeVsExpense.savings >= 0 ? 'text-success' : 'text-destructive'
-                    }`}>
-                      {format(analysis.incomeVsExpense.savings)}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Income minus expenses</p>
+            {/* Net Savings */}
+            <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+              <CardContent className="p-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Net Retained
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-semibold">
+                    Solvent
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <div className={`font-sans text-xl font-bold tracking-tight tabular-nums ${netSavings >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {netSavings >= 0 ? '+' : ''}{format(netSavings)}
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <PiggyBank className="h-4 w-4" />
+                  <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                    <PiggyBank className="h-3.5 w-3.5 text-primary" />
+                    <span>Income minus expenditures</span>
                   </div>
+                </div>
+                <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+                  <div
+                    className="bg-primary h-full rounded-full"
+                    style={{ width: `${Math.max(0, Math.min(100, savingsRate))}%` }}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Savings Rate</p>
-                    <p className="mt-1.5 text-xl font-bold text-foreground tabular-nums font-numeric">
-                      {savingsRate}%
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Of gross income saved</p>
+            {/* Savings Rate */}
+            <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
+              <CardContent className="p-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Savings Ratio
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px] font-semibold">
+                    Target: ≥40%
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <div className="font-sans text-xl font-bold tracking-tight text-foreground tabular-nums">
+                    {savingsRate}%
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground">
-                    <Percent className="h-4 w-4" />
+                  <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
+                    <Percent className="h-3.5 w-3.5 text-primary" />
+                    <span>Of gross receipts preserved</span>
                   </div>
+                </div>
+                <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
+                  <div
+                    className="bg-primary h-full rounded-full"
+                    style={{ width: `${Math.max(0, Math.min(100, savingsRate))}%` }}
+                  />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Month comparison */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Month-over-Month Comparison</CardTitle>
-              <CardDescription>{comparison.previousMonth.label} vs {comparison.currentMonth.label}</CardDescription>
+          {/* Month-over-Month Comparison Matrix */}
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="font-serif text-base font-bold text-foreground">
+                    Quarterly Reconciliation Comparative
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                    Variance delta: {comparison.previousMonth.label} vs {comparison.currentMonth.label}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Prior Baseline
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-primary" /> Current Active
+                  </span>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: 'Income', current: comparison.currentMonth.income, prev: comparison.previousMonth.income, diff: comparison.comparison.incomeDiff, pct: comparison.comparison.incomeChangePercent },
-                  { label: 'Expenses', current: comparison.currentMonth.expenses, prev: comparison.previousMonth.expenses, diff: comparison.comparison.expenseDiff, pct: comparison.comparison.expenseChangePercent },
-                  { label: 'Net Savings', current: comparison.currentMonth.savings, prev: comparison.previousMonth.savings, diff: comparison.comparison.savingsDiff, pct: comparison.comparison.savingsChangePercent },
-                ].map((row) => (
-                  <div key={row.label} className="rounded-lg border border-border/80 bg-secondary/20 p-4 space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{row.label}</p>
-                    <p className="text-xl font-bold text-foreground tabular-nums font-numeric">{format(row.current)}</p>
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
-                      <span className="text-muted-foreground text-[11px]">Previous: {format(row.prev)}</span>
-                      <span className={`font-semibold tabular-nums text-[11px] ${
-                        row.pct >= 0 ? (row.label === 'Expenses' ? 'text-destructive' : 'text-success') : (row.label === 'Expenses' ? 'text-success' : 'text-destructive')
-                      }`}>
-                        {row.pct >= 0 ? '+' : ''}{row.pct}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-muted/30 text-muted-foreground font-mono uppercase tracking-wider text-[10px] border-b border-border">
+                      <th className="py-2.5 px-4 font-semibold">Metric Dimension</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Previous Period</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Current Period</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Absolute Variance</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Variance (%)</th>
+                      <th className="py-2.5 px-4 font-semibold">Assessment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {/* Income Row */}
+                    <tr className="hover:bg-muted/20 transition-colors">
+                      <td className="py-3 px-4 font-medium text-foreground">Gross Inflow</td>
+                      <td className="py-3 px-4 text-right font-mono text-muted-foreground">
+                        {format(comparison.previousMonth.income)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
+                        {format(comparison.currentMonth.income)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                        {comparison.comparison.incomeDiff >= 0 ? '+' : ''}{format(comparison.comparison.incomeDiff)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        {comparison.comparison.incomeChangePercent >= 0 ? '+' : ''}{comparison.comparison.incomeChangePercent}%
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          {comparison.comparison.incomeChangePercent >= 0 ? 'Accretive' : 'Contraction'}
+                        </span>
+                      </td>
+                    </tr>
+
+                    {/* Expense Row */}
+                    <tr className="hover:bg-muted/20 transition-colors">
+                      <td className="py-3 px-4 font-medium text-foreground">Total Outflow</td>
+                      <td className="py-3 px-4 text-right font-mono text-muted-foreground">
+                        {format(comparison.previousMonth.expenses)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
+                        {format(comparison.currentMonth.expenses)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-amber-600 dark:text-amber-400 font-medium">
+                        {comparison.comparison.expenseDiff >= 0 ? '+' : ''}{format(comparison.comparison.expenseDiff)}
+                      </td>
+                      <td className={`py-3 px-4 text-right font-mono font-bold ${comparison.comparison.expenseChangePercent <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {comparison.comparison.expenseChangePercent >= 0 ? '+' : ''}{comparison.comparison.expenseChangePercent}%
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-muted text-muted-foreground border border-border">
+                          {comparison.comparison.expenseChangePercent <= 0 ? 'Controlled' : 'Elevated'}
+                        </span>
+                      </td>
+                    </tr>
+
+                    {/* Savings Row */}
+                    <tr className="hover:bg-muted/20 transition-colors">
+                      <td className="py-3 px-4 font-medium text-foreground">Net Position</td>
+                      <td className="py-3 px-4 text-right font-mono text-muted-foreground">
+                        {format(comparison.previousMonth.savings)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-primary">
+                        {format(comparison.currentMonth.savings)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-primary font-medium">
+                        {comparison.comparison.savingsDiff >= 0 ? '+' : ''}{format(comparison.comparison.savingsDiff)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-primary">
+                        {comparison.comparison.savingsChangePercent >= 0 ? '+' : ''}{comparison.comparison.savingsChangePercent}%
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-primary/10 text-primary border border-primary/20">
+                          Solvent
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
 
-          {/* Top merchants */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Top Merchants & Payees</CardTitle>
-              <CardDescription>Highest volume transaction partners this month</CardDescription>
+          {/* Top Counterparties / Merchants Leaderboard */}
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <CardTitle className="font-serif text-base font-bold text-foreground">
+                Top Counterparties & Merchant Incurrences
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Highest aggregated disbursement volumes in active statement period
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {analysis.topMerchants.length === 0 ? (
-                <p className="p-6 text-center text-xs text-muted-foreground">No merchant activity recorded</p>
+                <p className="p-8 text-center text-xs text-muted-foreground">
+                  No merchant transactions recorded in current period
+                </p>
               ) : (
-                <div className="divide-y divide-border border-t border-border">
+                <div className="divide-y divide-border/60">
                   {analysis.topMerchants.map((m, i) => (
-                    <div key={m._id} className="flex items-center justify-between px-5 py-3 hover:bg-secondary/30 transition-colors">
+                    <div
+                      key={m._id}
+                      className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-muted-foreground">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-mono font-semibold text-muted-foreground border border-border/80">
                           {i + 1}
                         </span>
-                        <p className="text-xs font-medium text-foreground truncate">{m._id}</p>
+                        <p className="text-xs font-semibold text-foreground truncate">{m._id}</p>
                       </div>
-                      <div className="text-right shrink-0 ml-4 font-numeric">
+                      <div className="text-right shrink-0 ml-4 font-sans">
                         <p className="text-xs font-bold text-foreground tabular-nums">{format(m.total)}</p>
-                        <p className="text-[10px] text-muted-foreground">{m.count} transaction{m.count !== 1 ? 's' : ''}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {m.count} transaction{m.count !== 1 ? 's' : ''}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -298,52 +446,91 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* Expenses Tab */}
+      {/* ─── Expenses Tab ──────────────────────────────────────────────────── */}
       {activeTab === 'expenses' && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Monthly Spending Outflow</CardTitle>
-              <CardDescription>Total historical expenditures per monthly period</CardDescription>
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <CardTitle className="font-serif text-base font-bold text-foreground">
+                Historical Spending Outflow Trajectory
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Total monthly disbursements plotted over reporting lifecycle
+              </CardDescription>
             </CardHeader>
-            <CardContent className="pt-2">
+            <CardContent className="p-6">
               {monthlyTrendData.length === 0 ? (
                 <div className="flex h-64 items-center justify-center">
                   <p className="text-xs text-muted-foreground">No spending trend data available</p>
                 </div>
               ) : (
-                <div className="h-64 w-full">
+                <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.6} />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompact(v)} />
+                    <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="expenseAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#176B52" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#176B52" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => formatCompact(v)}
+                      />
                       <Tooltip content={<CustomTooltip formatter={(v: number) => format(v)} />} />
-                      <Line type="monotone" dataKey="total" stroke="hsl(var(--destructive))" strokeWidth={2.5} dot={{ r: 3, fill: 'hsl(var(--destructive))' }} activeDot={{ r: 5 }} name="Expenses" />
-                    </LineChart>
+                      <Area
+                        type="monotone"
+                        dataKey="total"
+                        stroke="#176B52"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#expenseAreaGrad)"
+                        name="Expenses"
+                      />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Largest Individual Expenses</CardTitle>
-              <CardDescription>Highest individual transactions this month</CardDescription>
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <CardTitle className="font-serif text-base font-bold text-foreground">
+                Largest Individual Disbursements
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Highest individual transactions in current ledger cycle
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {analysis.highestExpenses.length === 0 ? (
-                <p className="p-6 text-center text-xs text-muted-foreground">No expense data found</p>
+                <p className="p-8 text-center text-xs text-muted-foreground">No individual expenses recorded</p>
               ) : (
-                <div className="divide-y divide-border border-t border-border">
+                <div className="divide-y divide-border/60">
                   {analysis.highestExpenses.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between px-5 py-3 hover:bg-secondary/30 transition-colors">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors"
+                    >
                       <div>
                         <p className="text-xs font-semibold text-foreground">{e.merchant}</p>
-                        <p className="text-[11px] text-muted-foreground">{e.category} · {new Date(e.date).toLocaleDateString()}</p>
+                        <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                          {e.category} • {new Date(e.date).toLocaleDateString()}
+                        </p>
                       </div>
-                      <p className="text-xs font-bold text-destructive tabular-nums font-numeric">-{format(e.amount)}</p>
+                      <p className="text-xs font-bold text-foreground tabular-nums font-sans">
+                        -{format(e.amount)}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -353,16 +540,21 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* Categories Tab */}
+      {/* ─── Categories Tab ────────────────────────────────────────────────── */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Category Distribution</CardTitle>
-                <CardDescription>Share of spending across categories</CardDescription>
+            {/* Category Donut Distribution */}
+            <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+              <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+                <CardTitle className="font-serif text-base font-bold text-foreground">
+                  Category Share Distribution
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Proportional allocation across spending dimensions
+                </CardDescription>
               </CardHeader>
-              <CardContent className="pt-2">
+              <CardContent className="p-6">
                 {categoryPieData.length === 0 ? (
                   <div className="flex h-64 items-center justify-center">
                     <p className="text-xs text-muted-foreground">No category data available</p>
@@ -377,10 +569,10 @@ const Analytics: React.FC = () => {
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
+                          innerRadius={55}
+                          outerRadius={85}
                           paddingAngle={3}
-                          stroke="hsl(var(--card))"
+                          stroke="var(--card)"
                           strokeWidth={2}
                         >
                           {categoryPieData.map((_e, i) => (
@@ -395,12 +587,17 @@ const Analytics: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Spending by Volume</CardTitle>
-                <CardDescription>Absolute amount spent per category</CardDescription>
+            {/* Category Volume Bars */}
+            <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+              <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+                <CardTitle className="font-serif text-base font-bold text-foreground">
+                  Spending by Category Volume
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Absolute capital consumed per classification
+                </CardDescription>
               </CardHeader>
-              <CardContent className="pt-2">
+              <CardContent className="p-6">
                 {analysis.byCategory.length === 0 ? (
                   <div className="flex h-64 items-center justify-center">
                     <p className="text-xs text-muted-foreground">No category data</p>
@@ -408,12 +605,25 @@ const Analytics: React.FC = () => {
                 ) : (
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analysis.byCategory.map((c) => ({ name: c._id, amount: c.total }))} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.6} />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompact(v)} />
+                      <BarChart
+                        data={analysis.byCategory.map((c) => ({ name: c._id, amount: c.total }))}
+                        margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                          axisLine={{ stroke: 'var(--border)' }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(v) => formatCompact(v)}
+                        />
                         <Tooltip content={<CustomTooltip formatter={(v: number) => format(v)} />} />
-                        <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Amount" />
+                        <Bar dataKey="amount" fill="#176B52" radius={[4, 4, 0, 0]} name="Amount" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -422,20 +632,24 @@ const Analytics: React.FC = () => {
             </Card>
           </div>
 
-          {/* Category comparison table */}
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle>Category Period Comparison</CardTitle>
-              <CardDescription>Comparison of category spending against prior period</CardDescription>
+          {/* Category Comparison Table */}
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <CardTitle className="font-serif text-base font-bold text-foreground">
+                Category Period Comparison
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Comparison of category spending against prior period
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {analysis.categoryComparison.length === 0 ? (
-                <p className="p-6 text-center text-xs text-muted-foreground">No comparison data available</p>
+                <p className="p-8 text-center text-xs text-muted-foreground">No comparison data available</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-left text-xs">
                     <thead>
-                      <tr className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <tr className="border-b border-border bg-muted/30 text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider">
                         <th className="px-4 py-2.5">Category</th>
                         <th className="px-4 py-2.5 text-right">This Month</th>
                         <th className="px-4 py-2.5 text-right">Last Month</th>
@@ -444,12 +658,12 @@ const Analytics: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {analysis.categoryComparison.map((c) => (
-                        <tr key={c.category} className="hover:bg-secondary/30 transition-colors font-numeric">
+                        <tr key={c.category} className="hover:bg-muted/20 transition-colors font-sans">
                           <td className="px-4 py-2.5 font-medium text-foreground">{c.category}</td>
                           <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{format(c.currentAmount)}</td>
                           <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">{format(c.previousAmount)}</td>
-                          <td className={`px-4 py-2.5 text-right font-bold tabular-nums ${
-                            c.changePercent >= 0 ? 'text-destructive' : 'text-success'
+                          <td className={`px-4 py-2.5 text-right font-bold tabular-nums font-mono ${
+                            c.changePercent <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                           }`}>
                             {c.changePercent >= 0 ? '+' : ''}{c.changePercent}%
                           </td>
@@ -464,53 +678,69 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* Cash Flow Tab */}
+      {/* ─── Cash Flow Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'cashflow' && (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardContent className="p-4 sm:p-5 text-center space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Inflow</p>
-                <p className="text-2xl font-bold text-success tabular-nums font-numeric">{format(analysis.incomeVsExpense.income)}</p>
-              </CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="border border-border/80 shadow-sm bg-card p-4 text-center space-y-1">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Total Inflow
+              </p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums font-sans">
+                +{format(totalIncome)}
+              </p>
             </Card>
-            <Card>
-              <CardContent className="p-4 sm:p-5 text-center space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Outflow</p>
-                <p className="text-2xl font-bold text-destructive tabular-nums font-numeric">{format(analysis.incomeVsExpense.expenses)}</p>
-              </CardContent>
+            <Card className="border border-border/80 shadow-sm bg-card p-4 text-center space-y-1">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Total Outflow
+              </p>
+              <p className="text-2xl font-bold text-foreground tabular-nums font-sans">
+                -{format(totalExpenses)}
+              </p>
             </Card>
-            <Card>
-              <CardContent className="p-4 sm:p-5 text-center space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Net Position</p>
-                <p className={`text-2xl font-bold tabular-nums font-numeric ${
-                  analysis.incomeVsExpense.savings >= 0 ? 'text-success' : 'text-destructive'
-                }`}>
-                  {analysis.incomeVsExpense.savings >= 0 ? '+' : ''}{format(analysis.incomeVsExpense.savings)}
-                </p>
-              </CardContent>
+            <Card className="border border-border/80 shadow-sm bg-card p-4 text-center space-y-1">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Net Trajectory
+              </p>
+              <p className={`text-2xl font-bold tabular-nums font-sans ${netSavings >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                {netSavings >= 0 ? '+' : ''}{format(netSavings)}
+              </p>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Cash Flow Distribution</CardTitle>
-              <CardDescription>Monthly expense bars vs overall trend</CardDescription>
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <CardTitle className="font-serif text-base font-bold text-foreground">
+                Monthly Outflow Volumetrics
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Periodic expenditure bars across statement records
+              </CardDescription>
             </CardHeader>
-            <CardContent className="pt-2">
+            <CardContent className="p-6">
               {monthlyTrendData.length === 0 ? (
                 <div className="flex h-64 items-center justify-center">
-                  <p className="text-xs text-muted-foreground">No historical data available</p>
+                  <p className="text-xs text-muted-foreground">No historical records available</p>
                 </div>
               ) : (
-                <div className="h-64 w-full">
+                <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.6} />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompact(v)} />
+                    <BarChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => formatCompact(v)}
+                      />
                       <Tooltip content={<CustomTooltip formatter={(v: number) => format(v)} />} />
-                      <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Expenses" />
+                      <Bar dataKey="total" fill="#176B52" radius={[4, 4, 0, 0]} name="Expenses" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
