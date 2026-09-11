@@ -74,11 +74,11 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                Consolidated Ledger Position
+                Household Financial Position
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-primary/10 text-primary font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                Live Multi-Vault Sync
+                Household Sync
               </span>
             </div>
             <div className="flex items-baseline gap-3 flex-wrap">
@@ -87,23 +87,23 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-semibold">
                 <TrendingUp className="h-3.5 w-3.5" />
-                Combined Solvency
+                Combined Net Worth
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              Aggregate net balance across {dashboard.membersSharing} contributing household accounts.
+              Aggregate net balance across {dashboard.membersSharing} contributing household members.
             </p>
           </div>
 
           <div className="flex items-center gap-4 pt-2 lg:pt-0">
             <div className="flex flex-col text-left lg:text-right">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                Monthly Shared Outflow
+                Monthly Shared Expenses
               </span>
               <span className="font-sans text-lg font-bold text-foreground tabular-nums">
                 {format(sharedExpenses)}
               </span>
-              <span className="text-[11px] text-muted-foreground">Aggregated household run-rate</span>
+              <span className="text-[11px] text-muted-foreground">Aggregated household total</span>
             </div>
           </div>
         </div>
@@ -118,7 +118,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <div className="font-sans text-xl font-bold text-foreground tabular-nums">
                 {dashboard.membersSharing}{' '}
                 <span className="text-xs font-normal text-muted-foreground font-mono">
-                  / {dashboard.memberCount} signers
+                  / {dashboard.memberCount} members
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">Active data contributors</p>
@@ -133,7 +133,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <div className="font-sans text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                 {format(totalAssets)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Liquid & investment vaults</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Liquid & investments</p>
             </div>
           </div>
 
@@ -145,19 +145,19 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <div className="font-sans text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
                 {format(totalLiabilities)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Total household debt pool</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Total household debt</p>
             </div>
           </div>
 
           <div className="bg-muted/30 border border-border/60 rounded-xl p-4 flex flex-col justify-between">
             <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-              Consolidated Net Worth
+              Household Net Worth
             </span>
             <div className="mt-2">
               <div className={`font-sans text-xl font-bold tabular-nums ${netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>
                 {netWorth >= 0 ? '+' : ''}{format(netWorth)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Assets minus commitments</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Assets minus liabilities</p>
             </div>
           </div>
         </div>
@@ -168,7 +168,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
         <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
           <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
             <CardTitle className="font-serif text-base font-bold text-foreground">
-              Total Shared Expenditures
+              Total Shared Expenses
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-0.5">
               Combined household expenses recorded this cycle
@@ -180,14 +180,14 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
                 {format(sharedExpenses)}
               </p>
               <p className="text-xs text-muted-foreground">
-                Sum of all disbursements shared across participating family members.
+                Sum of all expenses shared across participating family members.
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-mono text-[11px]">Enclave Status: Reconciled</span>
+              <span className="font-mono text-[11px]">Status: Synced</span>
               <span className="font-mono text-[11px] text-primary flex items-center gap-1 font-semibold">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Partition Active
+                Sharing Active
               </span>
             </div>
           </CardContent>
@@ -199,7 +199,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               Member Spending Contributions
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Disbursements segmented by household signer
+              Expenses by household member
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -216,7 +216,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
                   >
                     <div>
                       <p className="text-xs font-semibold text-foreground">
-                        Signer #{member.user.slice(-4)}
+                        Member #{member.user.slice(-4)}
                       </p>
                       <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
                         Inflow: {format(member.income)} • Outflow: {format(member.expenses)}
@@ -247,7 +247,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   )
 }
 
-// ─── Shared Signers Tab ───────────────────────────────────────────────────────
+// ─── Shared Members Tab ───────────────────────────────────────────────────────
 
 const SharedTransactionsTab: React.FC<{ familyId: string }> = ({ familyId }) => {
   const { data: members = [], isLoading: loadingMembers } = useFamilyMembers(familyId)
@@ -266,13 +266,13 @@ const SharedTransactionsTab: React.FC<{ familyId: string }> = ({ familyId }) => 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-serif text-sm font-bold text-foreground">Household Signers Directory</h3>
+          <h3 className="font-serif text-sm font-bold text-foreground">Household Members Directory</h3>
           <p className="text-xs text-muted-foreground">
-            Multi-sig custody boundaries and account partition profiles
+            Family member profiles and sharing settings
           </p>
         </div>
         <span className="font-mono text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-md font-semibold">
-          {members.length} Registered Signers
+          {members.length} Registered Members
         </span>
       </div>
 
@@ -360,7 +360,7 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
       <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
         <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
           <CardTitle className="font-serif text-base font-bold text-foreground">
-            Zero-Knowledge Sharing Granularity
+            Privacy & Sharing Preferences
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground mt-0.5">
             Decide exactly what data is visible to other members of your family group.
@@ -369,9 +369,9 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
         <CardContent className="divide-y divide-border/60 p-0">
           <div className="flex items-center justify-between p-4 sm:p-5 hover:bg-muted/20 transition-colors">
             <div>
-              <p className="text-xs font-bold text-foreground">Share Transaction Ledger</p>
+              <p className="text-xs font-bold text-foreground">Share Transactions</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Allow household signers to audit individual transaction lines
+                Allow family members to view your transaction records
               </p>
             </div>
             <button
@@ -396,7 +396,7 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
             <div>
               <p className="text-xs font-bold text-foreground">Share Accounts & Balances</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Allow household signers to view aggregate vault balances
+                Allow family members to view your account balances
               </p>
             </div>
             <button
@@ -421,7 +421,7 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
             <div>
               <p className="text-xs font-bold text-foreground">Share Spending Analytics</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Include your outflow charts in aggregated household analytics
+                Include your expenses in aggregated household analytics
               </p>
             </div>
             <button
@@ -449,10 +449,10 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
         <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
           <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
             <CardTitle className="font-serif text-base font-bold text-foreground">
-              Signer Access Levels
+              Member Roles & Permissions
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Household roles and privilege matrix (Admin only)
+              Household roles and permissions (Admin only)
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -530,7 +530,7 @@ const MembersTab: React.FC<{ familyId: string; ownerId: string }> = ({ familyId,
                   disabled={removeMember.isPending}
                   className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                   aria-label="Remove member"
-                  title="Remove signer"
+                  title="Remove member"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -587,10 +587,10 @@ const InviteTab: React.FC<{ familyId: string }> = ({ familyId }) => {
       <Card className="border border-border/80 shadow-sm bg-card p-5 space-y-3">
         <div>
           <label className="block text-xs font-serif font-bold text-foreground mb-1">
-            Invite Signer by Email
+            Invite Family Member by Email
           </label>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            They will receive an invitation to join your shared family group and map their sovereign ledger vaults.
+            They will receive an invitation to join your shared family group.
           </p>
         </div>
         <div className="flex gap-2">
@@ -609,7 +609,7 @@ const InviteTab: React.FC<{ familyId: string }> = ({ familyId }) => {
             size="sm"
             className="gap-1.5 text-xs shrink-0"
           >
-            <Mail className="h-3.5 w-3.5" /> Dispatch Invite
+            <Mail className="h-3.5 w-3.5" /> Send Invite
           </Button>
         </div>
       </Card>
@@ -786,11 +786,11 @@ const FamilyFinance: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
-              Multi-Vault Partitioning
+              Household Finance
             </span>
             <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Encrypted Multi-Sig
+              Shared Accounts
             </span>
           </div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
@@ -801,7 +801,7 @@ const FamilyFinance: React.FC = () => {
             <span className="font-semibold text-foreground">
               {activeFamily?.familyName || 'Family Group'}
             </span>{' '}
-            • Multi-vault ledger synchronization
+            • Shared household finance
           </p>
         </div>
 
@@ -857,7 +857,7 @@ const FamilyFinance: React.FC = () => {
                       {activeFamily.familyName}
                     </CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                      Household collaboration and shared ledger accounts
+                      Household collaboration and shared accounts
                     </CardDescription>
                   </div>
 
@@ -877,7 +877,7 @@ const FamilyFinance: React.FC = () => {
                           {tab === 'dashboard'
                             ? 'Overview'
                             : tab === 'shared'
-                            ? 'Signers'
+                            ? 'Directory'
                             : tab === 'members'
                             ? 'Members'
                             : tab === 'permissions'

@@ -114,7 +114,7 @@ const DeleteDialog: React.FC<{
             Delete {count > 1 ? `${count} transactions` : 'transaction'}?
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            This action cannot be undone. These records will be permanently removed from your ledger vault.
+            This action cannot be undone. These records will be permanently removed from your account.
           </p>
         </div>
       </div>
@@ -539,15 +539,15 @@ const Transactions: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Net Retained */}
+        {/* Net Savings */}
         <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                Net Retained
+                Net Savings
               </span>
               <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-semibold">
-                Solvent
+                Savings
               </span>
             </div>
             <div className="mt-2.5">
@@ -556,7 +556,7 @@ const Transactions: React.FC = () => {
               </div>
               <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                 <span className="font-bold text-primary font-mono">{retentionRate}%</span>
-                <span>net retention rate</span>
+                <span>savings rate</span>
               </div>
             </div>
             <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
@@ -568,16 +568,16 @@ const Transactions: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Audit Integrity */}
+        {/* Verification Status */}
         <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                Audit Integrity
+                Verification
               </span>
               <span className="flex items-center gap-1 text-primary font-mono text-[10px] font-semibold">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Verified
+                Reconciled
               </span>
             </div>
             <div className="mt-2.5">
@@ -586,7 +586,7 @@ const Transactions: React.FC = () => {
               </div>
               <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                <span>{count} / {count} verified entries</span>
+                <span>{count} / {count} recorded entries</span>
               </div>
             </div>
             <div className="w-full bg-primary/20 h-1 rounded-full mt-3 overflow-hidden">
@@ -604,8 +604,8 @@ const Transactions: React.FC = () => {
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {isLoading
-              ? 'Synchronizing ledger records…'
-              : `${count} recorded transactions in memory • ${hasActiveFilters ? 'Filtered view' : 'All accounts synced'}`}
+              ? 'Loading transactions…'
+              : `${count} recorded transactions • ${hasActiveFilters ? 'Filtered view' : 'All accounts synced'}`}
           </p>
         </div>
         <div className="flex items-center gap-2">

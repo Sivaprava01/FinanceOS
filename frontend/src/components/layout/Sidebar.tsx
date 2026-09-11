@@ -190,7 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </nav>
 
-          {/* Bottom Navigation & Enclave Status */}
+          {/* Bottom Navigation & User Profile */}
           <div className="border-t border-border p-2.5 space-y-1 bg-secondary/30">
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} />
@@ -217,18 +217,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               />
               {!isCollapsed && <span>Log out</span>}
             </button>
-
-            {!isCollapsed && (
-              <div className="mt-2 flex items-center justify-between px-2.5 py-1.5 rounded-md bg-secondary border border-border/60">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-medium text-foreground leading-none">Client Enclave</span>
-                    <span className="text-[9px] text-muted-foreground leading-none mt-0.5">Local Sandbox Active</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </aside>

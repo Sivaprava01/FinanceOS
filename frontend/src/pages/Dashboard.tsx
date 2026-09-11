@@ -9,7 +9,6 @@ import {
   ChevronRight,
   CreditCard,
   Globe,
-  ShieldCheck,
   Landmark,
 } from 'lucide-react'
 import {
@@ -185,23 +184,11 @@ const Dashboard: React.FC = () => {
       {/* ─── Context Ribbon & Header Action Bar ────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-secondary text-foreground text-[11px] font-mono font-medium uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Sovereign Ledger Context
-            </span>
-            <span className="text-[11px] font-mono text-muted-foreground">#ENCLAVE-09</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-bold font-serif tracking-tight text-foreground">
             Financial Overview
           </h1>
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <span>Statement Context: {currentDateFormatted}</span>
-            <span className="text-border">•</span>
-            <span className="inline-flex items-center gap-1 text-primary font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Reconciled via Local Enclave
-            </span>
+          <p className="text-xs text-muted-foreground">
+            As of {currentDateFormatted}
           </p>
         </div>
 
@@ -233,7 +220,7 @@ const Dashboard: React.FC = () => {
           <span>
             {rateStatus === 'live' ? (
               <>
-                All ledger aggregates are converted to <strong>{preferredCurrency}</strong> using live institutional rates
+                All ledger aggregates are converted to <strong>{preferredCurrency}</strong> using live market rates
                 {preferredCurrency !== 'INR' && liveInrRate ? ` (1 ${preferredCurrency} ≈ ₹${liveInrRate.toFixed(2)})` : ''}.
               </>
             ) : rateStatus === 'cached' ? (
@@ -262,7 +249,7 @@ const Dashboard: React.FC = () => {
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-bold">
                   <TrendingUp className="w-3 h-3" />
-                  Liquid &amp; Asset Vault
+                  Liquid &amp; Investments
                 </span>
               </div>
               <div className="pt-1">
@@ -276,7 +263,7 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Net sovereign liquid and illiquid capital consolidated across all reconciled accounts.
+                Consolidated across all your recorded bank accounts and assets.
               </p>
             </div>
 
@@ -287,7 +274,7 @@ const Dashboard: React.FC = () => {
                     <Landmark className="w-4 h-4" />
                   </span>
                   <div>
-                    <span className="text-xs font-medium text-foreground block">Monthly Liabilities Commitment</span>
+                    <span className="text-xs font-medium text-foreground block">Monthly Debt Commitments</span>
                     <span className="text-[10px] text-muted-foreground">
                       {overview.activeLoans || 0} Active Fixed Loan/EMI Facilities
                     </span>
@@ -318,16 +305,16 @@ const Dashboard: React.FC = () => {
                 <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
                   <div>
                     <span className="font-medium text-foreground block">Liquid Bank Balances</span>
-                    <span className="text-[10px] text-muted-foreground">Checking &amp; Savings Nodes</span>
+                    <span className="text-[10px] text-muted-foreground">Checking &amp; Savings Accounts</span>
                   </div>
                   <span className="font-semibold text-foreground tabular-nums">{assetsDual.primary}</span>
                 </div>
                 <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
                   <div>
-                    <span className="font-medium text-foreground block">Active Statement Context</span>
+                    <span className="font-medium text-foreground block">Bank Statements</span>
                     <span className="text-[10px] text-muted-foreground">Imported Accounts</span>
                   </div>
-                  <span className="font-semibold text-primary tabular-nums">Verified</span>
+                  <span className="font-semibold text-primary tabular-nums">Active</span>
                 </div>
               </div>
             </div>

@@ -84,7 +84,7 @@ const Analytics: React.FC = () => {
     const errorObj = aError || cError
     const errorMessage =
       (errorObj as { message?: string })?.message ||
-      'There was an error loading your analytics ledger. Please try again.'
+      'There was an error loading your analytics data. Please try again.'
 
     return (
       <div className="space-y-6">
@@ -242,10 +242,10 @@ const Analytics: React.FC = () => {
               <CardContent className="p-4 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                    Net Retained
+                    Net Savings
                   </span>
                   <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-semibold">
-                    Solvent
+                    Surplus
                   </span>
                 </div>
                 <div className="mt-2.5">
@@ -254,7 +254,7 @@ const Analytics: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                     <PiggyBank className="h-3.5 w-3.5 text-primary" />
-                    <span>Income minus expenditures</span>
+                    <span>Income minus expenses</span>
                   </div>
                 </div>
                 <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
@@ -271,7 +271,7 @@ const Analytics: React.FC = () => {
               <CardContent className="p-4 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                    Savings Ratio
+                    Savings Rate
                   </span>
                   <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px] font-semibold">
                     Target: ≥40%
@@ -283,7 +283,7 @@ const Analytics: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                     <Percent className="h-3.5 w-3.5 text-primary" />
-                    <span>Of gross receipts preserved</span>
+                    <span>Of total income saved</span>
                   </div>
                 </div>
                 <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
@@ -302,18 +302,18 @@ const Analytics: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="font-serif text-base font-bold text-foreground">
-                    Quarterly Reconciliation Comparative
+                    Monthly Comparison
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                    Variance delta: {comparison.previousMonth.label} vs {comparison.currentMonth.label}
+                    Variance: {comparison.previousMonth.label} vs {comparison.currentMonth.label}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Prior Baseline
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Previous Month
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-primary" /> Current Active
+                    <span className="w-2 h-2 rounded-full bg-primary" /> Current Month
                   </span>
                 </div>
               </div>
@@ -323,18 +323,18 @@ const Analytics: React.FC = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-muted/30 text-muted-foreground font-mono uppercase tracking-wider text-[10px] border-b border-border">
-                      <th className="py-2.5 px-4 font-semibold">Metric Dimension</th>
-                      <th className="py-2.5 px-4 text-right font-semibold">Previous Period</th>
-                      <th className="py-2.5 px-4 text-right font-semibold">Current Period</th>
-                      <th className="py-2.5 px-4 text-right font-semibold">Absolute Variance</th>
-                      <th className="py-2.5 px-4 text-right font-semibold">Variance (%)</th>
-                      <th className="py-2.5 px-4 font-semibold">Assessment</th>
+                      <th className="py-2.5 px-4 font-semibold">Metric</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Previous Month</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Current Month</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Difference</th>
+                      <th className="py-2.5 px-4 text-right font-semibold">Change (%)</th>
+                      <th className="py-2.5 px-4 font-semibold">Trend</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {/* Income Row */}
                     <tr className="hover:bg-muted/20 transition-colors">
-                      <td className="py-3 px-4 font-medium text-foreground">Gross Inflow</td>
+                      <td className="py-3 px-4 font-medium text-foreground">Total Income</td>
                       <td className="py-3 px-4 text-right font-mono text-muted-foreground">
                         {format(comparison.previousMonth.income)}
                       </td>
@@ -349,14 +349,14 @@ const Analytics: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          {comparison.comparison.incomeChangePercent >= 0 ? 'Accretive' : 'Contraction'}
+                          {comparison.comparison.incomeChangePercent >= 0 ? 'Increase' : 'Decrease'}
                         </span>
                       </td>
                     </tr>
 
                     {/* Expense Row */}
                     <tr className="hover:bg-muted/20 transition-colors">
-                      <td className="py-3 px-4 font-medium text-foreground">Total Outflow</td>
+                      <td className="py-3 px-4 font-medium text-foreground">Total Expenses</td>
                       <td className="py-3 px-4 text-right font-mono text-muted-foreground">
                         {format(comparison.previousMonth.expenses)}
                       </td>
@@ -371,14 +371,14 @@ const Analytics: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-muted text-muted-foreground border border-border">
-                          {comparison.comparison.expenseChangePercent <= 0 ? 'Controlled' : 'Elevated'}
+                          {comparison.comparison.expenseChangePercent <= 0 ? 'Decrease' : 'Increase'}
                         </span>
                       </td>
                     </tr>
 
                     {/* Savings Row */}
                     <tr className="hover:bg-muted/20 transition-colors">
-                      <td className="py-3 px-4 font-medium text-foreground">Net Position</td>
+                      <td className="py-3 px-4 font-medium text-foreground">Net Savings</td>
                       <td className="py-3 px-4 text-right font-mono text-muted-foreground">
                         {format(comparison.previousMonth.savings)}
                       </td>
@@ -393,7 +393,7 @@ const Analytics: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-primary/10 text-primary border border-primary/20">
-                          Solvent
+                          {comparison.currentMonth.savings >= 0 ? 'Surplus' : 'Deficit'}
                         </span>
                       </td>
                     </tr>
@@ -407,10 +407,10 @@ const Analytics: React.FC = () => {
           <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
             <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
               <CardTitle className="font-serif text-base font-bold text-foreground">
-                Top Counterparties & Merchant Incurrences
+                Top Merchants & Counterparties
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Highest aggregated disbursement volumes in active statement period
+                Highest total spending by merchant across your accounts
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -452,10 +452,10 @@ const Analytics: React.FC = () => {
           <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
             <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
               <CardTitle className="font-serif text-base font-bold text-foreground">
-                Historical Spending Outflow Trajectory
+                Monthly Spending Trend
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Total monthly disbursements plotted over reporting lifecycle
+                Total monthly expenses over time
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
@@ -506,10 +506,10 @@ const Analytics: React.FC = () => {
           <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
             <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
               <CardTitle className="font-serif text-base font-bold text-foreground">
-                Largest Individual Disbursements
+                Largest Individual Expenses
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Highest individual transactions in current ledger cycle
+                Highest individual transactions in current period
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -548,10 +548,10 @@ const Analytics: React.FC = () => {
             <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
               <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
                 <CardTitle className="font-serif text-base font-bold text-foreground">
-                  Category Share Distribution
+                  Category Breakdown
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  Proportional allocation across spending dimensions
+                  Spending distribution by category
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -591,10 +591,10 @@ const Analytics: React.FC = () => {
             <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
               <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
                 <CardTitle className="font-serif text-base font-bold text-foreground">
-                  Spending by Category Volume
+                  Spending by Category
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  Absolute capital consumed per classification
+                  Total amount spent per category
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -700,7 +700,7 @@ const Analytics: React.FC = () => {
             </Card>
             <Card className="border border-border/80 shadow-sm bg-card p-4 text-center space-y-1">
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Net Trajectory
+                Net Savings
               </p>
               <p className={`text-2xl font-bold tabular-nums font-sans ${netSavings >= 0 ? 'text-primary' : 'text-destructive'}`}>
                 {netSavings >= 0 ? '+' : ''}{format(netSavings)}
@@ -711,10 +711,10 @@ const Analytics: React.FC = () => {
           <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
             <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
               <CardTitle className="font-serif text-base font-bold text-foreground">
-                Monthly Outflow Volumetrics
+                Monthly Spending Trend
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Periodic expenditure bars across statement records
+                Monthly expenses across statement records
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">

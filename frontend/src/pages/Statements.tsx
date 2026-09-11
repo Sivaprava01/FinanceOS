@@ -574,18 +574,18 @@ const Statements: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
-              Ingestion Subsystem
+              Statement Management
             </span>
             <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Local Sandbox Active
+              Import Center
             </span>
           </div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
             Statements
           </h1>
           <p className="text-xs text-muted-foreground">
-            Upload and manage your bank statement imports. Processed locally with encrypted hashing.
+            Upload and manage your bank statement imports. Processed safely into structured transactions.
           </p>
         </div>
 
@@ -624,7 +624,7 @@ const Statements: React.FC = () => {
             </div>
             <div>
               <h2 className="font-serif text-sm font-bold text-foreground">
-                Document Ingestion Console
+                Upload Bank Statement
               </h2>
               <p className="text-xs text-muted-foreground">
                 Automatic table extraction for PDF, Excel (.xlsx, .xls), and CSV files
@@ -713,7 +713,7 @@ const Statements: React.FC = () => {
               {/* Security Footnote */}
               <div className="flex items-center gap-1.5 text-muted-foreground pt-2 text-[11px]">
                 <Lock className="h-3 w-3 text-primary" />
-                <span>Client encrypted sandbox. Documents parsed without remote leakage.</span>
+                <span>Secure document parsing. Your statement files are processed safely.</span>
               </div>
             </div>
 
@@ -747,12 +747,12 @@ const Statements: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <CardTitle className="font-serif text-base font-bold text-foreground">
-                {activeTab === 'active' ? 'Active Ingestion Pipeline' : 'Completed Import Archives'}
+                {activeTab === 'active' ? 'Active Imports' : 'Completed Statements'}
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
                 {activeTab === 'active'
                   ? 'Imports currently parsing, pending verification, or requiring credentials'
-                  : 'Permanently reconciled statements linked to ledger records'}
+                  : 'Processed bank statements linked to your transactions'}
               </CardDescription>
             </div>
 
