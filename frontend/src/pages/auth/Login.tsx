@@ -22,9 +22,12 @@ const Login: React.FC = () => {
   const [serverError, setServerError] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const oauthError = searchParams.get('error') === 'google_auth_failed'
-    ? 'Google authentication was cancelled or failed. Please try again.'
-    : ''
+  const oauthError =
+    searchParams.get('error') === 'google_oauth_not_configured'
+      ? 'Google OAuth credentials are not configured on the server. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env or sign in with your email and password.'
+      : searchParams.get('error') === 'google_auth_failed'
+      ? 'Google authentication was cancelled or failed. Please try again.'
+      : ''
 
   const {
     register,

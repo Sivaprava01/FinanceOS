@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -22,9 +22,17 @@ type RegisterFormData = z.infer<typeof registerSchema>
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { register: registerUser } = useAuth()
   const [serverError, setServerError] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const oauthError =
+    searchParams.get('error') === 'google_oauth_not_configured'
+      ? 'Google OAuth credentials are not configured on the server. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env or sign in with your email and password.'
+      : searchParams.get('error') === 'google_auth_failed'
+      ? 'Google authentication was cancelled or failed. Please try again.'
+      : ''
 
   const {
     register,
@@ -68,9 +76,9 @@ const Register: React.FC = () => {
         <CardDescription className="text-xs">Get started with FinanceOS in seconds</CardDescription>
       </CardHeader>
       <CardContent className="pt-2 space-y-4">
-        {serverError && (
+        {(serverError || oauthError) && (
           <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive font-medium">
-            {serverError}
+            {serverError || oauthError}
           </div>
         )}
 
