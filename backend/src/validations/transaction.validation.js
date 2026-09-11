@@ -216,14 +216,19 @@ export const validateImportTransactions = [
 export const validateGetTransactions = [
   query("limit")
     .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage("Limit must be between 1 and 100"),
+    .isInt({ min: 1, max: 1000 })
+    .withMessage("Limit must be between 1 and 1000"),
   query("skip").optional().isInt({ min: 0 }).withMessage("Skip must be 0 or greater"),
   query("fromDate").optional().isISO8601().withMessage("From date must be in ISO 8601 format"),
   query("toDate").optional().isISO8601().withMessage("To date must be in ISO 8601 format"),
   query("merchant").optional().isString().trim().withMessage("Merchant must be a string"),
   query("category").optional().isString().trim().withMessage("Category must be a string"),
   query("type").optional().isString().trim().withMessage("Type must be a string"),
+  query("search").optional().isString().trim().withMessage("Search must be a string"),
+  query("minAmount").optional().isFloat({ min: 0 }).withMessage("Min amount must be a number >= 0"),
+  query("maxAmount").optional().isFloat({ min: 0 }).withMessage("Max amount must be a number >= 0"),
+  query("statementId").optional().isMongoId().withMessage("Invalid statement ID"),
+  query("source").optional().isIn(["manual", "statement"]).withMessage("Invalid source"),
   handleValidationErrors,
 ];
 
