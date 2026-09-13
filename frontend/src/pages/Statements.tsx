@@ -591,12 +591,12 @@ const Statements: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Main Side-by-Side Grid (50/50 Split) ────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      {/* ─── Main Side-by-Side Grid (50/50 Equal Height) ─────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* ─── Left Column: Upload Bank Statement (50%) ───────────────────── */}
-        <div className="space-y-4">
-          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col gap-3">
+        <div className="flex flex-col h-full">
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden flex flex-col h-full">
+            <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col gap-3 shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
@@ -631,20 +631,20 @@ const Statements: React.FC = () => {
               </div>
             </div>
 
-            <CardContent className="p-5 sm:p-6">
+            <CardContent className="p-5 sm:p-6 flex-1 flex flex-col min-h-[380px]">
               {/* Dropzone Area */}
               <div
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                className={`relative group rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 cursor-pointer ${
+                className={`relative group rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 cursor-pointer flex-1 flex flex-col justify-center items-center ${
                   dragActive
                     ? 'border-primary bg-primary/5 scale-[1.005]'
                     : 'border-border/80 hover:border-primary/50 bg-muted/10'
                 }`}
               >
-                <div className="flex flex-col items-center max-w-sm mx-auto space-y-3">
+                <div className="flex flex-col items-center max-w-sm mx-auto space-y-3 w-full">
                   <div className="w-12 h-12 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
                     <FileSpreadsheet className="h-6 w-6" />
                   </div>
@@ -724,9 +724,9 @@ const Statements: React.FC = () => {
         </div>
 
         {/* ─── Right Column: Active Imports / Completed History (50%) ─────── */}
-        <div className="space-y-4">
-          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
-            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+        <div className="flex flex-col h-full">
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden flex flex-col h-full">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20 shrink-0">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1.5">
                   <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 w-fit">
@@ -794,21 +794,21 @@ const Statements: React.FC = () => {
               </div>
             </CardHeader>
 
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex-1 flex flex-col overflow-hidden min-h-[380px]">
               {isLoading ? (
-                <div className="p-5 space-y-3">
+                <div className="p-5 space-y-3 flex-1">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/40" />
                   ))}
                 </div>
               ) : error ? (
-                <div className="p-8 text-center">
+                <div className="p-8 text-center flex-1 flex items-center justify-center">
                   <p className="text-sm text-destructive font-medium">
                     Failed to load statement records. Please refresh.
                   </p>
                 </div>
               ) : filteredStatements.length === 0 ? (
-                <div className="p-10">
+                <div className="p-8 flex-1 flex items-center justify-center">
                   <EmptyState
                     icon={FileText}
                     title={
@@ -836,7 +836,7 @@ const Statements: React.FC = () => {
                   />
                 </div>
               ) : (
-                <div className="divide-y divide-border/60">
+                <div className="divide-y divide-border/60 flex-1 overflow-y-auto max-h-[480px]">
                   {filteredStatements.map((statement: Statement) => {
                     const statusInfo = STATUS_STYLES[statement.status] || STATUS_STYLES.Uploaded
                     const isPasswordModalOpen = passwordStatementId === statement._id
