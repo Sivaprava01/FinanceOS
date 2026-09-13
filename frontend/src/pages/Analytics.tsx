@@ -305,9 +305,9 @@ const Analytics: React.FC = () => {
             Reporting Currency: <strong>{currency || preferredCurrency}</strong> • Multi-currency values converted at current rates.
           </span>
         </div>
-        {liveInrRate && (
+        {preferredCurrency !== 'INR' && liveInrRate && (
           <span className="font-mono text-[11px] text-muted-foreground">
-            1 USD ≈ ₹{liveInrRate.toFixed(2)}
+            1 {preferredCurrency} ≈ ₹{liveInrRate.toFixed(2)}
           </span>
         )}
       </div>

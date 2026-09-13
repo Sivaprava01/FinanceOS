@@ -217,7 +217,7 @@ export function useDualCurrencyConversion() {
 
   const isLive = rateStatus === 'live'
   const isCachedStatus = rateStatus === 'cached'
-  const liveInrRate = ratesData?.rates?.['INR'] ?? null
+  const liveInrRate = prefUpper !== 'INR' ? (ratesData?.rates?.['INR'] ?? null) : null
 
   // Safe development-only diagnostic logging
   useEffect(() => {
