@@ -21,7 +21,6 @@
 
 import fs from "fs";
 import { Readable } from "stream";
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import csv from "csv-parser";
 import XLSX from "xlsx";
 import ApiError from "../utils/ApiError.js";
@@ -31,13 +30,14 @@ import { detectStatementCurrency } from "../utils/currency.js";
 // ─── PDF Parser ───────────────────────────────────────────────────────────────
 
 /**
- * Extracts text from PDF file using PDF.js with direct password support.
+ * Extracts structured text and item coordinates from PDF file using PDF.js with direct password support.
+ * Groups items into horizontal lines based on visual Y-coordinate alignment.
  *
  * @param {Buffer} fileBuffer
  * @param {string} password
- * @returns {Promise<string>}
+ * @returns {Promise<{ pages: Array, fullText: string }>}
  */
-const loadPDFTextWithPDFJS = async (fileBuffer, password = "") => {
+const loadPDFStructuredDataWithPDFJS = async (fileBuffer, password = "") => {
   let PDFJS;
   try {
     const imported = await import("pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js");
@@ -53,29 +53,78 @@ const loadPDFTextWithPDFJS = async (fileBuffer, password = "") => {
   }
 
   const doc = await PDFJS.getDocument(param);
-  let text = "";
+  const pages = [];
+  let fullText = "";
 
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const textContent = await page.getTextContent();
-    let lastY = null;
+    const rawItems = [];
+
     for (const item of textContent.items) {
-      if (lastY === item.transform[5] || !lastY) {
-        text += item.str;
-      } else {
-        text += "\n" + item.str;
-      }
-      lastY = item.transform[5];
+      const str = item.str;
+      if (!str || str.trim().length === 0) continue;
+      const x = item.transform ? item.transform[4] : 0;
+      const y = item.transform ? item.transform[5] : 0;
+      const width = item.width || 0;
+      const height = item.height || 0;
+      rawItems.push({ str, x, y, width, height });
     }
-    text += "\n\n";
+
+    // Cluster items into horizontal lines based on Y proximity (within 3px)
+    const lines = [];
+    rawItems.sort((a, b) => b.y - a.y || a.x - b.x);
+
+    for (const item of rawItems) {
+      let matchedLine = null;
+      for (const line of lines) {
+        if (Math.abs(line.y - item.y) <= 3.0) {
+          matchedLine = line;
+          break;
+        }
+      }
+      if (matchedLine) {
+        matchedLine.items.push(item);
+      } else {
+        lines.push({
+          y: item.y,
+          items: [item],
+        });
+      }
+    }
+
+    // Sort items horizontally by X coordinate ascending
+    for (const line of lines) {
+      line.items.sort((a, b) => a.x - b.x);
+      let lineStr = "";
+      let prevItem = null;
+      for (const it of line.items) {
+        if (prevItem) {
+          const gap = it.x - (prevItem.x + prevItem.width);
+          if (gap > 1.5) {
+            lineStr += " ";
+          }
+        }
+        lineStr += it.str;
+        prevItem = it;
+      }
+      line.text = lineStr.trim();
+    }
+
+    // Sort lines from top of page to bottom
+    lines.sort((a, b) => b.y - a.y);
+    pages.push({ pageNumber: i, lines, rawItems });
+
+    const pageText = lines.map((l) => l.text).filter(Boolean).join("\n");
+    fullText += pageText + "\n\n";
   }
 
   doc.destroy();
-  return text;
+  return { pages, fullText };
 };
 
 /**
- * Extracts text from PDF file and parses transactions.
+ * Extracts text from PDF file and parses transactions using coordinate-aware 2D extraction.
  *
  * @param {string} filePath - Path to PDF file
  * @param {string} password - PDF password (if encrypted)
@@ -85,10 +134,10 @@ const loadPDFTextWithPDFJS = async (fileBuffer, password = "") => {
 const parsePDF = async (filePath, password = "") => {
   try {
     const fileBuffer = fs.readFileSync(filePath);
-    let text = "";
+    let pdfData = null;
 
     try {
-      text = await loadPDFTextWithPDFJS(fileBuffer, password);
+      pdfData = await loadPDFStructuredDataWithPDFJS(fileBuffer, password);
     } catch (parseErr) {
       const errMsg = (parseErr.message || String(parseErr)).toLowerCase();
       const errName = parseErr.name || "";
@@ -110,15 +159,23 @@ const parsePDF = async (filePath, password = "") => {
       throw parseErr;
     }
 
-    if (!text || text.trim().length === 0) {
+    const { pages, fullText } = pdfData;
+
+    if (!fullText || fullText.trim().length === 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "PDF does not contain extractable text");
     }
 
-    const transactions = extractTransactionsFromText(text);
+    // Attempt coordinate-aware 2D structured extraction first
+    let transactions = extractTransactionsFromStructuredPDF(pages);
+
+    // Fall back to robust block text extraction if structured returned no rows
+    if (!transactions || transactions.length === 0) {
+      transactions = extractTransactionsFromText(fullText);
+    }
 
     if (transactions.length === 0) {
       if (process.env.NODE_ENV !== "production") {
-        const sample = text.slice(0, 1500).replace(/\n/g, " ↵ ");
+        const sample = fullText.slice(0, 1500).replace(/\n/g, " ↵ ");
         console.log("[Parser] Extracted text sample (first 1500 chars):", sample);
       }
       throw new ApiError(
@@ -127,11 +184,18 @@ const parsePDF = async (filePath, password = "") => {
       );
     }
 
-    const detected = detectStatementCurrency(text);
+    const detected = detectStatementCurrency(fullText);
     transactions.detectedCurrency = detected.currency;
     transactions.isAmbiguous = detected.isAmbiguous;
     transactions.confidence = detected.confidence;
     transactions.detectedSources = detected.detectedSources;
+
+    const period = extractStatementPeriod(fullText, transactions);
+    transactions.statementPeriod = period.statementPeriod;
+    transactions.statementMonth = period.statementMonth;
+    transactions.statementYear = period.statementYear;
+    transactions.startDate = period.startDate;
+    transactions.endDate = period.endDate;
 
     return transactions;
   } catch (err) {
@@ -293,7 +357,14 @@ const parseCSV = async (filePath) => {
     transactions.confidence = detected.confidence;
     transactions.detectedSources = detected.detectedSources;
 
-    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
+    const period = extractStatementPeriod(fileContent, transactions);
+    transactions.statementPeriod = period.statementPeriod;
+    transactions.statementMonth = period.statementMonth;
+    transactions.statementYear = period.statementYear;
+    transactions.startDate = period.startDate;
+    transactions.endDate = period.endDate;
+
+    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}, period: ${period.statementPeriod || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -411,7 +482,7 @@ const parseExcel = async (filePath) => {
     }
 
     if (!headerFound) {
-      console.warn(`[Excel Parser] Could not detect header row, trying row 0`);
+      console.warn("[Excel Parser] Could not detect header row, trying row 0");
       headerRowIdx = 0;
     }
 
@@ -452,14 +523,26 @@ const parseExcel = async (filePath) => {
     transactions.confidence = detected.confidence;
     transactions.detectedSources = detected.detectedSources;
 
-    console.log(`[Excel Parser] Extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
+    const period = extractStatementPeriod(sampleText, transactions);
+    transactions.statementPeriod = period.statementPeriod;
+    transactions.statementMonth = period.statementMonth;
+    transactions.statementYear = period.statementYear;
+    transactions.startDate = period.startDate;
+    transactions.endDate = period.endDate;
+
+    console.log(`[Excel Parser] Extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}, period: ${period.statementPeriod || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    console.error(`[Excel Parser] Error parsing Excel:`, err.message);
+    console.error("[Excel Parser] Error parsing Excel:", err.message);
     throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Failed to parse Excel file: " + err.message);
   }
 };
+
+// ─── Constants & Regex ────────────────────────────────────────────────────────
+
+const DATE_MASK_RE = /\b(?:\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}|\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})\b/gi;
+const STRICT_AMOUNT_PATTERN = /(?:[-+])?(?<![.\d])(?:\d{1,3}(?:,\d{2,3})*|\d+)\.\d{2}(?![.\d])(?:\s*\((?:Dr|Cr)\)|\s*(?:Dr|Cr))?/gi;
 
 // ─── Row Normalization ─────────────────────────────────────────────────────────
 
@@ -472,7 +555,7 @@ const parseExcel = async (filePath) => {
  * @param {string} source - "CSV" or "XLSX"
  * @returns {object|null} Normalized transaction or null if invalid
  */
-const normalizeRow = (row, source) => {
+const normalizeRow = (row, _source) => {
   if (!row || typeof row !== "object") return null;
 
   const keys = Object.keys(row);
@@ -610,7 +693,8 @@ const normalizeRow = (row, source) => {
         } else if (typeKey) {
           type = parseType(row[typeKey], rawAmt);
         } else {
-          type = "Debit";
+          const detected = detectCategoryAndType(`${description} ${merchantRaw}`, rawAmt);
+          type = detected.type;
         }
       }
     }
@@ -620,48 +704,498 @@ const normalizeRow = (row, source) => {
     return null;
   }
 
+  const detectedInfo = detectCategoryAndType(`${description} ${merchantRaw}`, type === "Credit" ? amount : -amount);
+  const cleanMerchant = extractCleanMerchant(merchantRaw !== "Unknown" ? merchantRaw : description);
+
   return {
     date,
     amount: Math.abs(amount),
     type,
-    merchant: merchant.substring(0, 100),
+    category: detectedInfo.category,
+    merchant: cleanMerchant.substring(0, 100),
     description: description.substring(0, 255),
     originalDate: date,
     originalAmount: Math.abs(amount),
     originalType: type,
-    originalMerchant: merchant.substring(0, 100),
+    originalMerchant: cleanMerchant.substring(0, 100),
     originalDescription: description.substring(0, 255),
   };
 };
 
-// ─── Text Extraction (PDF) ────────────────────────────────────────────────────
+// ─── Text Extraction Helpers ──────────────────────────────────────────────────
 
 /**
- * Extracts transactions from PDF text using pattern matching.
+ * Detects transaction type (Credit vs Debit) and auto-infers default category.
  *
- * Strategy: transaction-block assembly.
+ * @param {string} text - Transaction narration or row text
+ * @param {number|null} explicitAmount - Numerical amount if negative/positive signed
+ * @returns {{ type: "Credit"|"Debit", category: string }}
+ */
+const detectCategoryAndType = (text, explicitAmount = null) => {
+  const lower = String(text || "").toLowerCase();
+
+  // 1. Explicit Dr/Cr indicators
+  const isExplicitDr =
+    /\((?:dr)\)|\bdr\b|\bdr\./i.test(text) ||
+    (explicitAmount !== null && explicitAmount < 0);
+  const isExplicitCr =
+    /\((?:cr)\)|\bcr\b|\bcr\./i.test(text) ||
+    (explicitAmount !== null && explicitAmount > 0 && /\bcr\b/i.test(text));
+
+  // 2. Comprehensive Credit / Inflow keywords (including Indian payroll 'sal', 'payment fr', cashback, etc.)
+  const creditKeywords =
+    /(?:\b(?:sal|salary|payroll|deposit|deposited|credit|credited|received|refund|refunded|interest|int\.pd|int pd|dividend|inward|neft-cr|imps-cr|rtgs-cr|ach-cr|upi-cr|reversal|bonus|gift|reimbursement|settlement|inflow|payment\s+fr(?:om)?|transferred\s+fr(?:om)?|transfer\s+fr(?:om)?|received\s+fr(?:om)?|credit\s+fr(?:om)?|cr\s+trxn|towards\s+tr)\b|(?:bhim)?cashba(?:ck)?|cash\s*back|rewards?)/i;
+
+  // 3. Comprehensive Debit / Outflow keywords
+  const debitKeywords =
+    /\b(?:debit|debited|withdrawal|withdrawn|wdl|pos|ecom|charge|charges|fee|fees|tax|gst|paid|bill|purchase|outward|transfer to|to transfer|outflow|payment\s+to|pay\s+to|sent\s+using)\b/i;
+
+  let type = "Debit";
+  if (isExplicitCr) {
+    type = "Credit";
+  } else if (isExplicitDr) {
+    type = "Debit";
+  } else if (creditKeywords.test(lower)) {
+    type = "Credit";
+  } else if (debitKeywords.test(lower)) {
+    type = "Debit";
+  } else if (/\bpayment\b/i.test(lower) && !/\bpayment\s+fr(?:om)?\b/i.test(lower)) {
+    type = "Debit";
+  }
+
+  // 4. Smart Category Inference
+  let category = "Uncategorized";
+  if (type === "Credit") {
+    if (
+      /\b(?:sal|salary|payroll|cognizant|tcs|infosys|wipro|accenture|hcl|tech mahindra|capgemini|amazon|google|microsoft)\b/i.test(
+        lower
+      ) &&
+      !/\b(?:shopping|bill|purchase)\b/i.test(lower)
+    ) {
+      category = "Salary";
+    } else if (/\b(?:interest|int\.pd|int pd)\b/i.test(lower)) {
+      category = "Interest Income";
+    } else if (/\bdividend\b/i.test(lower)) {
+      category = "Dividend";
+    } else if (/\brefund\b/i.test(lower)) {
+      category = "Refund";
+    } else if (/\bcashback\b/i.test(lower)) {
+      category = "Investment Returns";
+    } else {
+      category = "Other Income";
+    }
+  } else {
+    if (
+      /\b(?:zomato|swiggy|dining|restaurant|cafe|starbucks|mcdonald|subway|pizza|burger|food|kfc|dominos)\b/i.test(
+        lower
+      ) &&
+      !/\binstamart\b/i.test(lower)
+    ) {
+      category = "Dining";
+    } else if (
+      /\b(?:instamart|blinkit|zepto|grocery|groceries|supermarket|dmart|bigbasket|nature's basket|spencer|reliance fresh)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Groceries";
+    } else if (
+      /\b(?:uber|ola|rapido|metro|fuel|petrol|diesel|fastag|irctc|redbus|flight|indigo|air india)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Transportation";
+    } else if (
+      /\b(?:netflix|spotify|prime|hotstar|youtube|disney|cinema|movie|bookmyshow|pvr|inox)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Entertainment";
+    } else if (
+      /\b(?:amazon|flipkart|myntra|ajio|shopping|zara|h&m|lifestyle|shoppers stop|meesho|nykaa)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Shopping";
+    } else if (
+      /\b(?:electricity|water|broadband|wifi|airtel|jio|vi|vodafone|bescom|tneb|gas|cylinder|utility|utilities|billdesk)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Utilities";
+    } else if (
+      /\b(?:pharmacy|apollo|medplus|pharmeasy|1mg|hospital|clinic|doctor|health|care|lab)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Healthcare";
+    } else if (
+      /\b(?:school|college|university|coursera|udemy|education|tuition|fee|fees)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Education";
+    } else if (
+      /\b(?:lic|insurance|hdfc life|icici pru|max life|star health|care insurance)\b/i.test(
+        lower
+      )
+    ) {
+      category = "Insurance";
+    } else if (/\b(?:rent|maintenance|society|landlord|housing)\b/i.test(lower)) {
+      category = "Rent";
+    } else if (/\b(?:emi|loan|repayment|bajaj finserv|credit card debt)\b/i.test(lower)) {
+      category = "EMI";
+    } else {
+      category = "Other Expense";
+    }
+  }
+
+  return { type, category };
+};
+
+/**
+ * Helper to clean up merchant names from common Indian & International statement narrations.
  *
- * pdf-parse outputs each field of a transaction on its own line — date,
- * merchant, UPI reference lines, and amounts are all separate. To handle
- * this, the parser groups consecutive lines into "blocks" where each block
- * begins with a line that contains a date token. All lines up to the next
- * date-containing line form one transaction block.
+ * @param {string} rawNarration
+ * @returns {string}
+ */
+const extractCleanMerchant = (rawNarration) => {
+  if (!rawNarration || typeof rawNarration !== "string") return "Unknown";
+  let s = rawNarration.trim();
+  if (s.length === 0) return "Unknown";
+
+  // Strip leading row numbers and dates
+  s = s.replace(/^\d+\s+/, "").replace(DATE_MASK_RE, "").trim();
+
+  // Strip trailing amounts and running balance
+  s = s.replace(STRICT_AMOUNT_PATTERN, "").trim();
+  s = s.replace(/\s+\d+(?:,\d{2,3})*\.\d{2}.*$/, "").trim();
+
+  // 1. UPI: UPI/<Merchant or Ref>/<VPA or Merchant>/...
+  const upiParts = s.match(/UPI(?:\/|-)([^/\-]+)(?:(?:\/|-)([^/\-]+))?(?:(?:\/|-)([^/\-]+))?/i);
+  if (upiParts) {
+    let part1 = (upiParts[1] || "").trim();
+    let part2 = (upiParts[2] || "").trim();
+    let part3 = (upiParts[3] || "").trim();
+
+    let cand = part1;
+    if (/^\d+$/.test(part1) || part1.length <= 2) {
+      cand = part2;
+    }
+    if (cand.includes("@") && part1 && !/^\d+$/.test(part1) && !part1.includes("@")) {
+      cand = part1;
+    } else if (cand.includes("@") && part3 && !/^\d+$/.test(part3) && !part3.includes("@")) {
+      cand = part3;
+    }
+    cand = cand.replace(/@[a-zA-Z0-9._-]+$/, "").trim();
+    if (cand.length > 1 && !/^\d+$/.test(cand)) {
+      return cand.substring(0, 100);
+    }
+  }
+
+  // 2. POS / Card Swipe pattern
+  const posMatch = s.match(/(?:POS|ECOM|SWIPE|CARD)\s+(?:\d+X+\d+\s+)?([A-Za-z0-9\s._&-]+)/i);
+  if (posMatch && posMatch[1]) {
+    let cand = posMatch[1]
+      .split(/\s+(?:BANGALORE|MUMBAI|DELHI|HYDERABAD|CHENNAI|PUNE|KOLKATA|IN|IND)\b/i)[0]
+      .trim();
+    cand = cand.replace(/\s+\d+.*$/, "").trim();
+    if (cand.length > 1) {
+      return cand.substring(0, 100);
+    }
+  }
+
+  // 3. NEFT / RTGS / IMPS pattern
+  const transferMatch = s.match(/(?:NEFT|RTGS|IMPS)(?:-|\/)[A-Za-z0-9]+(?:-|\/)([A-Za-z0-9\s._&-]+)/i);
+  if (transferMatch && transferMatch[1]) {
+    let cand = transferMatch[1].trim();
+    cand = cand.split(/-(?:\s*[A-Z0-9\s]+-\d+)?/)[0].trim();
+    const salSubMatch = cand.match(/^([A-Za-z0-9\s&._]+?)(?:\s+(?:Sal|Salary)\b.*)?$/i);
+    if (salSubMatch && salSubMatch[1]) {
+      return salSubMatch[1].trim().substring(0, 100);
+    }
+    return cand.substring(0, 100);
+  }
+
+  // 4. CC BillPay
+  if (/CC\s*BillPay/i.test(s) || /BIL\/INFT/i.test(s)) {
+    return "Credit Card BillPay";
+  }
+
+  // 5. ACH pattern
+  const achMatch = s.match(/ACH\s+[A-Z]-\s*([A-Za-z0-9\s._&-]+)/i);
+  if (achMatch && achMatch[1]) {
+    let cand = achMatch[1].replace(/\s+\d+.*$/, "").trim();
+    return cand.substring(0, 100);
+  }
+
+  // First line clean
+  const firstLine = s.split("\n")[0].replace(/^\d+\s+/, "").trim();
+  return firstLine.substring(0, 100) || "Unknown";
+};
+
+/**
+ * Coordinate-aware 2D PDF Table Extractor.
+ * Handles:
+ * - Kotak Bank 6-7 column format with multi-dates (Txn Date + Value Date on same line).
+ * - ICICI Bank format with separate Withdrawal (Dr), Deposit (Cr), and Balance columns.
+ * - Multi-line transaction narration without breaking blocks.
+ * - Robust column X-coordinate alignment across single-line & multi-line headers.
+ * - Mathematical Balance continuity verification (rowBalance - prevBalance).
  *
- * Within each block:
- *   - The date is extracted from the first line (stripping any leading
- *     serial-number digits, e.g. "106.07.2026" → "06.07.2026").
- *   - The merchant is the next non-empty line after the date line.
- *   - The amounts line is the last line of the block (amounts are
- *     concatenated without spaces, e.g. "899.002510.30").
- *   - The last amount is treated as the closing balance; the first is the
- *     transaction amount.
- *   - Debit vs Credit is determined by whether the deposit column is
- *     populated — detected via the UPI/narration line keywords.
- *
- * Date formats supported (all separator variants):
- *   DD.MM.YYYY  DD/MM/YYYY  DD-MM-YYYY  DD.MM.YY  DD/MM/YY
- *   YYYY-MM-DD  (ISO)
- *   DD MMM YYYY  DD MMM YY  (e.g. "10 Jul 2025")
+ * @param {Array} pages - Pages array from loadPDFStructuredDataWithPDFJS
+ * @returns {Array} Extracted transaction objects
+ */
+const extractTransactionsFromStructuredPDF = (pages) => {
+  const isDev = process.env.NODE_ENV !== "production";
+  if (!pages || pages.length === 0) return [];
+
+  // Match date at line start or after serial number (e.g. "1  02/09/2026" or "02/09/2026" or "102.09.2026")
+  const ROW_START_DATE_RE = /(?:^|\s|\d{1,4})(?:(\d{4}[/\-.]\d{2}[/\-.]\d{2})|(\d{1,2}[/\-.](?:0[1-9]|1[0-2])[/\-.]\d{2,4})|(\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4}))/i;
+
+  // Scan all pages to locate global column centers for Withdrawal, Deposit, and Balance
+  let withdrawalColX = null;
+  let depositColX = null;
+  let balanceColX = null;
+  let isKotakLayout = false;
+
+  for (const page of pages) {
+    for (const it of page.rawItems || []) {
+      const str = (it.str || "").toLowerCase().trim();
+      if (
+        str === "withdrawal" ||
+        str === "withdrawals" ||
+        str === "withdrawal amount" ||
+        str === "withdrawal amount (inr)" ||
+        str === "amt debited" ||
+        (str.includes("withdrawal") && !withdrawalColX)
+      ) {
+        withdrawalColX = it.x + (it.width || 0) / 2;
+      }
+      if (
+        str === "deposit" ||
+        str === "deposits" ||
+        str === "deposit amount" ||
+        str === "deposit amount (inr)" ||
+        str === "amt credited" ||
+        (str.includes("deposit") && !depositColX)
+      ) {
+        depositColX = it.x + (it.width || 0) / 2;
+      }
+      if (str === "balance" || str === "balance (inr)" || (str.includes("balance") && !balanceColX)) {
+        balanceColX = it.x + (it.width || 0) / 2;
+      }
+      if (str.includes("value date") || (str.includes("debit/credit") && str.includes("chq"))) {
+        isKotakLayout = true;
+      }
+    }
+    if (withdrawalColX && depositColX) break;
+  }
+
+  const transactions = [];
+  let runningPrevBalance = null;
+
+  for (const page of pages) {
+    const lines = page.lines || [];
+    if (lines.length === 0) continue;
+
+    // Process table lines on this page
+    const pageRows = [];
+    let currentRow = null;
+
+    for (const line of lines) {
+      const text = line.text.trim();
+      if (!text) continue;
+
+      // Skip repeated page header / footer noise
+      const lower = text.toLowerCase();
+      if (
+        lower.startsWith("page ") ||
+        lower.includes("statement of account") ||
+        lower.includes("statement of transactions") ||
+        lower.includes("generated on") ||
+        lower.includes("opening balance") ||
+        lower.includes("closing balance:") ||
+        lower.includes("end of statement") ||
+        lower.includes("cheque number") ||
+        (lower.includes("withdrawal") && lower.includes("deposit")) ||
+        lower.startsWith("total ")
+      ) {
+        continue;
+      }
+
+      // Check if line begins a new transaction row
+      const firstItem = line.items[0];
+      const hasDateMatch = text.match(ROW_START_DATE_RE);
+      const isDateAtStart =
+        hasDateMatch &&
+        (!firstItem ||
+          firstItem.x < 220 ||
+          /^\d{1,4}$/.test(firstItem.str.trim()) ||
+          /^\d{1,2}[/\-.]/.test(firstItem.str.trim()));
+
+      if (isDateAtStart) {
+        if (currentRow) {
+          pageRows.push(currentRow);
+        }
+        currentRow = {
+          startLine: line,
+          lines: [line],
+          items: [...(line.items || [])],
+          dateRaw: hasDateMatch[1] || hasDateMatch[2] || hasDateMatch[3],
+        };
+      } else if (currentRow) {
+        // Multi-line continuation for active transaction row
+        currentRow.lines.push(line);
+        if (line.items) {
+          currentRow.items.push(...line.items);
+        }
+      }
+    }
+
+    if (currentRow) {
+      pageRows.push(currentRow);
+    }
+
+    // Convert row units to normalized transactions
+    for (const rowUnit of pageRows) {
+      const allText = rowUnit.lines.map((l) => l.text).join(" ");
+      const date = parseDate(rowUnit.dateRaw);
+      if (!date) continue;
+
+      // Identify numerical items in rowUnit.items with exact amount format
+      const numItems = [];
+      for (const it of rowUnit.items || []) {
+        const cleanedStr = (it.str || "").replace(/,/g, "").trim();
+        if (/^\d+\.\d{2}$/.test(cleanedStr)) {
+          const val = parseFloat(cleanedStr);
+          if (!isNaN(val) && val > 0) {
+            numItems.push({
+              str: cleanedStr,
+              value: val,
+              x: it.x,
+              centerX: it.x + (it.width || 0) / 2,
+            });
+          }
+        }
+      }
+
+      let txAmount = null;
+      let txType = "Debit";
+      let rowBalance = null;
+
+      // 1. Column coordinate-based extraction
+      if (withdrawalColX && depositColX && numItems.length > 0) {
+        if (numItems.length >= 2) {
+          // Last number in row is the running balance
+          const lastNum = numItems[numItems.length - 1];
+          const primaryNum = numItems[numItems.length - 2];
+          rowBalance = lastNum.value;
+          txAmount = primaryNum.value;
+
+          const distWithdrawal = Math.abs(primaryNum.centerX - withdrawalColX);
+          const distDeposit = Math.abs(primaryNum.centerX - depositColX);
+          if (distDeposit < distWithdrawal) {
+            txType = "Credit";
+          } else {
+            txType = "Debit";
+          }
+        } else if (numItems.length === 1) {
+          txAmount = numItems[0].value;
+          const distWithdrawal = Math.abs(numItems[0].centerX - withdrawalColX);
+          const distDeposit = Math.abs(numItems[0].centerX - depositColX);
+          if (distDeposit < distWithdrawal) {
+            txType = "Credit";
+          } else {
+            txType = "Debit";
+          }
+        }
+      }
+
+      // Fallback if no coordinate match
+      if (!txAmount) {
+        const textWithoutDates = allText.replace(DATE_MASK_RE, " __DATE__ ");
+        const amountMatches = textWithoutDates.match(STRICT_AMOUNT_PATTERN) || [];
+        const amounts = [];
+
+        for (const m of amountMatches) {
+          const lowerM = m.toLowerCase();
+          const isExplicitDr = lowerM.includes("(dr)") || lowerM.endsWith("dr") || m.startsWith("-");
+          const isExplicitCr = lowerM.includes("(cr)") || lowerM.endsWith("cr") || m.startsWith("+");
+          const num = cleanAmount(m);
+          if (num !== null && num > 0) {
+            amounts.push({
+              value: num,
+              isExplicitDr,
+              isExplicitCr,
+              rawStr: m,
+            });
+          }
+        }
+
+        if (amounts.length > 0) {
+          const primaryAmt = amounts[0];
+          txAmount = primaryAmt.value;
+          if (amounts.length >= 2) {
+            rowBalance = amounts[amounts.length - 1].value;
+          }
+          if (primaryAmt.isExplicitCr) {
+            txType = "Credit";
+          } else if (primaryAmt.isExplicitDr) {
+            txType = "Debit";
+          } else {
+            const detected = detectCategoryAndType(allText);
+            txType = detected.type;
+          }
+        }
+      }
+
+      if (!txAmount || isNaN(txAmount) || txAmount <= 0) continue;
+
+      // 2. Mathematical Balance Continuity Verification (Mathematical Invariant)
+      if (runningPrevBalance !== null && rowBalance !== null) {
+        const diff = rowBalance - runningPrevBalance;
+        if (Math.abs(diff - txAmount) < 0.15 || diff > 0.05) {
+          // Balance increased -> 100% Credit (Income)
+          txType = "Credit";
+        } else if (Math.abs(diff + txAmount) < 0.15 || diff < -0.05) {
+          // Balance decreased -> 100% Debit (Expense)
+          txType = "Debit";
+        }
+      }
+
+      if (rowBalance !== null) {
+        runningPrevBalance = rowBalance;
+      }
+
+      const detected = detectCategoryAndType(allText, txType === "Credit" ? txAmount : -txAmount);
+      const merchant = extractCleanMerchant(allText);
+
+      transactions.push({
+        date,
+        amount: txAmount,
+        type: txType,
+        category: detected.category,
+        merchant,
+        description: allText.substring(0, 255),
+        originalDate: date,
+        originalAmount: txAmount,
+        originalType: txType,
+        originalMerchant: merchant,
+        originalDescription: allText.substring(0, 255),
+      });
+    }
+  }
+
+  if (isDev) {
+    console.log(`[Structured PDF Parser] Extracted ${transactions.length} transactions across ${pages.length} pages`);
+  }
+
+  return transactions;
+};
+
+/**
+ * Fallback Text-based Transaction Extractor.
+ * Supports multi-date lines without premature block truncation.
  *
  * @param {string} text - Raw text from PDF
  * @returns {Array} Array of transactions
@@ -669,57 +1203,29 @@ const normalizeRow = (row, source) => {
 const extractTransactionsFromText = (text) => {
   const isDev = process.env.NODE_ENV !== "production";
 
-  // DATE_ANYWHERE — matches a date embedded anywhere in a line.
-  //
-  // This PDF has lines like "1924.07.2026" (serial "19" fused to date "24.07.2026").
-  // We match broadly and then strip any leading serial digits in the extraction step.
-  //
-  // Match priority:
-  //   1. YYYY.MM.DD / YYYY-MM-DD / YYYY/MM/DD  (year 1900-2099)
-  //   2. DD.MM.YYYY / DD-MM-YYYY / DD/MM/YYYY  (day 01-31, month 01-12)
-  //   3. DD MMM YYYY  (word-month)
+  // Matches a date anywhere in a line
   const DATE_ANYWHERE =
-    /((?:19|20)\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2}|(?:0[1-9]|[12]\d|3[01])[\/\-\.](?:0[1-9]|1[0-2])[\/\-\.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
-
-  // Matches a currency amount with mandatory decimal and exactly 2 decimal places.
-  // \d+ (not \d{1,3}) so that "5000.00" is captured whole, not as "000.00".
-  // Handles comma-formatted numbers: 1,24,550.00 → 124550.00
-  // Handles fused amounts: "5000.007460.30" → ["5000.00", "7460.30"]
-  const AMOUNT_RE = /\d+(?:,\d{2,3})*\.\d{2}/g;
+    /((?:19|20)\d{2}[/\-.]\d{2}[/\-.]\d{2}|(?:0[1-9]|[12]\d|3[01])[/\-.](?:0[1-9]|1[0-2])[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/;
 
   const rawLines = text
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  // ── Step 1: Identify which lines contain a date ───────────────────────────
-  // A "date line" is any line where a date token can be extracted.
-  // We record the line index so we can group everything between two date
-  // lines into a single transaction block.
+  // Identify line indices where a new transaction starts
   const dateLineIndices = [];
   for (let i = 0; i < rawLines.length; i++) {
-    if (DATE_ANYWHERE.test(rawLines[i])) {
+    const line = rawLines[i];
+    if (DATE_ANYWHERE.test(line)) {
       dateLineIndices.push(i);
     }
   }
 
-  if (isDev) {
-    console.log(
-      `[Parser] Total non-empty lines: ${rawLines.length} | Lines containing a date: ${dateLineIndices.length}`
-    );
-  }
-
   if (dateLineIndices.length === 0) {
-    if (isDev) {
-      console.log("[Parser] No date-like tokens found anywhere in the text.");
-      console.log("[Parser] First 800 chars:", text.slice(0, 800));
-    }
     return [];
   }
 
-  // ── Step 2: Build transaction blocks ─────────────────────────────────────
-  // Each block = lines from the current date line up to (not including) the
-  // next date line. The last block ends at the end of the document.
+  // Build transaction blocks
   const blocks = [];
   for (let b = 0; b < dateLineIndices.length; b++) {
     const start = dateLineIndices[b];
@@ -727,117 +1233,53 @@ const extractTransactionsFromText = (text) => {
     blocks.push(rawLines.slice(start, end));
   }
 
-  if (isDev) {
-    console.log(`[Parser] Transaction blocks identified: ${blocks.length}`);
-  }
-
-  // ── Step 3: Parse each block into a transaction ───────────────────────────
   const transactions = [];
-  const rejected = [];
 
   for (const block of blocks) {
     const dateLine = block[0];
 
-    // ── Extract date ───────────────────────────────────────────────────────
-    // The first line of each block is the date line, but it often has a
-    // serial number fused directly to the front with no separator:
-    //   "106.07.2026"  → serial "1",  date "06.07.2026"
-    //   "1924.07.2026" → serial "19", date "24.07.2026"
-    //   "06.07.2026"   → no serial,   date "06.07.2026"
-    //
-    // Algorithm: look for a DD.MM.YYYY pattern (day 01-31, month 01-12)
-    // anywhere in the date line. Take the last occurrence so that if
-    // serial digits accidentally match something earlier, we still get
-    // the real date at the end of the string.
-    const DATE_IN_LINE = /(\d{2}\.\d{2}\.\d{4})/g;
-    let dateStr = null;
-    let dm;
-    while ((dm = DATE_IN_LINE.exec(dateLine)) !== null) {
-      dateStr = dm[1]; // keep overwriting — last match wins
-    }
+    // Extract first date from the line as transaction date
+    const dateMatches = dateLine.match(DATE_ANYWHERE);
+    if (!dateMatches) continue;
 
-    // If no DD.MM.YYYY found, fall back to the broad DATE_ANYWHERE match
-    if (!dateStr) {
-      const fallback = dateLine.match(DATE_ANYWHERE);
-      if (fallback) dateStr = fallback[1];
-    }
+    const date = parseDate(dateMatches[1]);
+    if (!date) continue;
 
-    if (!dateStr) {
-      rejected.push({ reason: "no date token found", line: dateLine });
-      continue;
-    }
-
-    const date = parseDate(dateStr);
-    if (!date) {
-      rejected.push({ reason: `could not parse date "${dateStr}"`, line: dateLine });
-      continue;
-    }
-
-    // ── Extract merchant (first non-empty line after the date line) ────────
-    const merchant = block.length > 1 ? block[1].substring(0, 100) : "Unknown";
-
-    // ── Collect all text in the block for narration ────────────────────────
     const fullNarration = block.join(" ");
 
-    // ── Extract amounts from block lines AFTER the date line ──────────────
-    // Line 0 is the date line (e.g. "106.07.2026"). Scanning it would match
-    // "106.07" as an amount via AMOUNT_RE. Actual amounts are always on later
-    // lines of the block, so we skip line 0 entirely.
-    const amountText = block.slice(1).join(" ");
-    AMOUNT_RE.lastIndex = 0;
+    // Extract amounts from lines in block with dates masked
+    const narrationWithoutDates = fullNarration.replace(DATE_MASK_RE, " __DATE__ ");
+    STRICT_AMOUNT_PATTERN.lastIndex = 0;
     const amounts = [];
     let m;
-    while ((m = AMOUNT_RE.exec(amountText)) !== null) {
+    while ((m = STRICT_AMOUNT_PATTERN.exec(narrationWithoutDates)) !== null) {
       const n = cleanAmount(m[0]);
-      if (n !== null) amounts.push(n);
+      if (n !== null && n > 0) amounts.push(n);
     }
 
-    if (amounts.length === 0) {
-      rejected.push({ reason: "no currency amount found in block", line: dateLine });
-      if (isDev)
-        console.log(
-          `[Parser] Rejected block (no amount): "${dateLine}" | block: ${block.join(" | ").slice(0, 120)}`
-        );
-      continue;
-    }
+    if (amounts.length === 0) continue;
 
-    // ── Determine debit vs credit ──────────────────────────────────────────
-    // This statement has separate Withdrawal and Deposit columns.
-    // When it's a Deposit, the amounts line contains: <deposit_amount><balance>
-    // When it's a Withdrawal, the amounts line contains: <withdrawal_amount><balance>
-    //
-    // Heuristic: if narration contains deposit/credit keywords, treat as credit.
-    // Otherwise debit.
-    const creditKeywords =
-      /\bdeposit\b|credit|salary|received|refund|interest|cashback|\binward\b|\bCr\b/i;
-    const isCredit = creditKeywords.test(fullNarration);
-
-    // Last amount is closing balance; first transaction amount is the actual tx
-    const balance = amounts.length >= 2 ? amounts[amounts.length - 1] : null;
     const txAmount = amounts[0];
+    const detected = detectCategoryAndType(fullNarration);
+    const merchant = extractCleanMerchant(fullNarration);
 
     transactions.push({
       date,
       amount: txAmount,
-      type: isCredit ? "Credit" : "Debit",
+      type: detected.type,
+      category: detected.category,
       merchant,
       description: fullNarration.substring(0, 255),
       originalDate: date,
       originalAmount: txAmount,
-      originalType: isCredit ? "Credit" : "Debit",
+      originalType: detected.type,
       originalMerchant: merchant,
       originalDescription: fullNarration.substring(0, 255),
     });
   }
 
   if (isDev) {
-    console.log(`[Parser] Parsed: ${transactions.length} | Rejected: ${rejected.length}`);
-    if (rejected.length > 0) {
-      console.log("[Parser] Rejected blocks:");
-      rejected.forEach((r) =>
-        console.log(`  reason="${r.reason}" | line="${r.line.slice(0, 80)}"`)
-      );
-    }
+    console.log(`[Text Parser Fallback] Extracted ${transactions.length} transactions`);
   }
 
   return transactions;
@@ -862,7 +1304,10 @@ const parseDate = (dateStr) => {
   if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
 
   // Handle Excel serial date numbers (e.g. 45384)
-  if (typeof dateStr === "number" || (!isNaN(Number(dateStr)) && Number(dateStr) > 25000 && Number(dateStr) < 75000)) {
+  if (
+    typeof dateStr === "number" ||
+    (!isNaN(Number(dateStr)) && Number(dateStr) > 25000 && Number(dateStr) < 75000)
+  ) {
     const num = Number(dateStr);
     const d = new Date(Math.round((num - 25569) * 86400 * 1000));
     if (!isNaN(d.getTime())) return d;
@@ -871,7 +1316,7 @@ const parseDate = (dateStr) => {
   const s = String(dateStr).trim();
 
   // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD — test before DD-MM-YYYY
-  const iso = s.match(/^(\d{4})[\/\-\.](\d{2})[\/\-\.](\d{2})$/);
+  const iso = s.match(/^(\d{4})[/\-.](\d{2})[/\-.](\d{2})$/);
   if (iso) {
     const year = parseInt(iso[1]);
     const month = parseInt(iso[2]);
@@ -881,7 +1326,7 @@ const parseDate = (dateStr) => {
   }
 
   // DD/MM/YYYY  DD-MM-YYYY  DD.MM.YYYY  (and 2-digit year variants)
-  const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  const dmy = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
   if (dmy) {
     const day = parseInt(dmy[1]);
     const month = parseInt(dmy[2]);
@@ -893,10 +1338,20 @@ const parseDate = (dateStr) => {
 
   // DD MMM YYYY  or  DD MMM YY  (e.g. "10 Jul 2025", "01 Jan 25")
   const dMonthY = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2,4})$/);
-    if (dMonthY) {
+  if (dMonthY) {
     const months = {
-      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      jan: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7,
+      sep: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11,
     };
 
     const day = parseInt(dMonthY[1]);
@@ -935,7 +1390,7 @@ const parseAmount = (amountStr) => {
   // Strip everything except digits, a single dot, and a leading minus
   const cleaned = String(amountStr)
     .replace(/,/g, "") // remove thousand separators (1,24,550 → 124550)
-    .replace(/[^0-9.\-]/g, "") // strip any other non-numeric characters
+    .replace(/[^0-9.-]/g, "") // strip any other non-numeric characters
     .trim();
 
   const amount = parseFloat(cleaned);
@@ -974,10 +1429,125 @@ const parseType = (typeStr, amount) => {
   return amount < 0 ? "Debit" : "Credit";
 };
 
+// ─── Statement Period Extractor ───────────────────────────────────────────
+
+const MONTH_NAMES_FULL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+const MONTH_NAMES_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+/**
+ * Extracts statement period (date range, primary month & year, period label)
+ * from statement text headers and extracted transactions.
+ *
+ * @param {string} fullText - Extracted text / sample text
+ * @param {Array} transactions - Extracted transaction array
+ * @returns {{ startDate: Date|null, endDate: Date|null, statementMonth: number|null, statementYear: number|null, statementPeriod: string|null }}
+ */
+const extractStatementPeriod = (fullText = "", transactions = []) => {
+  let startDate = null;
+  let endDate = null;
+
+  // 1. Try detecting from explicit statement header patterns
+  if (fullText && typeof fullText === "string") {
+    // Matches "Statement Period: 01/07/2026 to 31/07/2026" or "Period: 01-Jul-2026 - 31-Jul-2026" or "From 01.07.2026 To 31.07.2026"
+    const periodRangeMatch = fullText.match(
+      /(?:statement\s+(?:of\s+account\s+)?(?:for\s+the\s+period|for\s+period|period)?|for\s+the\s+period\s+of|period\s*:|from\s*:?)\s*(\d{1,2}[/\-.][A-Za-z0-9]+[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})\s*(?:to|-|till|through)\s*(\d{1,2}[/\-.][A-Za-z0-9]+[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/i
+    );
+
+    if (periodRangeMatch) {
+      const d1 = parseDate(periodRangeMatch[1]);
+      const d2 = parseDate(periodRangeMatch[2]);
+      if (d1 && d2) {
+        startDate = d1 <= d2 ? d1 : d2;
+        endDate = d1 <= d2 ? d2 : d1;
+      }
+    }
+
+    // Matches "Statement for Month: July 2026" or "Account Statement - July 2026"
+    if (!startDate) {
+      const monthYearMatch = fullText.match(
+        /(?:statement\s+(?:for\s+month|for|of)?|account\s+statement\s+for)\s+([A-Za-z]{3,9})\s+(\d{4})/i
+      );
+      if (monthYearMatch) {
+        const mIdx = MONTH_NAMES_FULL.findIndex(
+          (m) => m.toLowerCase().startsWith(monthYearMatch[1].toLowerCase().slice(0, 3))
+        );
+        const y = parseInt(monthYearMatch[2]);
+        if (mIdx !== -1 && y >= 1990 && y <= 2100) {
+          startDate = new Date(Date.UTC(y, mIdx, 1));
+          endDate = new Date(Date.UTC(y, mIdx + 1, 0, 23, 59, 59, 999));
+        }
+      }
+    }
+  }
+
+  // 2. If not found from header, compute from transaction dates
+  if ((!startDate || !endDate) && Array.isArray(transactions) && transactions.length > 0) {
+    const validTimestamps = transactions
+      .map((t) => (t.date instanceof Date ? t.date.getTime() : new Date(t.date).getTime()))
+      .filter((ts) => !isNaN(ts));
+
+    if (validTimestamps.length > 0) {
+      startDate = new Date(Math.min(...validTimestamps));
+      endDate = new Date(Math.max(...validTimestamps));
+    }
+  }
+
+  if (!startDate || !endDate) {
+    return {
+      startDate: null,
+      endDate: null,
+      statementMonth: null,
+      statementYear: null,
+      statementPeriod: null,
+    };
+  }
+
+  const sMonth = startDate.getUTCMonth();
+  const sYear = startDate.getUTCFullYear();
+  const eMonth = endDate.getUTCMonth();
+  const eYear = endDate.getUTCFullYear();
+
+  let statementMonth = eMonth + 1; // 1-indexed
+  let statementYear = eYear;
+  let statementPeriod = "";
+
+  if (sMonth === eMonth && sYear === eYear) {
+    // Same calendar month (e.g. July 2026)
+    statementPeriod = `${MONTH_NAMES_FULL[sMonth]} ${sYear}`;
+  } else if (sYear === eYear) {
+    // Within same year across months (e.g. Jun - Jul 2026)
+    statementPeriod = `${MONTH_NAMES_SHORT[sMonth]} - ${MONTH_NAMES_SHORT[eMonth]} ${sYear}`;
+  } else {
+    // Across different years
+    statementPeriod = `${MONTH_NAMES_SHORT[sMonth]} ${sYear} - ${MONTH_NAMES_SHORT[eMonth]} ${eYear}`;
+  }
+
+  return {
+    startDate,
+    endDate,
+    statementMonth,
+    statementYear,
+    statementPeriod,
+  };
+};
+
 // ─── Export Service ───────────────────────────────────────────────────────────
 
 export const parserService = {
   parsePDF,
   parseCSV,
   parseExcel,
+  detectCategoryAndType,
+  extractCleanMerchant,
+  extractStatementPeriod,
+  parseDate,
+  parseAmount,
+  normalizeRow,
 };
+

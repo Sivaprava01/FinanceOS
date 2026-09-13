@@ -133,18 +133,30 @@ export function formatCurrency(value: number, currency = 'USD'): string {
 }
 
 /**
- * Format compact currency value for charts (e.g. A$6K, ₹6K, $6K, A$0)
+ * Format compact currency value for charts (e.g. A$6K, ₹6K, $1.5M, $10B, A$0)
  */
 export function formatCompactCurrency(value: number, currency = 'USD'): string {
+  if (value === 0 || !Number.isFinite(value)) {
+    const symbol = getCurrencySymbol(currency)
+    return `${symbol}0`
+  }
+
   const symbol = getCurrencySymbol(currency)
   const abs = Math.abs(value)
   const isNegative = value < 0
 
   let formattedNum: string
-  if (abs >= 1000) {
-    formattedNum = `${(abs / 1000).toFixed(abs % 1000 === 0 ? 0 : 1)}K`
+  if (abs >= 1_000_000_000) {
+    const bVal = abs / 1_000_000_000
+    formattedNum = `${bVal >= 10 || bVal % 1 === 0 ? bVal.toFixed(0) : bVal.toFixed(1)}B`
+  } else if (abs >= 1_000_000) {
+    const mVal = abs / 1_000_000
+    formattedNum = `${mVal >= 10 || mVal % 1 === 0 ? mVal.toFixed(0) : mVal.toFixed(1)}M`
+  } else if (abs >= 1_000) {
+    const kVal = abs / 1_000
+    formattedNum = `${kVal >= 10 || kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}K`
   } else {
-    formattedNum = `${abs}`
+    formattedNum = Number.isInteger(abs) ? `${abs}` : `${Number(abs.toFixed(1))}`
   }
 
   return isNegative ? `-${symbol}${formattedNum}` : `${symbol}${formattedNum}`

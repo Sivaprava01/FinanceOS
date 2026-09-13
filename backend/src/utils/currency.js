@@ -401,7 +401,7 @@ const SYMBOL_CURRENCY_MAP = [
  * @param {object} [metadata] - Optional metadata from file
  * @returns {{ currency: string|null, confidence: "high"|"low"|"none", isAmbiguous: boolean, detectedSources: string[] }}
  */
-const detectStatementCurrency = (text = "", rows = [], metadata = {}) => {
+const detectStatementCurrency = (text = "", rows = [], _metadata = {}) => {
   const content = String(text || "").trim();
   const detectedCounts = {};
   const detectedSources = [];
@@ -417,9 +417,9 @@ const detectStatementCurrency = (text = "", rows = [], metadata = {}) => {
 
   // 1. Explicit Currency Headers in text: e.g. "Currency: AUD", "Account Currency: USD"
   const explicitRegexes = [
-    /(?:account\s+currency|statement\s+currency|base\s+currency|stmt\s+currency|transaction\s+currency|denominated\s+in|all\s+amounts\s+in|currency\s+code|currency)\s*[:=\-]?\s*([A-Za-z]{3})\b/gi,
+    /(?:account\s+currency|statement\s+currency|base\s+currency|stmt\s+currency|transaction\s+currency|denominated\s+in|all\s+amounts\s+in|currency\s+code|currency)\s*[:=-]?\s*([A-Za-z]{3})\b/gi,
     /\b(?:in|amounts?\s+in)\s+([A-Za-z]{3})\b/gi,
-    /\bcurrency\s*[:=\-]\s*([A-Za-z]{3})\b/gi,
+    /\bcurrency\s*[:=-]\s*([A-Za-z]{3})\b/gi,
   ];
 
   for (const regex of explicitRegexes) {
@@ -435,7 +435,7 @@ const detectStatementCurrency = (text = "", rows = [], metadata = {}) => {
   // 2. Check Column Headers & Row Keys (e.g., "Amount (AUD)", "Debit (INR)", "Amount in USD")
   const checkStringForCurrencyHeaders = (str) => {
     if (!str || typeof str !== "string") return;
-    const headerCodeMatch = str.match(/[\(\[\{]([A-Za-z]{3})[\)\]\}]/);
+    const headerCodeMatch = str.match(/[([{]([A-Za-z]{3})[)\]}]/);
     if (headerCodeMatch && isValidCurrency(headerCodeMatch[1])) {
       addVote(headerCodeMatch[1], 8, "column header code");
     }

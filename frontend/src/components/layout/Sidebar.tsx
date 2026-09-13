@@ -10,6 +10,7 @@ import {
   Wallet,
   FileText,
   BarChart3,
+  Landmark,
   Users,
   Tags,
   HelpCircle,
@@ -57,8 +58,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         { name: 'Transactions', href: '/transactions', icon: Wallet },
         { name: 'Statements', href: '/statements', icon: FileText },
         { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+        { name: 'Net Worth', href: '/net-worth', icon: Landmark },
       ],
     },
+
     {
       label: 'Collaboration',
       items: [{ name: 'Family Finance', href: '/family', icon: Users }],
@@ -136,13 +139,18 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Header & Logo */}
           <div className="flex h-14 items-center justify-between border-b border-border px-3.5">
             <Link to="/dashboard" className="flex items-center gap-2.5 outline-none min-w-0">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-xs">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-serif font-bold text-sm shadow-xs">
                 F
               </div>
               {!isCollapsed && (
-                <span className="text-sm font-bold tracking-tight text-foreground truncate">
-                  FinanceOS
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-serif font-bold tracking-tight text-foreground leading-tight truncate">
+                    FinanceOS
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-sans leading-none tracking-normal">
+                    Personal Finance
+                  </span>
+                </div>
               )}
             </Link>
 
@@ -185,8 +193,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </nav>
 
-          {/* Bottom Navigation */}
-          <div className="border-t border-border p-2.5 space-y-0.5">
+          {/* Bottom Navigation & User Profile */}
+          <div className="border-t border-border p-2.5 space-y-1 bg-secondary/30">
             {bottomItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
@@ -199,7 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }}
               title={isCollapsed ? 'Log out' : undefined}
               className={cn(
-                'group flex w-full items-center rounded-md text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors mt-1',
+                'group flex w-full items-center rounded-md text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
                 isCollapsed ? 'justify-center p-2.5' : 'px-3 py-2'
               )}
               aria-label="Logout from your account"

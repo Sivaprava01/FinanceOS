@@ -10,14 +10,11 @@
  *   Asset model       — total asset value, net worth
  */
 
-import mongoose from "mongoose";
 import Transaction from "../models/transaction.model.js";
 import Loan from "../models/loan.model.js";
 import Asset from "../models/asset.model.js";
 import { LOAN_STATUS, HEALTH_SCORE_GRADES } from "../constants/index.js";
 import { generateInsights } from "../utils/insights.engine.js";
-
-const { Types } = mongoose;
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 
@@ -45,7 +42,7 @@ import { convertCurrency } from "../utils/currency.js";
 /** Returns user target currency */
 const getUserTargetCurrency = async (userId) => {
   const user = await User.findById(userId).select("preferredCurrency").lean();
-  return user?.preferredCurrency || "USD";
+  return user?.preferredCurrency || "INR";
 };
 
 /** Helper to convert transaction amount to user preferred currency */
@@ -77,18 +74,6 @@ const isExpenseType = (type) => {
   if (!type) return false;
   const t = String(type).toLowerCase().trim();
   return t === "expense" || t === "debit";
-};
-
-const isAssetType = (type) => {
-  if (!type) return false;
-  const t = String(type).toLowerCase().trim();
-  return t === "asset";
-};
-
-const isLiabilityType = (type) => {
-  if (!type) return false;
-  const t = String(type).toLowerCase().trim();
-  return t === "liability";
 };
 
 /**
@@ -130,24 +115,54 @@ const sumIncomeExpenses = async (userId, start, end) => {
 const getOverview = async (userId) => {
   const targetCurrency = await getUserTargetCurrency(userId);
   const now = new Date();
-  const { start, end } = monthBounds(now.getFullYear(), now.getMonth());
+  let { start, end } = monthBounds(now.getFullYear(), now.getMonth());
+
+  // Check if current calendar month has transactions
+  const curMonthCount = await Transaction.countDocuments({
+    user: userId,
+    isDeleted: false,
+    date: { $gte: start, $lte: end },
+  });
+
+  let activeMonthLabel = `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`;
+
+  // If current month has 0 transactions, fallback to latest active transaction month
+  if (curMonthCount === 0) {
+    const latestTx = await Transaction.findOne({ user: userId, isDeleted: false })
+      .sort({ date: -1 })
+      .select("date")
+      .lean();
+
+    if (latestTx && latestTx.date) {
+      const lDate = new Date(latestTx.date);
+      const bounds = monthBounds(lDate.getFullYear(), lDate.getMonth());
+      start = bounds.start;
+      end = bounds.end;
+      activeMonthLabel = `${lDate.toLocaleString("default", { month: "long" })} ${lDate.getFullYear()}`;
+    }
+  }
 
   const [
     monthlyTotals,
+    allTimeTotals,
     recentTransactions,
     rawTopCategoryTx,
     loans,
     assets,
     assetTxs,
     liabilityTxs,
+    availableMonths,
   ] = await Promise.all([
-    // Income and expenses for current month
+    // Income and expenses for active month
     sumIncomeExpenses(userId, start, end),
+
+    // All-time income and expenses
+    sumIncomeExpenses(userId, new Date(0), new Date(8640000000000000)),
 
     // Latest 10 transactions
     Transaction.find({ user: userId, isDeleted: false }).sort({ date: -1 }).limit(10).lean(),
 
-    // Top spending categories this month
+    // Top spending categories this active month
     Transaction.find({
       user: userId,
       isDeleted: false,
@@ -174,6 +189,9 @@ const getOverview = async (userId) => {
       isDeleted: false,
       type: { $in: DB_LIABILITY_TYPES },
     }).select("amount currency").lean(),
+
+    // Available active transaction months
+    getAvailableMonths(userId),
   ]);
 
   // Aggregate top spending categories with currency conversion
@@ -199,7 +217,9 @@ const getOverview = async (userId) => {
     liabilityTxTotal += await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
   }
 
-  const totalAssets = r2(assets.reduce((s, a) => s + a.currentValue, 0) + assetTxTotal);
+  const manualAssets = assets.reduce((s, a) => s + a.currentValue, 0);
+  const allTimeSavings = Math.max(0, allTimeTotals.income - allTimeTotals.expenses);
+  const totalAssets = r2(manualAssets + assetTxTotal + (manualAssets === 0 && assetTxTotal === 0 ? allTimeSavings : 0));
   const totalLiabilities = r2(loans.reduce((s, l) => s + l.outstandingBalance, 0) + liabilityTxTotal);
   const monthlyEmi = r2(loans.reduce((s, l) => s + l.emiAmount, 0));
 
@@ -208,6 +228,7 @@ const getOverview = async (userId) => {
     totalExpenses: monthlyTotals.expenses,
     netBalance: r2(monthlyTotals.income - monthlyTotals.expenses),
     currency: targetCurrency,
+    activeMonthLabel,
     netWorth: {
       totalAssets,
       totalLiabilities,
@@ -227,6 +248,146 @@ const getOverview = async (userId) => {
       source: t.source,
     })),
     topSpendingCategories,
+    availableMonths,
+  };
+};
+
+// ─── Available Statement Months Helper ────────────────────────────────────────
+
+/**
+ * Returns distinct calendar months where the user has active transactions.
+ * Sorted descending (most recent first).
+ *
+ * @param {string} userId
+ * @returns {Promise<Array<{ year: number, month: number, label: string, count: number }>>}
+ */
+const getAvailableMonths = async (userId) => {
+  const mongoose = (await import("mongoose")).default;
+  const rawMonths = await Transaction.aggregate([
+    {
+      $match: {
+        user: new mongoose.Types.ObjectId(userId),
+        isDeleted: false,
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$date" },
+          month: { $month: "$date" },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { "_id.year": -1, "_id.month": -1 } },
+  ]);
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  return rawMonths.map((m) => {
+    const y = m._id.year;
+    const mon = m._id.month; // 1-indexed
+    return {
+      year: y,
+      month: mon,
+      label: `${monthNames[mon - 1] || "Month " + mon} ${y}`,
+      count: m.count,
+    };
+  });
+};
+
+// ─── Period & Date Range Resolver ─────────────────────────────────────────────
+
+/**
+ * Resolves date bounds based on period string or custom date params.
+ * Options:
+ *   period: 'all' | 'current_month' | 'last_month' | '3_months' | '6_months' | '1_year' | 'custom'
+ *   fromDate, toDate, month, year, statementId
+ *
+ * @param {string} userId
+ * @param {object} options
+ * @returns {Promise<{ start: Date|null, end: Date|null, isAllTime: boolean, label: string, statementId?: string }>}
+ */
+const resolveDateRange = async (userId, options = {}) => {
+  const { period = "current_month", fromDate, toDate, month, year, statementId } = options;
+  const now = new Date();
+
+  if (statementId) {
+    return {
+      start: null,
+      end: null,
+      isAllTime: false,
+      statementId,
+      label: "Statement Transactions",
+    };
+  }
+
+  if (period === "all") {
+    return { start: null, end: null, isAllTime: true, label: "All Time" };
+  }
+
+  if (fromDate && toDate) {
+    return {
+      start: new Date(fromDate),
+      end: new Date(toDate),
+      isAllTime: false,
+      label: "Custom Period",
+    };
+  }
+
+  if (year !== undefined && month !== undefined) {
+    const y = parseInt(year);
+    const m = parseInt(month) - 1; // 1-indexed to 0-indexed
+    const { start, end } = monthBounds(y, m);
+    const dateObj = new Date(Date.UTC(y, m, 1));
+    return {
+      start,
+      end,
+      isAllTime: false,
+      label: `${dateObj.toLocaleString("default", { month: "long", timeZone: "UTC" })} ${y}`,
+    };
+  }
+
+  if (period === "last_month") {
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const { start, end } = monthBounds(prevMonth.getFullYear(), prevMonth.getMonth());
+    return {
+      start,
+      end,
+      isAllTime: false,
+      label: `${prevMonth.toLocaleString("default", { month: "long" })} ${prevMonth.getFullYear()}`,
+    };
+  }
+
+  if (period === "3_months") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { start, end, isAllTime: false, label: "Last 3 Months" };
+  }
+
+  if (period === "6_months") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { start, end, isAllTime: false, label: "Last 6 Months" };
+  }
+
+  if (period === "1_year") {
+    const start = new Date(now.getFullYear(), 0, 1);
+    const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    return { start, end, isAllTime: false, label: `Year ${now.getFullYear()}` };
+  }
+
+  // Strict current calendar month (e.g. September 2026)
+  const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
+
+  return {
+    start: curStart,
+    end: curEnd,
+    isAllTime: false,
+    label: `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`,
   };
 };
 
@@ -234,82 +395,102 @@ const getOverview = async (userId) => {
 
 /**
  * Category breakdown, monthly trends, top merchants, and extreme transactions.
+ * Supports period filters ('all', 'current_month', 'last_month', '3_months', '6_months', '1_year', custom).
  *
  * @param {string} userId
+ * @param {object} options
  * @returns {Promise<object>}
  */
-const getSpendingAnalysis = async (userId) => {
+const getSpendingAnalysis = async (userId, options = {}) => {
   const targetCurrency = await getUserTargetCurrency(userId);
-  const now = new Date();
-  const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const { start: prevStart, end: prevEnd } = monthBounds(
-    prevMonth.getFullYear(),
-    prevMonth.getMonth()
-  );
+  const range = await resolveDateRange(userId, options);
 
-  const [
-    curTx,
-    prevTx,
-    trendTx,
-    highestExpenses,
-    highestIncome,
-  ] = await Promise.all([
-    // Current month transactions (all types)
-    Transaction.find({
-      user: userId,
-      isDeleted: false,
-      date: { $gte: curStart, $lte: curEnd },
-    }).select("amount type currency category merchant date").lean(),
+  const txQuery = {
+    user: userId,
+    isDeleted: false,
+  };
 
-    // Previous month debit/expense transactions
-    Transaction.find({
+  if (range.start && range.end) {
+    txQuery.date = { $gte: range.start, $lte: range.end };
+  }
+
+  // Determine previous comparison range if bounded
+  let prevTxQuery = null;
+  if (range.start && range.end) {
+    const durationMs = range.end.getTime() - range.start.getTime();
+    const prevEnd = new Date(range.start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - durationMs);
+    prevTxQuery = {
       user: userId,
       isDeleted: false,
       type: { $in: DB_EXPENSE_TYPES },
       date: { $gte: prevStart, $lte: prevEnd },
-    }).select("amount currency category").lean(),
+    };
+  }
 
-    // 6-month trend debit/expense transactions
+  const [
+    curTx,
+    prevTx,
+    allTrendTx,
+    highestExpenses,
+    highestIncome,
+    availableMonths,
+  ] = await Promise.all([
+    // Active period transactions (all types)
+    Transaction.find(txQuery)
+      .select("amount type currency category merchant date paymentMethod")
+      .lean(),
+
+    // Previous comparison period transactions (if applicable)
+    prevTxQuery
+      ? Transaction.find(prevTxQuery).select("amount currency category").lean()
+      : Promise.resolve([]),
+
+    // Multi-month trend transactions (Income & Expenses over last 12 months or all)
     Transaction.find({
       user: userId,
       isDeleted: false,
-      type: { $in: DB_EXPENSE_TYPES },
-      date: { $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) },
-    }).select("amount currency date").lean(),
+      type: { $in: [...DB_EXPENSE_TYPES, ...DB_INCOME_TYPES] },
+      date: {
+        $gte: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1),
+      },
+    })
+      .select("amount type currency date")
+      .lean(),
 
-    // Top 5 highest individual expense transactions — current month
+    // Top 5 highest individual expense transactions in active period
     Transaction.find({
-      user: userId,
-      isDeleted: false,
+      ...txQuery,
       type: { $in: DB_EXPENSE_TYPES },
-      date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
       .limit(5)
       .select("date amount currency merchant category paymentMethod")
       .lean(),
 
-    // Top 5 highest individual income transactions — current month
+    // Top 5 highest individual income transactions in active period
     Transaction.find({
-      user: userId,
-      isDeleted: false,
+      ...txQuery,
       type: { $in: DB_INCOME_TYPES },
-      date: { $gte: curStart, $lte: curEnd },
     })
       .sort({ amount: -1 })
       .limit(5)
       .select("date amount currency merchant category")
       .lean(),
+
+    // Available distinct transaction months
+    getAvailableMonths(userId),
   ]);
 
-  // Convert and aggregate by category (current month)
+  // Convert and aggregate by category and merchant (active period)
   const catMap = {};
   const catCount = {};
   let incomeTotal = 0;
   let expenseTotal = 0;
-  const merchantMap = {};
-  const merchantCount = {};
+  const merchantExpenseMap = {};
+  const merchantExpenseCount = {};
+  const merchantIncomeMap = {};
+  const merchantIncomeCount = {};
 
   for (const tx of curTx) {
     const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
@@ -320,10 +501,13 @@ const getSpendingAnalysis = async (userId) => {
       catCount[cat] = (catCount[cat] || 0) + 1;
 
       const m = tx.merchant || "Unknown";
-      merchantMap[m] = (merchantMap[m] || 0) + converted;
-      merchantCount[m] = (merchantCount[m] || 0) + 1;
+      merchantExpenseMap[m] = (merchantExpenseMap[m] || 0) + converted;
+      merchantExpenseCount[m] = (merchantExpenseCount[m] || 0) + 1;
     } else if (isIncomeType(tx.type)) {
       incomeTotal += converted;
+      const m = tx.merchant || "Unknown";
+      merchantIncomeMap[m] = (merchantIncomeMap[m] || 0) + converted;
+      merchantIncomeCount[m] = (merchantIncomeCount[m] || 0) + 1;
     }
   }
 
@@ -331,7 +515,7 @@ const getSpendingAnalysis = async (userId) => {
     .map(([_id, total]) => ({ _id, total: r2(total), count: catCount[_id] }))
     .sort((a, b) => b.total - a.total);
 
-  // Convert and aggregate by category (previous month)
+  // Convert and aggregate previous period by category
   const prevCatMap = {};
   for (const tx of prevTx) {
     const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
@@ -339,42 +523,74 @@ const getSpendingAnalysis = async (userId) => {
     prevCatMap[cat] = (prevCatMap[cat] || 0) + converted;
   }
 
-  const categoryComparison = byCategory.map((c) => {
-    const prev = prevCatMap[c._id] ?? 0;
-    const change = c.total - prev;
-    const changePercent = prev > 0 ? Math.round((change / prev) * 100) : 100;
-    return {
-      category: c._id,
-      currentAmount: r2(c.total),
-      previousAmount: r2(prev),
-      change: r2(change),
-      changePercent,
-    };
-  });
+  // Category comparison includes all categories active in either period
+  const allCategoryKeys = new Set([...Object.keys(catMap), ...Object.keys(prevCatMap)]);
+  const categoryComparison = Array.from(allCategoryKeys)
+    .map((cat) => {
+      const curr = catMap[cat] || 0;
+      const prev = prevCatMap[cat] || 0;
+      const change = curr - prev;
+      const changePercent = prev > 0 ? Math.round((change / prev) * 100) : (curr > 0 ? 100 : 0);
+      return {
+        category: cat,
+        currentAmount: r2(curr),
+        previousAmount: r2(prev),
+        change: r2(change),
+        changePercent,
+      };
+    })
+    .sort((a, b) => b.currentAmount - a.currentAmount);
 
-  // Convert and aggregate monthly trend (last 6 months)
+  // Convert and aggregate monthly trend (Income + Expenses + Savings)
   const trendMap = {};
-  for (const tx of trendTx) {
+  for (const tx of allTrendTx) {
     const converted = await getConvertedAmount(tx.amount, tx.currency, targetCurrency);
     const d = new Date(tx.date);
     const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
     if (!trendMap[key]) {
-      trendMap[key] = { year: d.getFullYear(), month: d.getMonth() + 1, total: 0 };
+      trendMap[key] = {
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        income: 0,
+        expenses: 0,
+        savings: 0,
+        total: 0,
+      };
     }
-    trendMap[key].total += converted;
+    if (isIncomeType(tx.type)) {
+      trendMap[key].income += converted;
+    } else if (isExpenseType(tx.type)) {
+      trendMap[key].expenses += converted;
+      trendMap[key].total += converted;
+    }
+    trendMap[key].savings = r2(trendMap[key].income - trendMap[key].expenses);
   }
 
   const monthlyTrend = Object.values(trendMap)
     .sort((a, b) => a.year - b.year || a.month - b.month)
-    .map((m) => ({ year: m.year, month: m.month, total: r2(m.total) }));
+    .map((m) => ({
+      year: m.year,
+      month: m.month,
+      income: r2(m.income),
+      expenses: r2(m.expenses),
+      savings: r2(m.savings),
+      total: r2(m.total),
+    }));
 
-  const topMerchants = Object.entries(merchantMap)
-    .map(([_id, total]) => ({ _id, total: r2(total), count: merchantCount[_id] }))
-    .sort((a, b) => b.count - a.count)
+  const topMerchants = Object.entries(merchantExpenseMap)
+    .map(([_id, total]) => ({ _id, total: r2(total), count: merchantExpenseCount[_id] }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  const topIncomeSources = Object.entries(merchantIncomeMap)
+    .map(([_id, total]) => ({ _id, total: r2(total), count: merchantIncomeCount[_id] }))
+    .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
   return {
     currency: targetCurrency,
+    period: options.period || (range.autoFallback ? "auto" : "current_month"),
+    periodLabel: range.label,
     byCategory,
     categoryComparison,
     monthlyTrend,
@@ -384,8 +600,10 @@ const getSpendingAnalysis = async (userId) => {
       savings: r2(incomeTotal - expenseTotal),
     },
     topMerchants,
+    topIncomeSources,
     highestExpenses,
     highestIncome,
+    availableMonths,
   };
 };
 
@@ -395,22 +613,56 @@ const getSpendingAnalysis = async (userId) => {
  * Compares current month vs previous month across income, expenses, savings.
  *
  * @param {string} userId
+ * @param {object} options
  * @returns {Promise<object>}
  */
-const getMonthlyComparison = async (userId) => {
+const getMonthlyComparison = async (userId, options = {}) => {
+  const { month, year } = options;
   const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const targetYear = year !== undefined ? parseInt(year) : now.getFullYear();
+  const targetMonth = month !== undefined ? parseInt(month) - 1 : now.getMonth();
 
-  const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
-  const { start: prevStart, end: prevEnd } = monthBounds(
-    prevMonth.getFullYear(),
-    prevMonth.getMonth()
-  );
+  const curDate = new Date(targetYear, targetMonth, 1);
+  const prevDate = new Date(targetYear, targetMonth - 1, 1);
 
-  const [current, previous] = await Promise.all([
+  const { start: curStart, end: curEnd } = monthBounds(curDate.getFullYear(), curDate.getMonth());
+  const { start: prevStart, end: prevEnd } = monthBounds(prevDate.getFullYear(), prevDate.getMonth());
+
+  let [current, previous] = await Promise.all([
     sumIncomeExpenses(userId, curStart, curEnd),
     sumIncomeExpenses(userId, prevStart, prevEnd),
   ]);
+
+  // If both current and previous have 0, check if user has transactions in latest active month
+  if (
+    current.income === 0 &&
+    current.expenses === 0 &&
+    previous.income === 0 &&
+    previous.expenses === 0 &&
+    options.month === undefined
+  ) {
+    const latestTx = await Transaction.findOne({ user: userId, isDeleted: false })
+      .sort({ date: -1 })
+      .select("date")
+      .lean();
+
+    if (latestTx && latestTx.date) {
+      const lDate = new Date(latestTx.date);
+      const lPrevDate = new Date(lDate.getFullYear(), lDate.getMonth() - 1, 1);
+      const { start: lCurStart, end: lCurEnd } = monthBounds(lDate.getFullYear(), lDate.getMonth());
+      const { start: lPrevStart, end: lPrevEnd } = monthBounds(lPrevDate.getFullYear(), lPrevDate.getMonth());
+
+      const [fallbackCur, fallbackPrev] = await Promise.all([
+        sumIncomeExpenses(userId, lCurStart, lCurEnd),
+        sumIncomeExpenses(userId, lPrevStart, lPrevEnd),
+      ]);
+
+      current = fallbackCur;
+      previous = fallbackPrev;
+      curDate.setFullYear(lDate.getFullYear(), lDate.getMonth(), 1);
+      prevDate.setFullYear(lPrevDate.getFullYear(), lPrevDate.getMonth(), 1);
+    }
+  }
 
   const pct = (curr, prev) => {
     if (prev === 0) return curr > 0 ? 100 : 0;
@@ -422,13 +674,13 @@ const getMonthlyComparison = async (userId) => {
 
   return {
     currentMonth: {
-      label: `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`,
+      label: `${curDate.toLocaleString("default", { month: "long" })} ${curDate.getFullYear()}`,
       income: current.income,
       expenses: current.expenses,
       savings: currSavings,
     },
     previousMonth: {
-      label: `${prevMonth.toLocaleString("default", { month: "long" })} ${prevMonth.getFullYear()}`,
+      label: `${prevDate.toLocaleString("default", { month: "long" })} ${prevDate.getFullYear()}`,
       income: previous.income,
       expenses: previous.expenses,
       savings: prevSavings,

@@ -10,7 +10,7 @@ import { formatCurrency, formatCompactCurrency, getCurrencySymbol } from '@lib/u
 
 export const useCurrency = () => {
   const { user } = useAuth()
-  const currency = user?.preferredCurrency ?? 'USD'
+  const currency = user?.preferredCurrency ?? 'INR'
 
   const format = useCallback(
     (value: number) => formatCurrency(value, currency),

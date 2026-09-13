@@ -12,7 +12,7 @@ interface TransactionRowProps {
 }
 
 export const TRANSACTION_GRID_LAYOUT =
-  'grid grid-cols-[40px_110px_minmax(200px,1fr)_180px_140px_90px] items-center px-4 py-2.5 gap-3'
+  'grid grid-cols-[36px_110px_minmax(180px,1fr)_160px_140px_80px] items-center px-4 py-3 gap-3'
 
 export const TransactionRow: React.FC<TransactionRowProps> = ({
   transaction,
@@ -35,25 +35,25 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
 
   return (
     <div
-      className={`group hover:bg-secondary/40 transition-colors ${
+      className={`group border-b border-border/40 hover:bg-secondary/40 transition-colors ${
         isSelected ? 'bg-primary/5' : ''
       } ${TRANSACTION_GRID_LAYOUT}`}
     >
       {/* Checkbox column */}
-      <div>
+      <div className="flex items-center">
         {onSelect && (
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect(transaction._id)}
-            className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle"
-            aria-label={`Select ${transaction.merchant}`}
+            className="h-4 w-4 rounded border-border accent-primary cursor-pointer align-middle"
+            aria-label={`Select ${transaction.merchant || 'transaction'}`}
           />
         )}
       </div>
 
       {/* Date */}
-      <div className="text-xs text-muted-foreground whitespace-nowrap font-numeric">
+      <div className="text-xs text-muted-foreground whitespace-nowrap font-mono">
         {new Date(transaction.date).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -64,20 +64,20 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
       {/* Merchant / Description */}
       <div className="min-w-0 flex items-center gap-2">
         <span
-          className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider shrink-0 ${
+          className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider shrink-0 font-mono ${
             isIncome
-              ? 'bg-success/15 text-success border border-success/30'
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
               : isAsset
-              ? 'bg-primary/15 text-primary border border-primary/30'
+              ? 'bg-primary/10 text-primary border border-primary/20'
               : isLiability
-              ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
               : 'bg-muted text-muted-foreground border border-border'
           }`}
         >
           {normType}
         </span>
         <span
-          className={`h-1.5 w-1.5 rounded-full shrink-0 ${isImported ? 'bg-primary' : 'bg-muted-foreground/50'}`}
+          className={`h-1.5 w-1.5 rounded-full shrink-0 ${isImported ? 'bg-primary' : 'bg-muted-foreground/40'}`}
           title={isImported ? 'Imported from statement' : 'Manually created'}
         />
         <div className="min-w-0 flex-1">
@@ -94,12 +94,12 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
 
       {/* Category & Payment Method */}
       <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
-        <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium bg-secondary text-muted-foreground truncate max-w-[120px]">
+        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-muted/70 text-foreground truncate max-w-[120px] border border-border/50">
           {transaction.category || 'Uncategorized'}
         </span>
         {transaction.paymentMethod && (
           <span
-            className="inline-flex items-center rounded bg-muted/80 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase"
+            className="inline-flex items-center rounded bg-secondary/80 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase font-mono"
             title={`Paid via ${transaction.paymentMethod.replace('_', ' ')}`}
           >
             {transaction.paymentMethod.replace('_', ' ')}
@@ -108,13 +108,13 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
       </div>
 
       {/* Amount */}
-      <div className="text-right font-numeric flex flex-col items-end gap-0.5">
+      <div className="text-right font-sans flex flex-col items-end gap-0.5">
         <span
           className={`text-xs font-bold tabular-nums ${
             isIncome
-              ? 'text-success'
+              ? 'text-emerald-600 dark:text-emerald-400'
               : isLiability
-              ? 'text-amber-500'
+              ? 'text-amber-600 dark:text-amber-400'
               : isAsset
               ? 'text-primary'
               : 'text-foreground'
@@ -132,7 +132,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
         )}
         {inrFormatted && (
           <span
-            className="text-[10px] font-normal text-muted-foreground/80 tabular-nums"
+            className="text-[10px] font-normal text-muted-foreground/80 tabular-nums font-mono"
             title="Secondary INR reference amount"
           >
             ≈ {isIncome ? '+' : ''}{inrFormatted}
@@ -141,16 +141,16 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
       </div>
 
       {/* Actions */}
-      <div className="text-right whitespace-nowrap flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+      <div className="text-right whitespace-nowrap flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
         <button
           onClick={() => onEdit(transaction)}
-          className="text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors px-1.5 py-0.5 rounded hover:bg-secondary cursor-pointer"
+          className="text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded hover:bg-secondary cursor-pointer"
         >
           Edit
         </button>
         <button
           onClick={() => onDelete(transaction._id)}
-          className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded hover:bg-destructive/10 cursor-pointer"
+          className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded hover:bg-destructive/10 cursor-pointer"
         >
           Delete
         </button>

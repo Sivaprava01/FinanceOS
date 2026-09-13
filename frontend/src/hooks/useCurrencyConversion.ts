@@ -145,7 +145,7 @@ export function formatDualCurrency(
     lastUpdated?: string
   }
 ): DualAmountResult {
-  const prefUpper = (preferredCurrency || 'USD').toUpperCase()
+  const prefUpper = (preferredCurrency || 'INR').toUpperCase()
   const primary = formatCurrency(amount, prefUpper)
 
   if (prefUpper === 'INR') {
@@ -191,7 +191,7 @@ export function formatDualSignedCurrency(
 
 export function useDualCurrencyConversion() {
   const { currency: preferredCurrency, format: formatPrimary } = useCurrency()
-  const prefUpper = (preferredCurrency || 'USD').toUpperCase()
+  const prefUpper = (preferredCurrency || 'INR').toUpperCase()
   const hasSecondaryINR = prefUpper !== 'INR'
 
   const { data: ratesData, isLoading, isError } = useQuery({
@@ -217,12 +217,13 @@ export function useDualCurrencyConversion() {
 
   const isLive = rateStatus === 'live'
   const isCachedStatus = rateStatus === 'cached'
-  const liveInrRate = ratesData?.rates?.['INR'] ?? null
+  const liveInrRate = prefUpper !== 'INR' ? (ratesData?.rates?.['INR'] ?? null) : null
 
   // Safe development-only diagnostic logging
   useEffect(() => {
     if (import.meta.env.DEV && ratesData?.rates) {
       const sampleRate = ratesData.rates['INR']
+      // eslint-disable-next-line no-console
       console.log(
         `[FinanceOS Currency]\n` +
         `Preferred currency: ${prefUpper}\n` +

@@ -69,7 +69,8 @@ export const uploadStatement = asyncHandler(async (req, res) => {
  */
 export const getImportHistory = asyncHandler(async (req, res) => {
   const { user } = req;
-  let { limit, skip, status } = req.query;
+  let { limit, skip } = req.query;
+  const { status } = req.query;
 
   // Validate and parse pagination params
   limit = Math.min(parseInt(limit || 10), 100);

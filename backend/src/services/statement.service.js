@@ -128,14 +128,26 @@ const uploadStatement = async (userId, file, options = {}) => {
       const detectedCurr = explicitCurrency || extracted.detectedCurrency || null;
       if (detectedCurr && !statement.currency) {
         statement.currency = detectedCurr;
-        await statement.save();
       }
+      if (extracted.statementPeriod) {
+        statement.statementPeriod = extracted.statementPeriod;
+        statement.statementMonth = extracted.statementMonth;
+        statement.statementYear = extracted.statementYear;
+        statement.startDate = extracted.startDate;
+        statement.endDate = extracted.endDate;
+      }
+      await statement.save();
       previewData = {
         transactions: extracted,
         detectedCurrency: extracted.detectedCurrency || null,
         isAmbiguous: extracted.isAmbiguous || false,
         confidence: extracted.confidence || "none",
         detectedSources: extracted.detectedSources || [],
+        statementPeriod: extracted.statementPeriod || null,
+        statementMonth: extracted.statementMonth || null,
+        statementYear: extracted.statementYear || null,
+        startDate: extracted.startDate || null,
+        endDate: extracted.endDate || null,
       };
     }
   } catch (extractErr) {
@@ -300,7 +312,7 @@ const processStatementAsync = async (statementId, userId, password = "") => {
         statement.processedAt = new Date();
         await statement.save();
       } catch (saveErr) {
-        console.error(`[Statement Processing] Could not update statement status:`, saveErr);
+        console.error("[Statement Processing] Could not update statement status:", saveErr);
       }
     }
   }
@@ -588,6 +600,11 @@ const formatStatementResponse = (statement) => {
     fileType: statement.fileType,
     fileSize: statement.fileSize,
     currency: statement.currency || null,
+    statementPeriod: statement.statementPeriod || null,
+    statementMonth: statement.statementMonth || null,
+    statementYear: statement.statementYear || null,
+    startDate: statement.startDate || null,
+    endDate: statement.endDate || null,
     status: statement.status,
     failureReason: statement.failureReason || null,
     transactionCount: statement.transactionCount,

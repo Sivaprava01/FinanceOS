@@ -44,7 +44,7 @@ const WORKFLOW_STEPS: WorkflowStep[] = [
     stepIndex: 1,
     icon: UploadCloud,
     title: 'Upload Bank Statements',
-    subtitle: 'Multi-Format Ingestion',
+    subtitle: 'Multi-Format Support',
     description:
       'Export statements from any bank or credit card in PDF (including password-protected files), CSV, XLS, or XLSX. Drop them directly into FinanceOS.',
     linkText: 'Go to Statements',
@@ -191,7 +191,7 @@ const HowItWorks: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-              <span>Multi-Format Ingestion</span>
+              <span>Multi-Format Support</span>
             </div>
             <span className="text-border">•</span>
             <div className="flex items-center gap-1.5">

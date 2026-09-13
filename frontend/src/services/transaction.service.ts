@@ -1,5 +1,5 @@
 import api from './api'
-import type { Transaction, CreateTransactionInput, TransactionType, PaymentMethod } from '@/types'
+import type { Transaction, CreateTransactionInput, TransactionType, PaymentMethod, ExtractedTransaction } from '@/types'
 
 export interface GetTransactionsParams {
   limit?: number
@@ -52,7 +52,6 @@ export const transactionService = {
   },
 
   createTransaction: async (input: CreateTransactionInput): Promise<Transaction> => {
-    console.log("[FRONTEND] Creating transaction with payload:", JSON.stringify(input, null, 2));
     const response = await api.post<{ success: boolean; message: string; data: Transaction }>('/transactions', input)
     return response.data.data
   },
@@ -82,8 +81,8 @@ export const transactionService = {
     return response.data.data
   },
 
-  extractTransactions: async (statementId: string): Promise<any> => {
-    const response = await api.post<{ success: boolean; message: string; data: any }>(
+  extractTransactions: async (statementId: string): Promise<{ statementId: string; transactionCount: number; transactions: ExtractedTransaction[] }> => {
+    const response = await api.post<{ success: boolean; message: string; data: { statementId: string; transactionCount: number; transactions: ExtractedTransaction[] } }>(
       '/transactions/extract',
       { statementId }
     )
@@ -93,7 +92,7 @@ export const transactionService = {
   importTransactions: async (input: {
     statementId: string
     currency: string
-    transactions: any[]
+    transactions: ExtractedTransaction[]
     filePath?: string
   }): Promise<{ statementId: string; transactionCount: number; currency: string; message: string }> => {
     const response = await api.post<{

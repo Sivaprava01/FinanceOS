@@ -21,8 +21,9 @@ import {
   refreshToken,
   getProfile,
 } from "../controllers/auth.controller.js";
-import { COOKIE_NAMES, COOKIE_OPTIONS, AUTH_MESSAGES } from "../constants/index.js";
-import { HTTP_STATUS } from "../constants/index.js";
+import { COOKIE_NAMES, COOKIE_OPTIONS } from "../constants/index.js";
+
+import { isGoogleOAuthConfigured } from "../config/passport.js";
 
 const router = express.Router();
 
@@ -36,26 +37,65 @@ router.get("/me", protect, getProfile);
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 
+// Guard: verify that Google credentials are configured before delegating to Passport
+const ensureGoogleOAuthConfigured = (req, res, next) => {
+  if (!isGoogleOAuthConfigured()) {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    return res.redirect(`${frontendUrl}/login?error=google_oauth_not_configured`);
+  }
+  next();
+};
+
+// Helper to determine target frontend URL from state or headers or env
+const getFrontendOrigin = (req) => {
+  if (req.query.state) {
+    try {
+      return new URL(req.query.state).origin;
+    } catch {
+      // fallback
+    }
+  }
+  const referer = req.headers.referer;
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // fallback
+    }
+  }
+  return process.env.FRONTEND_URL || "http://localhost:3000";
+};
+
 // Step 1: Redirect user to Google's consent screen
 router.get(
   "/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-    session: false,
-  })
+  ensureGoogleOAuthConfigured,
+  (req, res, next) => {
+    const frontendOrigin = req.query.returnTo || getFrontendOrigin(req);
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      session: false,
+      state: frontendOrigin,
+    })(req, res, next);
+  }
 );
 
 // Step 2: Google redirects back with auth code; Passport exchanges it for tokens
 router.get(
   "/google/callback",
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: `${process.env.FRONTEND_URL}/login?error=google_auth_failed`,
-  }),
+  ensureGoogleOAuthConfigured,
+  (req, res, next) => {
+    const frontendUrl = getFrontendOrigin(req);
+    passport.authenticate("google", {
+      session: false,
+      failureRedirect: `${frontendUrl}/login?error=google_auth_failed`,
+    })(req, res, next);
+  },
 
   (req, res) => {
     // req.user is the token pair returned by passport strategy's done(null, tokens)
     const { accessToken, refreshToken: newRefreshToken } = req.user;
+    const frontendUrl = getFrontendOrigin(req);
 
     const maxAge = parseInt(process.env.JWT_REFRESH_EXPIRE_MS, 10) || 30 * 24 * 60 * 60 * 1000;
 
@@ -65,8 +105,8 @@ router.get(
       maxAge,
     });
 
-    // Redirect to frontend dashboard — frontend fetches /me to get user data
-    res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${accessToken}`);
+    // Redirect to frontend auth callback handler with accessToken
+    res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}`);
   }
 );
 

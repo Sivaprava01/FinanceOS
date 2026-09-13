@@ -12,7 +12,6 @@
  * - Family dashboard calculations
  */
 
-import mongoose from "mongoose";
 import Family from "../models/family.model.js";
 import FamilyInvitation from "../models/family-invitation.model.js";
 import FamilySharing from "../models/family-sharing.model.js";
@@ -28,8 +27,6 @@ import {
   FAMILY_MESSAGES,
   LOAN_STATUS,
 } from "../constants/index.js";
-
-const { Types } = mongoose;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,32 +63,6 @@ const isMember = (family, userId) => {
  */
 const hasAccess = (family, userId) => {
   return isHead(family, userId) || isMember(family, userId);
-};
-
-/**
- * Gets sharing preferences for a user in a family
- * Returns default (all false) if preferences not found
- * @private
- */
-const getSharing = async (familyId, userId) => {
-  let sharing = await FamilySharing.findOne({
-    family: familyId,
-    user: userId,
-  });
-
-  if (!sharing) {
-    sharing = new FamilySharing({
-      family: familyId,
-      user: userId,
-      shareTransactions: false,
-      shareAssets: false,
-      shareLoans: false,
-      shareNetWorth: false,
-      shareEverything: false,
-    });
-  }
-
-  return sharing;
 };
 
 // ─── Family Management ────────────────────────────────────────────────────────
@@ -645,7 +616,6 @@ const getFamilyDashboard = async (familyId, requestingUserId) => {
   // Aggregate shared data
   let totalSharedAssets = 0;
   let totalSharedLiabilities = 0;
-  const sharedTransactions = [];
   let sharedExpenses = 0;
   const spendingByMember = [];
 

@@ -12,6 +12,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ForgotPassword from '../pages/auth/ForgotPassword'
 import ResetPassword from '../pages/auth/ResetPassword'
+import AuthCallback from '../pages/auth/AuthCallback'
 import Dashboard from '../pages/Dashboard'
 import Transactions from '../pages/Transactions'
 import Statements from '../pages/Statements'
@@ -23,14 +24,20 @@ import { LazyPageFallback } from '../components/LazyPageFallback'
 
 // Lazy load heavy pages to reduce initial bundle size
 const Analytics = lazy(() => import('../pages/Analytics'))
+const NetWorth = lazy(() => import('../pages/NetWorth'))
 const FamilyFinance = lazy(() => import('../pages/FamilyFinance'))
 const HowItWorks = lazy(() => import('../pages/HowItWorks'))
 const Onboarding = lazy(() => import('../pages/Onboarding'))
+
 
 export const routes = [
   {
     path: '/',
     element: <Landing />,
+  },
+  {
+    path: '/auth/callback',
+    element: <AuthCallback />,
   },
   {
     element: <PublicLayout />,
@@ -84,6 +91,15 @@ export const routes = [
           </Suspense>
         ),
       },
+      {
+        path: 'net-worth',
+        element: (
+          <Suspense fallback={<LazyPageFallback />}>
+            <NetWorth />
+          </Suspense>
+        ),
+      },
+
       {
         path: 'family',
         element: (

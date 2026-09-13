@@ -54,9 +54,9 @@ const steps: OnboardingStep[] = [
   },
   {
     id: 5,
-    title: 'Deep Cashflow Analytics',
+    title: 'Financial Analytics',
     description:
-      'Analyze spending patterns by merchant, category distribution pie charts, and month-over-month trend lines.',
+      'Analyze spending patterns by merchant, category distribution charts, and month-over-month trend lines.',
     icon: TrendingUp,
   },
   {

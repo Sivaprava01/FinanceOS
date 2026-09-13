@@ -20,6 +20,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/transactions': 'Transactions',
   '/statements': 'Statement Imports',
   '/analytics': 'Analytics',
+  '/net-worth': 'Net Worth & Wealth',
   '/family': 'Family Finance',
   '/categories': 'Categories',
   '/search': 'Search',
@@ -27,6 +28,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/settings': 'Settings',
   '/how-it-works': 'How It Works',
 }
+
 
 const TopNavigation: React.FC<TopNavigationProps> = ({ onMenuClick }) => {
   const location = useLocation()

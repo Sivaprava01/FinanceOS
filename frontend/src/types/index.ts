@@ -107,6 +107,13 @@ export interface ExtractedTransaction {
   originalDescription?: string
 }
 
+export interface AvailableMonth {
+  year: number
+  month: number
+  label: string
+  count: number
+}
+
 export interface StatementPreviewData {
   statementId?: string
   originalFileName?: string
@@ -116,6 +123,11 @@ export interface StatementPreviewData {
   isAmbiguous: boolean
   confidence: 'high' | 'low' | 'none'
   detectedSources?: string[]
+  statementPeriod?: string | null
+  statementMonth?: number | null
+  statementYear?: number | null
+  startDate?: string | null
+  endDate?: string | null
 }
 
 export interface Statement {
@@ -127,6 +139,11 @@ export interface Statement {
   status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed' | 'Password Required'
   transactionCount: number
   currency: string | null
+  statementPeriod?: string | null
+  statementMonth?: number | null
+  statementYear?: number | null
+  startDate?: string | null
+  endDate?: string | null
   uploadedAt: string
   processedAt?: string | null
   failureReason?: string | null
@@ -144,6 +161,7 @@ export interface DashboardOverview {
   totalIncome: number
   totalExpenses: number
   netBalance: number
+  activeMonthLabel?: string
   netWorth: {
     totalAssets: number
     totalLiabilities: number
@@ -163,9 +181,14 @@ export interface DashboardOverview {
     source?: string
   }[]
   topSpendingCategories: { _id: string; total: number }[]
+  availableMonths?: AvailableMonth[]
 }
 
 export interface SpendingAnalysis {
+  currency?: string
+  period?: string
+  periodLabel?: string
+  availableMonths?: AvailableMonth[]
   byCategory: { _id: string; total: number; count: number }[]
   categoryComparison: {
     category: string
@@ -174,9 +197,17 @@ export interface SpendingAnalysis {
     change: number
     changePercent: number
   }[]
-  monthlyTrend: { year: number; month: number; total: number }[]
+  monthlyTrend: {
+    year: number
+    month: number
+    total: number
+    income?: number
+    expenses?: number
+    savings?: number
+  }[]
   incomeVsExpense: { income: number; expenses: number; savings: number }
   topMerchants: { _id: string; count: number; total: number }[]
+  topIncomeSources?: { _id: string; count: number; total: number }[]
   highestExpenses: { date: string; amount: number; merchant: string; category: string }[]
   highestIncome: { date: string; amount: number; merchant: string; category: string }[]
 }
@@ -209,6 +240,7 @@ export interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithToken: (token: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   updateUser: (updates: Partial<User>) => void
@@ -260,3 +292,133 @@ export interface UpdateCategoryInput {
   icon?: string
   description?: string
 }
+
+export type AssetCategory =
+  | 'Cash'
+  | 'Bank Account'
+  | 'Gold'
+  | 'Real Estate'
+  | 'Vehicle'
+  | 'Stocks'
+  | 'Mutual Funds'
+  | 'Cryptocurrency'
+  | 'Others'
+
+export interface Asset {
+  _id: string
+  assetName: string
+  assetCategory: AssetCategory
+  currentValue: number
+  purchaseValue: number | null
+  purchaseDate: string | null
+  notes: string | null
+  gainLoss?: number | null
+  gainLossPercent?: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateAssetInput {
+  assetName: string
+  assetCategory: AssetCategory
+  currentValue: number
+  purchaseValue?: number | null
+  purchaseDate?: string | null
+  notes?: string | null
+}
+
+export interface UpdateAssetInput {
+  assetName?: string
+  assetCategory?: AssetCategory
+  currentValue?: number
+  purchaseValue?: number | null
+  purchaseDate?: string | null
+  notes?: string | null
+}
+
+export interface AssetSummary {
+  totalAssets: number
+  totalValue: number
+  byCategory: Record<string, number>
+}
+
+export interface NetWorthData {
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+  assetCount: number
+  activeLoanCount: number
+  assetBreakdown: Record<string, number>
+}
+
+export type LoanType =
+  | 'Home Loan'
+  | 'Car Loan'
+  | 'Personal Loan'
+  | 'Education Loan'
+  | 'Business Loan'
+  | 'Gold Loan'
+  | 'Other'
+
+export type LoanStatus = 'Active' | 'Closed'
+
+export interface Loan {
+  _id: string
+  loanName: string
+  loanType: LoanType
+  lenderName: string
+  principalAmount: number
+  interestRate: number
+  loanStartDate: string
+  loanEndDate: string
+  emiAmount: number
+  emiDueDay: number
+  outstandingBalance: number
+  loanStatus: LoanStatus
+  totalMonths?: number
+  emisPaid?: number
+  emisRemaining?: number
+  totalPaid?: number
+  calculatedOutstandingBalance?: number
+  progressPercent?: number
+  nextEmiDue?: string | null
+  remainingTenure?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateLoanInput {
+  loanName: string
+  loanType: LoanType
+  lenderName: string
+  principalAmount: number
+  interestRate: number
+  loanStartDate: string
+  loanEndDate: string
+  emiAmount: number
+  emiDueDay: number
+  outstandingBalance?: number
+  loanStatus?: LoanStatus
+}
+
+export interface UpdateLoanInput {
+  loanName?: string
+  loanType?: LoanType
+  lenderName?: string
+  principalAmount?: number
+  interestRate?: number
+  loanStartDate?: string
+  loanEndDate?: string
+  emiAmount?: number
+  emiDueDay?: number
+  outstandingBalance?: number
+  loanStatus?: LoanStatus
+}
+
+export interface LoanSummary {
+  totalActiveLoans: number
+  totalClosedLoans: number
+  totalOutstanding: number
+  monthlyEmiTotal: number
+}
+

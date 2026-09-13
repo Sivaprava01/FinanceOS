@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { dashboardService } from '@services/dashboard.service'
 
+import type { SpendingAnalysisParams, MonthlyComparisonParams } from '@services/dashboard.service'
+
 export const useOverview = () => {
   return useQuery({
     queryKey: ['dashboard', 'overview'],
@@ -9,18 +11,18 @@ export const useOverview = () => {
   })
 }
 
-export const useSpendingAnalysis = () => {
+export const useSpendingAnalysis = (params?: SpendingAnalysisParams) => {
   return useQuery({
-    queryKey: ['dashboard', 'spending-analysis'],
-    queryFn: () => dashboardService.getSpendingAnalysis(),
+    queryKey: ['dashboard', 'spending-analysis', params],
+    queryFn: () => dashboardService.getSpendingAnalysis(params),
     staleTime: 2 * 60 * 1000,
   })
 }
 
-export const useMonthlyComparison = () => {
+export const useMonthlyComparison = (params?: MonthlyComparisonParams) => {
   return useQuery({
-    queryKey: ['dashboard', 'monthly-comparison'],
-    queryFn: () => dashboardService.getMonthlyComparison(),
+    queryKey: ['dashboard', 'monthly-comparison', params],
+    queryFn: () => dashboardService.getMonthlyComparison(params),
     staleTime: 2 * 60 * 1000,
   })
 }
