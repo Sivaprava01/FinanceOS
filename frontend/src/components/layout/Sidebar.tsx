@@ -10,6 +10,7 @@ import {
   Wallet,
   FileText,
   BarChart3,
+  Landmark,
   Users,
   Tags,
   HelpCircle,
@@ -57,8 +58,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         { name: 'Transactions', href: '/transactions', icon: Wallet },
         { name: 'Statements', href: '/statements', icon: FileText },
         { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+        { name: 'Net Worth', href: '/net-worth', icon: Landmark },
       ],
     },
+
     {
       label: 'Collaboration',
       items: [{ name: 'Family Finance', href: '/family', icon: Users }],

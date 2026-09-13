@@ -24,9 +24,11 @@ import { LazyPageFallback } from '../components/LazyPageFallback'
 
 // Lazy load heavy pages to reduce initial bundle size
 const Analytics = lazy(() => import('../pages/Analytics'))
+const NetWorth = lazy(() => import('../pages/NetWorth'))
 const FamilyFinance = lazy(() => import('../pages/FamilyFinance'))
 const HowItWorks = lazy(() => import('../pages/HowItWorks'))
 const Onboarding = lazy(() => import('../pages/Onboarding'))
+
 
 export const routes = [
   {
@@ -89,6 +91,15 @@ export const routes = [
           </Suspense>
         ),
       },
+      {
+        path: 'net-worth',
+        element: (
+          <Suspense fallback={<LazyPageFallback />}>
+            <NetWorth />
+          </Suspense>
+        ),
+      },
+
       {
         path: 'family',
         element: (

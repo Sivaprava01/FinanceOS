@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  TrendingUp,
   ArrowUpRight,
   ArrowDownLeft,
   Wallet,
@@ -143,12 +142,7 @@ const Dashboard: React.FC = () => {
   }
 
   const netWorthValue = overview.netWorth?.netWorth ?? 0
-  const totalAssetsValue = overview.netWorth?.totalAssets ?? 0
-  const totalLiabilitiesValue = overview.netWorth?.totalLiabilities ?? 0
-
   const netWorthDual = getDualAmount(netWorthValue)
-  const assetsDual = getDualAmount(totalAssetsValue)
-  const liabilitiesDual = getDualAmount(totalLiabilitiesValue)
 
   const incomeDual = getDualSignedAmount(overview.totalIncome ?? 0, '+')
   const expensesDual = getDualSignedAmount(overview.totalExpenses ?? 0, '-')
@@ -156,7 +150,6 @@ const Dashboard: React.FC = () => {
     overview.netBalance ?? 0,
     (overview.netBalance ?? 0) >= 0 ? '+' : '-'
   )
-  const emiDual = getDualAmount(overview.monthlyEmi ?? 0)
 
   const monthlyTrendData = (analysis.monthlyTrend || []).map((point) => ({
     label: `${MONTH_NAMES[(point.month || 1) - 1]} ${point.year}`,
@@ -172,11 +165,6 @@ const Dashboard: React.FC = () => {
     overview.activeMonthLabel ||
     new Date().toLocaleDateString('default', { month: 'long', year: 'numeric' })
 
-  // Debt-to-Asset ratio calculation
-  const debtToAssetRatio =
-    totalAssetsValue > 0
-      ? ((totalLiabilitiesValue / totalAssetsValue) * 100).toFixed(1)
-      : '0.0'
 
   return (
     <div className="space-y-6 max-w-7xl w-full min-w-0">
@@ -236,129 +224,22 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ─── Net Worth Module ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12">
-          {/* Net Worth Hero (5 cols) */}
-          <div className="lg:col-span-5 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-border bg-gradient-to-br from-card via-card to-secondary/30">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-                  Net Worth
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-bold">
-                  <TrendingUp className="w-3 h-3" />
-                  Assets &amp; Savings
-                </span>
-              </div>
-              <div className="pt-1">
-                <p className="text-3xl sm:text-4xl font-bold font-serif tracking-tight text-foreground tabular-nums">
-                  {netWorthDual.primary}
-                </p>
-                {netWorthDual.secondary && (
-                  <p className="text-xs font-medium text-muted-foreground tabular-nums mt-1">
-                    ≈ {netWorthDual.secondary}
-                  </p>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Calculated from your bank accounts, investments, and debts.
-              </p>
-            </div>
-
-            <div className="pt-6">
-              <div className="p-3.5 rounded-lg bg-secondary/50 border border-border/60 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-md bg-primary/10 text-primary">
-                    <Landmark className="w-4 h-4" />
-                  </span>
-                  <div>
-                    <span className="text-xs font-medium text-foreground block">Monthly Loan &amp; EMI Payments</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {overview.activeLoans || 0} Active Loans / EMIs
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-foreground tabular-nums block">{emiDual.primary}</span>
-                  {emiDual.secondary && (
-                    <span className="text-[10px] text-muted-foreground tabular-nums block">≈ {emiDual.secondary}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Assets & Liabilities Split Pillar (7 cols) */}
-          <div className="lg:col-span-7 p-6 bg-secondary/20 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Total Assets Pillar */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-1 border-b border-border/60">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Total Assets</span>
-                </div>
-                <span className="text-sm font-bold text-primary tabular-nums">{assetsDual.primary}</span>
-              </div>
-              <div className="space-y-2.5 text-xs">
-                <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-foreground block">Bank Balances</span>
-                    <span className="text-[10px] text-muted-foreground">Checking &amp; Savings Accounts</span>
-                  </div>
-                  <span className="font-semibold text-foreground tabular-nums">{assetsDual.primary}</span>
-                </div>
-                <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-foreground block">Synced Accounts</span>
-                    <span className="text-[10px] text-muted-foreground">Imported Statements</span>
-                  </div>
-                  <span className="font-semibold text-primary tabular-nums">Active</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Liabilities Pillar */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-1 border-b border-border/60">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-destructive" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Total Liabilities</span>
-                </div>
-                <span className="text-sm font-bold text-destructive tabular-nums">{liabilitiesDual.primary}</span>
-              </div>
-              <div className="space-y-2.5 text-xs">
-                <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-foreground block">Outstanding Debts</span>
-                    <span className="text-[10px] text-muted-foreground">Credit Cards &amp; Loans</span>
-                  </div>
-                  <span className="font-semibold text-destructive tabular-nums">{liabilitiesDual.primary}</span>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary border border-border/60 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">Debt-to-Asset Ratio</span>
-                  <span className="font-bold text-foreground font-mono">{debtToAssetRatio}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ─── Cashflow Overview Strip ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Income */}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-2xs flex flex-col justify-between">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monthly Income</span>
-            <span className="p-1 rounded bg-primary/10 text-primary">
-              <ArrowUpRight className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+              Monthly Income
+            </span>
+            <span className="p-1.5 rounded-md bg-primary/10 text-primary">
+              <ArrowUpRight className="w-4 h-4" />
             </span>
           </div>
-          <div className="mt-2">
-            <p className="text-xl font-bold text-primary font-serif tabular-nums">{incomeDual.primary}</p>
+          <div className="mt-3">
+            <p className="text-2xl font-bold text-primary font-serif tabular-nums">{incomeDual.primary}</p>
             {incomeDual.secondary && (
-              <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">≈ {incomeDual.secondary}</p>
+              <p className="text-xs text-muted-foreground tabular-nums mt-0.5">≈ {incomeDual.secondary}</p>
             )}
           </div>
           <div className="w-full bg-secondary h-1.5 rounded-full mt-3 overflow-hidden">
@@ -367,45 +248,90 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Expenses */}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-2xs flex flex-col justify-between">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monthly Expenses</span>
-            <span className="p-1 rounded bg-destructive/10 text-destructive">
-              <ArrowDownLeft className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+              Monthly Expenses
+            </span>
+            <span className="p-1.5 rounded-md bg-destructive/10 text-destructive">
+              <ArrowDownLeft className="w-4 h-4" />
             </span>
           </div>
-          <div className="mt-2">
-            <p className="text-xl font-bold text-foreground font-serif tabular-nums">{expensesDual.primary}</p>
+          <div className="mt-3">
+            <p className="text-2xl font-bold text-foreground font-serif tabular-nums">{expensesDual.primary}</p>
             {expensesDual.secondary && (
-              <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">≈ {expensesDual.secondary}</p>
+              <p className="text-xs text-muted-foreground tabular-nums mt-0.5">≈ {expensesDual.secondary}</p>
             )}
           </div>
           <div className="w-full bg-secondary h-1.5 rounded-full mt-3 overflow-hidden">
-            <div className="bg-destructive/80 h-full rounded-full" style={{ width: overview.totalIncome > 0 ? `${Math.min(100, (overview.totalExpenses / overview.totalIncome) * 100)}%` : '50%' }} />
+            <div
+              className="bg-destructive/80 h-full rounded-full"
+              style={{
+                width:
+                  overview.totalIncome > 0
+                    ? `${Math.min(100, (overview.totalExpenses / overview.totalIncome) * 100)}%`
+                    : '50%',
+              }}
+            />
           </div>
         </div>
 
         {/* Net Savings */}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-2xs flex flex-col justify-between">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Savings</span>
-            <span className="p-1 rounded bg-secondary text-foreground">
-              <Wallet className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+              Net Savings
+            </span>
+            <span className="p-1.5 rounded-md bg-secondary text-foreground">
+              <Wallet className="w-4 h-4" />
             </span>
           </div>
-          <div className="mt-2">
-            <p className={`text-xl font-bold font-serif tabular-nums ${overview.netBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+          <div className="mt-3">
+            <p
+              className={`text-2xl font-bold font-serif tabular-nums ${
+                overview.netBalance >= 0 ? 'text-primary' : 'text-destructive'
+              }`}
+            >
               {cashflowDual.primary}
             </p>
             {cashflowDual.secondary && (
-              <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">≈ {cashflowDual.secondary}</p>
+              <p className="text-xs text-muted-foreground tabular-nums mt-0.5">≈ {cashflowDual.secondary}</p>
             )}
           </div>
           <div className="w-full bg-secondary h-1.5 rounded-full mt-3 overflow-hidden">
-            <div className="bg-primary h-full rounded-full" style={{ width: overview.netBalance >= 0 ? '70%' : '20%' }} />
+            <div
+              className={`h-full rounded-full ${overview.netBalance >= 0 ? 'bg-primary' : 'bg-destructive'}`}
+              style={{ width: overview.netBalance >= 0 ? '70%' : '30%' }}
+            />
+          </div>
+        </div>
+
+        {/* Net Worth Peek Card */}
+        <div
+          onClick={() => navigate('/net-worth')}
+          className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-2xs flex flex-col justify-between cursor-pointer hover:border-primary/40 hover:shadow-xs transition-all group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+              Net Worth
+            </span>
+            <span className="p-1.5 rounded-md bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <Landmark className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl font-bold font-serif tabular-nums text-foreground">{netWorthDual.primary}</p>
+            {netWorthDual.secondary && (
+              <p className="text-xs text-muted-foreground tabular-nums mt-0.5">≈ {netWorthDual.secondary}</p>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-primary font-medium mt-3 pt-2 border-t border-border/50">
+            <span>Manage Assets &amp; Loans</span>
+            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
       </div>
+
 
       {/* ─── Visual Analytics Grid ────────────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">

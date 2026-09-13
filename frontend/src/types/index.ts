@@ -292,3 +292,133 @@ export interface UpdateCategoryInput {
   icon?: string
   description?: string
 }
+
+export type AssetCategory =
+  | 'Cash'
+  | 'Bank Account'
+  | 'Gold'
+  | 'Real Estate'
+  | 'Vehicle'
+  | 'Stocks'
+  | 'Mutual Funds'
+  | 'Cryptocurrency'
+  | 'Others'
+
+export interface Asset {
+  _id: string
+  assetName: string
+  assetCategory: AssetCategory
+  currentValue: number
+  purchaseValue: number | null
+  purchaseDate: string | null
+  notes: string | null
+  gainLoss?: number | null
+  gainLossPercent?: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateAssetInput {
+  assetName: string
+  assetCategory: AssetCategory
+  currentValue: number
+  purchaseValue?: number | null
+  purchaseDate?: string | null
+  notes?: string | null
+}
+
+export interface UpdateAssetInput {
+  assetName?: string
+  assetCategory?: AssetCategory
+  currentValue?: number
+  purchaseValue?: number | null
+  purchaseDate?: string | null
+  notes?: string | null
+}
+
+export interface AssetSummary {
+  totalAssets: number
+  totalValue: number
+  byCategory: Record<string, number>
+}
+
+export interface NetWorthData {
+  totalAssets: number
+  totalLiabilities: number
+  netWorth: number
+  assetCount: number
+  activeLoanCount: number
+  assetBreakdown: Record<string, number>
+}
+
+export type LoanType =
+  | 'Home Loan'
+  | 'Car Loan'
+  | 'Personal Loan'
+  | 'Education Loan'
+  | 'Business Loan'
+  | 'Gold Loan'
+  | 'Other'
+
+export type LoanStatus = 'Active' | 'Closed'
+
+export interface Loan {
+  _id: string
+  loanName: string
+  loanType: LoanType
+  lenderName: string
+  principalAmount: number
+  interestRate: number
+  loanStartDate: string
+  loanEndDate: string
+  emiAmount: number
+  emiDueDay: number
+  outstandingBalance: number
+  loanStatus: LoanStatus
+  totalMonths?: number
+  emisPaid?: number
+  emisRemaining?: number
+  totalPaid?: number
+  calculatedOutstandingBalance?: number
+  progressPercent?: number
+  nextEmiDue?: string | null
+  remainingTenure?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateLoanInput {
+  loanName: string
+  loanType: LoanType
+  lenderName: string
+  principalAmount: number
+  interestRate: number
+  loanStartDate: string
+  loanEndDate: string
+  emiAmount: number
+  emiDueDay: number
+  outstandingBalance?: number
+  loanStatus?: LoanStatus
+}
+
+export interface UpdateLoanInput {
+  loanName?: string
+  loanType?: LoanType
+  lenderName?: string
+  principalAmount?: number
+  interestRate?: number
+  loanStartDate?: string
+  loanEndDate?: string
+  emiAmount?: number
+  emiDueDay?: number
+  outstandingBalance?: number
+  loanStatus?: LoanStatus
+}
+
+export interface LoanSummary {
+  totalActiveLoans: number
+  totalClosedLoans: number
+  totalOutstanding: number
+  monthlyEmiTotal: number
+}
+
