@@ -18,7 +18,7 @@ import {
   Calendar,
   TrendingUp,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/Card'
+import { Card, CardContent, CardHeader, CardDescription } from '@components/ui/Card'
 import { Button } from '@components/ui/Button'
 import { EmptyState } from '@components/ui/EmptyState'
 import {
@@ -550,7 +550,7 @@ const Statements: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Import Preview Modal */}
       <ImportPreviewDialog
         statement={previewStatement}
@@ -580,7 +580,7 @@ const Statements: React.FC = () => {
       )}
 
       {/* ─── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
         <div className="space-y-1">
           <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
             Statements
@@ -589,460 +589,458 @@ const Statements: React.FC = () => {
             Upload and manage your bank statements. Transactions are imported automatically.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60">
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                activeTab === 'active'
-                  ? 'bg-card text-foreground shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Active Imports
-            </button>
-            <button
-              onClick={() => setActiveTab('completed')}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                activeTab === 'completed'
-                  ? 'bg-card text-foreground shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Completed History
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* ─── Upload Card ────────────────────────────────────────────────────── */}
-      <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-              <Upload className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="font-serif text-sm font-bold text-foreground">
-                Upload Bank Statement
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Upload bank statements in PDF, Excel (.xlsx, .xls), and CSV formats
-              </p>
-            </div>
-          </div>
+      {/* ─── Main Side-by-Side Grid ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ─── Left Column: Upload Bank Statement (5 cols) ───────────────── */}
+        <div className="lg:col-span-5 space-y-4">
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="font-serif text-sm font-bold text-foreground">
+                      Upload Bank Statement
+                    </h2>
+                    <p className="text-[11px] text-muted-foreground">
+                      PDF, Excel (.xlsx, .xls), and CSV
+                    </p>
+                  </div>
+                </div>
 
-          <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-lg border border-border shadow-xs">
-            <label className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">
-              Base Currency:
-            </label>
-            <select
-              value={statementCurrency}
-              onChange={(e) => setStatementCurrency(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
-            >
-              {COMMON_CURRENCIES.map((c) => (
-                <option key={c} value={c} className="bg-card text-foreground">
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div className="flex items-center gap-1.5 bg-background px-2.5 py-1 rounded-lg border border-border shadow-xs">
+                  <label className="text-[11px] font-mono font-medium text-muted-foreground whitespace-nowrap">
+                    Base:
+                  </label>
+                  <select
+                    value={statementCurrency}
+                    onChange={(e) => setStatementCurrency(e.target.value)}
+                    className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+                  >
+                    {COMMON_CURRENCIES.map((c) => (
+                      <option key={c} value={c} className="bg-card text-foreground">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <CardContent className="p-5 sm:p-6">
+              {/* Dropzone Area */}
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`relative group rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 cursor-pointer ${
+                  dragActive
+                    ? 'border-primary bg-primary/5 scale-[1.005]'
+                    : 'border-border/80 hover:border-primary/50 bg-muted/10'
+                }`}
+              >
+                <div className="flex flex-col items-center max-w-sm mx-auto space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                    <FileSpreadsheet className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-serif text-sm font-bold text-foreground">
+                      Drag and drop bank statements here
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      or{' '}
+                      <label
+                        htmlFor="file-input"
+                        className="text-primary font-semibold underline underline-offset-2 cursor-pointer hover:text-primary/80"
+                      >
+                        browse files
+                      </label>{' '}
+                      from your device
+                    </p>
+                  </div>
+
+                  <input
+                    type="file"
+                    id="file-input"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept=".pdf,.xls,.xlsx,.csv"
+                  />
+
+                  {/* Supported Banks Badge */}
+                  <div className="pt-2">
+                    <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider block mb-2 font-medium">
+                      Supported Banks &amp; Formats:
+                    </span>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      {['HDFC Bank', 'ICICI Bank', 'SBI Retail', 'Axis Bank', 'Amex', 'Chase', 'HSBC', 'Zerodha'].map(
+                        (bank) => (
+                          <span
+                            key={bank}
+                            className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-medium text-foreground border border-border/60"
+                          >
+                            {bank}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Security Footnote */}
+                  <div className="flex items-center gap-1.5 text-muted-foreground pt-1.5 text-[11px]">
+                    <Lock className="h-3 w-3 text-primary" />
+                    <span>Your uploaded files are processed securely.</span>
+                  </div>
+                </div>
+
+                {uploadStatement.isPending && (
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs text-primary font-medium">
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    Uploading statement...
+                  </div>
+                )}
+
+                {uploadError && (
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-2 text-xs text-destructive font-medium border border-destructive/20 text-left">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {uploadSuccess && !uploadStatement.isPending && (
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/20 text-left">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    <span>Statement uploaded and processed successfully!</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <CardContent className="p-6 sm:p-8">
-          {/* Dropzone Area */}
-          <div
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            className={`relative group rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer ${
-              dragActive
-                ? 'border-primary bg-primary/5 scale-[1.005]'
-                : 'border-border/80 hover:border-primary/50 bg-muted/10'
-            }`}
-          >
-            <div className="flex flex-col items-center max-w-md mx-auto space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
-                <FileSpreadsheet className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-serif text-base font-bold text-foreground">
-                  Drag and drop bank statements here
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  or{' '}
-                  <label
-                    htmlFor="file-input"
-                    className="text-primary font-semibold underline underline-offset-2 cursor-pointer hover:text-primary/80"
-                  >
-                    browse files
-                  </label>{' '}
-                  from your device
-                </p>
-              </div>
-
-              <input
-                type="file"
-                id="file-input"
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.xls,.xlsx,.csv"
-              />
-
-              {/* Supported Banks Badge */}
-              <div className="pt-2">
-                <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider block mb-2 font-medium">
-                  Supported Banks &amp; Formats:
-                </span>
-                <div className="flex flex-wrap items-center justify-center gap-1.5">
-                  {['HDFC Bank', 'ICICI Bank', 'SBI Retail', 'Axis Bank', 'Amex', 'Chase', 'HSBC', 'Zerodha'].map(
-                    (bank) => (
-                      <span
-                        key={bank}
-                        className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-medium text-foreground border border-border/60"
-                      >
-                        {bank}
-                      </span>
-                    )
-                  )}
-                </div>
-              </div>
-
-              {/* Security Footnote */}
-              <div className="flex items-center gap-1.5 text-muted-foreground pt-2 text-[11px]">
-                <Lock className="h-3 w-3 text-primary" />
-                <span>Your uploaded files are processed securely.</span>
-              </div>
-            </div>
-
-            {uploadStatement.isPending && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs text-primary font-medium">
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                Uploading statement...
-              </div>
-            )}
-
-            {uploadError && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-destructive/10 px-4 py-2 text-xs text-destructive font-medium border border-destructive/20">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {uploadError}
-              </div>
-            )}
-
-            {uploadSuccess && !uploadStatement.isPending && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/20">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                Statement uploaded and processed successfully!
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ─── Import Management Section ───────────────────────────────────────── */}
-      <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
-        <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="font-serif text-base font-bold text-foreground">
-                {activeTab === 'active' ? 'Active Imports' : 'Completed Statements'}
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                {activeTab === 'active'
-                  ? 'Statements currently processing or requiring passwords'
-                  : 'Processed bank statements linked to your transactions'}
-              </CardDescription>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              {activeTab === 'completed' && (
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Filter statements..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-48 sm:w-56 rounded-lg border border-input bg-background pl-8 pr-7 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  {searchQuery && (
+        {/* ─── Right Column: Active Imports / Completed History (7 cols) ─── */}
+        <div className="lg:col-span-7 space-y-4">
+          <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/60 w-fit">
                     <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setActiveTab('active')}
+                      className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                        activeTab === 'active'
+                          ? 'bg-card text-foreground shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
                     >
-                      <X className="h-3.5 w-3.5" />
+                      Active Imports
                     </button>
+                    <button
+                      onClick={() => setActiveTab('completed')}
+                      className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                        activeTab === 'completed'
+                          ? 'bg-card text-foreground shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Completed History
+                    </button>
+                  </div>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    {activeTab === 'active'
+                      ? 'Statements currently processing or requiring passwords'
+                      : 'Processed bank statements linked to your transactions'}
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  {activeTab === 'completed' && (
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Filter statements..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-44 sm:w-52 rounded-lg border border-input bg-background pl-8 pr-7 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'active' && failedCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="text-xs text-destructive hover:bg-destructive hover:text-white border-destructive/30 gap-1.5"
+                      onClick={() => setShowClearFailedModal(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Clear Failed ({failedCount})
+                    </Button>
                   )}
                 </div>
-              )}
+              </div>
+            </CardHeader>
 
-              {activeTab === 'active' && failedCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="text-xs text-destructive hover:bg-destructive hover:text-white border-destructive/30 gap-1.5"
-                  onClick={() => setShowClearFailedModal(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Clear Failed ({failedCount})
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="p-5 space-y-3">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/40" />
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-destructive font-medium">
+                    Failed to load statement records. Please refresh.
+                  </p>
+                </div>
+              ) : filteredStatements.length === 0 ? (
+                <div className="p-10">
+                  <EmptyState
+                    icon={FileText}
+                    title={
+                      activeTab === 'active'
+                        ? 'No Active Statements Pending'
+                        : searchQuery
+                        ? 'No Statements Found'
+                        : 'No Completed Statements Yet'
+                    }
+                    description={
+                      activeTab === 'active'
+                        ? 'All uploaded bank statements have been processed.'
+                        : searchQuery
+                        ? 'No archive records match your search filter.'
+                        : 'Completed bank statements will appear here.'
+                    }
+                    action={
+                      searchQuery
+                        ? {
+                            label: 'Clear Search',
+                            onClick: () => setSearchQuery(''),
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {filteredStatements.map((statement: Statement) => {
+                    const statusInfo = STATUS_STYLES[statement.status] || STATUS_STYLES.Uploaded
+                    const isPasswordModalOpen = passwordStatementId === statement._id
 
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-5 space-y-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/40" />
-              ))}
-            </div>
-          ) : error ? (
-            <div className="p-8 text-center">
-              <p className="text-sm text-destructive font-medium">
-                Failed to load statement records. Please refresh.
-              </p>
-            </div>
-          ) : filteredStatements.length === 0 ? (
-            <div className="p-10">
-              <EmptyState
-                icon={FileText}
-                title={
-                  activeTab === 'active'
-                    ? 'No Active Statements Pending'
-                    : searchQuery
-                    ? 'No Statements Found'
-                    : 'No Completed Statements Yet'
-                }
-                description={
-                  activeTab === 'active'
-                    ? 'All uploaded bank statements have been processed.'
-                    : searchQuery
-                    ? 'No archive records match your search filter.'
-                    : 'Completed bank statements will appear here.'
-                }
-                action={
-                  searchQuery
-                    ? {
-                        label: 'Clear Search',
-                        onClick: () => setSearchQuery(''),
-                      }
-                    : {
-                        label: 'Upload Statement',
-                        onClick: () => {
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        },
-                      }
-                }
-              />
-            </div>
-          ) : (
-            <div className="divide-y divide-border/60">
-              {filteredStatements.map((statement: Statement) => {
-                const statusInfo = STATUS_STYLES[statement.status] || STATUS_STYLES.Uploaded
-                const isPasswordModalOpen = passwordStatementId === statement._id
-
-                return (
-                  <div
-                    key={statement._id}
-                    className="p-4 sm:p-5 hover:bg-muted/20 transition-colors space-y-3"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      {/* Left: Metadata */}
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground border border-border">
-                          <FileText className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-xs text-foreground truncate">
-                              {statement.originalFileName}
-                            </p>
-                            <span
-                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider ${statusInfo.badge}`}
-                            >
-                              {statusInfo.icon}
-                              {statement.status}
-                            </span>
+                    return (
+                      <div
+                        key={statement._id}
+                        className="p-4 sm:p-5 hover:bg-muted/20 transition-colors space-y-3"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          {/* Left: Metadata */}
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground border border-border">
+                              <FileText className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-xs text-foreground truncate">
+                                  {statement.originalFileName}
+                                </p>
+                                <span
+                                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider ${statusInfo.badge}`}
+                                >
+                                  {statusInfo.icon}
+                                  {statement.status}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground font-mono text-[11px]">
+                                <span>{statement.fileType}</span>
+                                <span>•</span>
+                                <span>{formatFileSize(statement.fileSize)}</span>
+                                {statement.currency && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.2 font-semibold text-primary">
+                                      {statement.currency}
+                                    </span>
+                                  </>
+                                )}
+                                {statement.statementPeriod && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.2 font-semibold text-primary">
+                                      <Calendar className="w-3 h-3" />
+                                      {statement.statementPeriod}
+                                    </span>
+                                  </>
+                                )}
+                                {statement.status === 'Completed' && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="font-semibold text-foreground">
+                                      {statement.transactionCount} transaction{statement.transactionCount !== 1 ? 's' : ''}
+                                    </span>
+                                  </>
+                                )}
+                                <span>•</span>
+                                <span>{new Date(statement.uploadedAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground font-mono text-[11px]">
-                            <span>{statement.fileType}</span>
-                            <span>•</span>
-                            <span>{formatFileSize(statement.fileSize)}</span>
-                            {statement.currency && (
-                              <>
-                                <span>•</span>
-                                <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.2 font-semibold text-primary">
-                                  {statement.currency}
-                                </span>
-                              </>
+
+                          {/* Right: Actions */}
+                          <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+                            {statement.status === 'Uploaded' && statement.preview && (
+                              <Button
+                                size="sm"
+                                className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-xs"
+                                onClick={() => setPreviewStatement(statement)}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Review &amp; Import
+                              </Button>
                             )}
-                            {statement.statementPeriod && (
-                              <>
-                                <span>•</span>
-                                <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.2 font-semibold text-primary">
-                                  <Calendar className="w-3 h-3" />
-                                  {statement.statementPeriod}
-                                </span>
-                              </>
-                            )}
+
                             {statement.status === 'Completed' && (
                               <>
-                                <span>•</span>
-                                <span className="font-semibold text-foreground">
-                                  {statement.transactionCount} transaction{statement.transactionCount !== 1 ? 's' : ''}
-                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-xs shadow-xs"
+                                  onClick={() => handleViewTransactions(statement._id)}
+                                >
+                                  <Eye className="h-3.5 w-3.5" /> View Transactions
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  onClick={() =>
+                                    navigate(
+                                      statement.statementMonth && statement.statementYear
+                                        ? `/analytics?month=${statement.statementMonth}&year=${statement.statementYear}`
+                                        : '/analytics'
+                                    )
+                                  }
+                                  title="View analytics for this statement period"
+                                >
+                                  <TrendingUp className="h-3.5 w-3.5" /> Analytics
+                                </Button>
                               </>
                             )}
-                            <span>•</span>
-                            <span>{new Date(statement.uploadedAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Right: Actions */}
-                      <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
-                        {statement.status === 'Uploaded' && statement.preview && (
-                          <Button
-                            size="sm"
-                            className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-xs"
-                            onClick={() => setPreviewStatement(statement)}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Review & Import
-                          </Button>
-                        )}
+                            {(statement.status === 'Password Required' ||
+                              (statement.status === 'Failed' && statement.failureReason?.toLowerCase().includes('password'))) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                                onClick={() => {
+                                  setPasswordStatementId(isPasswordModalOpen ? null : statement._id)
+                                  setPasswordInput('')
+                                  setPasswordError('')
+                                }}
+                              >
+                                <KeyRound className="h-3.5 w-3.5" /> Provide Password
+                              </Button>
+                            )}
 
-                        {statement.status === 'Completed' && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5 text-xs shadow-xs"
-                              onClick={() => handleViewTransactions(statement._id)}
-                            >
-                              <Eye className="h-3.5 w-3.5" /> View Transactions
-                            </Button>
+                            {statement.status === 'Failed' &&
+                              !statement.failureReason?.toLowerCase().includes('password') && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-xs"
+                                  disabled={retryStatement.isPending}
+                                  onClick={() => retryStatement.mutate(statement._id)}
+                                >
+                                  <RefreshCw className={`h-3.5 w-3.5 ${retryStatement.isPending ? 'animate-spin' : ''}`} />
+                                  Retry
+                                </Button>
+                              )}
+
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                              onClick={() =>
-                                navigate(
-                                  statement.statementMonth && statement.statementYear
-                                    ? `/analytics?month=${statement.statementMonth}&year=${statement.statementYear}`
-                                    : '/analytics'
-                                )
-                              }
-                              title="View analytics for this statement period"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteTarget(statement)}
+                              title="Delete statement record"
                             >
-                              <TrendingUp className="h-3.5 w-3.5" /> Analytics
-                            </Button>
-                          </>
-                        )}
-
-                        {(statement.status === 'Password Required' ||
-                          (statement.status === 'Failed' && statement.failureReason?.toLowerCase().includes('password'))) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
-                            onClick={() => {
-                              setPasswordStatementId(isPasswordModalOpen ? null : statement._id)
-                              setPasswordInput('')
-                              setPasswordError('')
-                            }}
-                          >
-                            <KeyRound className="h-3.5 w-3.5" /> Provide Password
-                          </Button>
-                        )}
-
-                        {statement.status === 'Failed' &&
-                          !statement.failureReason?.toLowerCase().includes('password') && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1.5 text-xs"
-                              disabled={retryStatement.isPending}
-                              onClick={() => retryStatement.mutate(statement._id)}
-                            >
-                              <RefreshCw className={`h-3.5 w-3.5 ${retryStatement.isPending ? 'animate-spin' : ''}`} />
-                              Retry
-                            </Button>
-                          )}
-
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteTarget(statement)}
-                          title="Delete statement record"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Error Summary Banner */}
-                    {statement.failureReason && (
-                      <div className="flex items-start gap-2 rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive border border-destructive/20">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                        <span className="font-medium">{statement.failureReason}</span>
-                      </div>
-                    )}
-
-                    {/* Password Input Inline Drawer */}
-                    {isPasswordModalOpen && (
-                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 animate-in fade-in duration-150">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
-                          <KeyRound className="h-4 w-4" />
-                          <span>Password-protected statement: Enter password</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <input
-                            type="password"
-                            placeholder="Enter PDF password"
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit(statement._id)}
-                            className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
-                              onClick={() => handlePasswordSubmit(statement._id)}
-                              disabled={retryWithPassword.isPending || !passwordInput.trim()}
-                            >
-                              {retryWithPassword.isPending ? 'Unlocking...' : 'Submit Password'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs"
-                              onClick={() => {
-                                setPasswordStatementId(null)
-                                setPasswordInput('')
-                                setPasswordError('')
-                              }}
-                            >
-                              Cancel
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
-                        {passwordError && <p className="text-xs text-destructive font-medium">{passwordError}</p>}
+
+                        {/* Error Summary Banner */}
+                        {statement.failureReason && (
+                          <div className="flex items-start gap-2 rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive border border-destructive/20">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            <span className="font-medium">{statement.failureReason}</span>
+                          </div>
+                        )}
+
+                        {/* Password Input Inline Drawer */}
+                        {isPasswordModalOpen && (
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 animate-in fade-in duration-150">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
+                              <KeyRound className="h-4 w-4" />
+                              <span>Password-protected statement: Enter password</span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <input
+                                type="password"
+                                placeholder="Enter PDF password"
+                                value={passwordInput}
+                                onChange={(e) => setPasswordInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit(statement._id)}
+                                className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                                  onClick={() => handlePasswordSubmit(statement._id)}
+                                  disabled={retryWithPassword.isPending || !passwordInput.trim()}
+                                >
+                                  {retryWithPassword.isPending ? 'Unlocking...' : 'Submit Password'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => {
+                                    setPasswordStatementId(null)
+                                    setPasswordInput('')
+                                    setPasswordError('')
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                            {passwordError && <p className="text-xs text-destructive font-medium">{passwordError}</p>}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }
