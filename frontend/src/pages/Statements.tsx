@@ -591,10 +591,10 @@ const Statements: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Main Side-by-Side Grid ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* ─── Left Column: Upload Bank Statement (5 cols) ───────────────── */}
-        <div className="lg:col-span-5 space-y-4">
+      {/* ─── Main Side-by-Side Grid (50/50 Split) ────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* ─── Left Column: Upload Bank Statement (50%) ───────────────────── */}
+        <div className="space-y-4">
           <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3">
@@ -723,8 +723,8 @@ const Statements: React.FC = () => {
           </Card>
         </div>
 
-        {/* ─── Right Column: Active Imports / Completed History (7 cols) ─── */}
-        <div className="lg:col-span-7 space-y-4">
+        {/* ─── Right Column: Active Imports / Completed History (50%) ─────── */}
+        <div className="space-y-4">
           <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
             <CardHeader className="p-4 sm:p-5 border-b border-border bg-muted/20">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
