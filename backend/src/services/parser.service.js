@@ -542,7 +542,7 @@ const parseExcel = async (filePath) => {
 // ─── Constants & Regex ────────────────────────────────────────────────────────
 
 const DATE_MASK_RE = /\b(?:\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}|\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})\b/gi;
-const STRICT_AMOUNT_PATTERN = /(?:[-+])?(?<![.\d])(?:\d{1,3}(?:,\d{2,3})*|\d+)\.\d{2}(?![.\d])(?:\s*\((?:Dr|Cr)\)|\s*(?:Dr|Cr))?/gi;
+const STRICT_AMOUNT_PATTERN = /(?:[-+]\s*)?(?<![.\d])(?:\d{1,3}(?:,\d{2,3})*|\d+)\.\d{2}(?![.\d])(?:\s*\((?:Dr|Cr)\)|\s*(?:Dr|Cr))?/gi;
 
 // ─── Row Normalization ─────────────────────────────────────────────────────────
 
@@ -647,54 +647,63 @@ const normalizeRow = (row, _source) => {
     );
   });
 
-  const debitVal = debitKey ? parseAmount(row[debitKey]) : null;
-  const creditVal = creditKey ? parseAmount(row[creditKey]) : null;
-
-  if (debitVal !== null && debitVal > 0) {
-    amount = debitVal;
-    type = "Debit";
-  } else if (creditVal !== null && creditVal > 0) {
-    amount = creditVal;
-    type = "Credit";
+  if (debitKey && creditKey && debitKey === creditKey) {
+    // Single combined column like "Debit/Credit" or "Debit / Credit(₹)"
+    const rawVal = parseAmount(row[debitKey]);
+    if (rawVal !== null && rawVal !== 0) {
+      amount = Math.abs(rawVal);
+      type = rawVal < 0 ? "Debit" : "Credit";
+    }
   } else {
-    // Single Amount column fallback (but NEVER use Balance)
-    const balanceKey = keys.find((k) => {
-      const l = k.toLowerCase().trim();
-      return l.includes("balance") || l.includes("closing") || l.includes("running");
-    });
+    const debitVal = debitKey ? parseAmount(row[debitKey]) : null;
+    const creditVal = creditKey ? parseAmount(row[creditKey]) : null;
 
-    const amountKey = keys.find((k) => {
-      const l = k.toLowerCase().trim();
-      // Explicitly exclude balance/closing columns
-      if (balanceKey && k === balanceKey) return false;
-      if (l.includes("balance") || l.includes("closing")) return false;
-      return (
-        l.includes("amount") ||
-        l === "amt" ||
-        l === "sum" ||
-        l === "tx amount" ||
-        l === "transaction amount" ||
-        l === "txn amount" ||
-        l.includes("total")
-      );
-    });
+    if (debitVal !== null && debitVal !== 0) {
+      amount = Math.abs(debitVal);
+      type = "Debit";
+    } else if (creditVal !== null && creditVal !== 0) {
+      amount = Math.abs(creditVal);
+      type = "Credit";
+    } else {
+      // Single Amount column fallback (but NEVER use Balance)
+      const balanceKey = keys.find((k) => {
+        const l = k.toLowerCase().trim();
+        return l.includes("balance") || l.includes("closing") || l.includes("running");
+      });
 
-    if (amountKey) {
-      const rawAmt = parseAmount(row[amountKey]);
-      if (rawAmt !== null && rawAmt !== 0) {
-        amount = Math.abs(rawAmt);
-        const typeKey = keys.find((k) => {
-          const l = k.toLowerCase().trim();
-          return l.includes("type") || l === "dr/cr" || l === "d/c" || l.includes("transaction type");
-        });
+      const amountKey = keys.find((k) => {
+        const l = k.toLowerCase().trim();
+        // Explicitly exclude balance/closing columns
+        if (balanceKey && k === balanceKey) return false;
+        if (l.includes("balance") || l.includes("closing")) return false;
+        return (
+          l.includes("amount") ||
+          l === "amt" ||
+          l === "sum" ||
+          l === "tx amount" ||
+          l === "transaction amount" ||
+          l === "txn amount" ||
+          l.includes("total")
+        );
+      });
 
-        if (rawAmt < 0) {
-          type = "Debit";
-        } else if (typeKey) {
-          type = parseType(row[typeKey], rawAmt);
-        } else {
-          const detected = detectCategoryAndType(`${description} ${merchantRaw}`, rawAmt);
-          type = detected.type;
+      if (amountKey) {
+        const rawAmt = parseAmount(row[amountKey]);
+        if (rawAmt !== null && rawAmt !== 0) {
+          amount = Math.abs(rawAmt);
+          const typeKey = keys.find((k) => {
+            const l = k.toLowerCase().trim();
+            return l.includes("type") || l === "dr/cr" || l === "d/c" || l.includes("transaction type");
+          });
+
+          if (rawAmt < 0) {
+            type = "Debit";
+          } else if (typeKey) {
+            type = parseType(row[typeKey], rawAmt);
+          } else {
+            const detected = detectCategoryAndType(`${description} ${merchantRaw}`, rawAmt);
+            type = detected.type;
+          }
         }
       }
     }
@@ -952,9 +961,10 @@ const extractTransactionsFromStructuredPDF = (pages) => {
   // Match date at line start or after serial number (e.g. "1  02/09/2026" or "02/09/2026" or "102.09.2026")
   const ROW_START_DATE_RE = /(?:^|\s|\d{1,4})(?:(\d{4}[/\-.]\d{2}[/\-.]\d{2})|(\d{1,2}[/\-.](?:0[1-9]|1[0-2])[/\-.]\d{2,4})|(\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4}))/i;
 
-  // Scan all pages to locate global column centers for Withdrawal, Deposit, and Balance
+  // Scan all pages to locate global column centers for Withdrawal, Deposit, Debit/Credit, and Balance
   let withdrawalColX = null;
   let depositColX = null;
+  let debitCreditColX = null;
   let balanceColX = null;
   let isKotakLayout = false;
 
@@ -981,14 +991,34 @@ const extractTransactionsFromStructuredPDF = (pages) => {
       ) {
         depositColX = it.x + (it.width || 0) / 2;
       }
-      if (str === "balance" || str === "balance (inr)" || (str.includes("balance") && !balanceColX)) {
+      if (
+        str.includes("debit/credit") ||
+        str.includes("debit / credit") ||
+        str === "dr / cr" ||
+        str === "dr/cr" ||
+        str === "amount" ||
+        str === "amount (inr)" ||
+        str === "amount(₹)" ||
+        str === "txn amount" ||
+        (str.includes("debit") && str.includes("credit") && !debitCreditColX)
+      ) {
+        debitCreditColX = it.x + (it.width || 0) / 2;
+      }
+      if (
+        str === "balance" ||
+        str === "balance (inr)" ||
+        str === "balance(₹)" ||
+        str === "closing balance" ||
+        str === "running balance" ||
+        (str.includes("balance") && !balanceColX)
+      ) {
         balanceColX = it.x + (it.width || 0) / 2;
       }
       if (str.includes("value date") || (str.includes("debit/credit") && str.includes("chq"))) {
         isKotakLayout = true;
       }
     }
-    if (withdrawalColX && depositColX) break;
+    if ((withdrawalColX && depositColX && balanceColX) || (debitCreditColX && balanceColX)) break;
   }
 
   const transactions = [];
@@ -1062,16 +1092,43 @@ const extractTransactionsFromStructuredPDF = (pages) => {
       const date = parseDate(rowUnit.dateRaw);
       if (!date) continue;
 
-      // Identify numerical items in rowUnit.items with exact amount format
+      // Merge standalone "-" or "+" with adjacent numeric item if split across items
+      const mergedItems = [];
+      const rawRowItems = rowUnit.items || [];
+      for (let i = 0; i < rawRowItems.length; i++) {
+        const it = rawRowItems[i];
+        const itStr = (it.str || "").trim();
+        if ((itStr === "-" || itStr === "+") && i + 1 < rawRowItems.length) {
+          const nextIt = rawRowItems[i + 1];
+          const nextClean = (nextIt.str || "").replace(/,/g, "").trim();
+          if (/^\d+(?:\.\d{2})?$/.test(nextClean)) {
+            mergedItems.push({
+              str: itStr + nextIt.str.trim(),
+              x: it.x,
+              width: (nextIt.x + (nextIt.width || 0)) - it.x,
+              height: Math.max(it.height || 0, nextIt.height || 0),
+              y: it.y,
+            });
+            i++;
+            continue;
+          }
+        }
+        mergedItems.push(it);
+      }
+
+      // Identify numerical items in rowUnit.items with amount format
       const numItems = [];
-      for (const it of rowUnit.items || []) {
+      for (const it of mergedItems) {
         const cleanedStr = (it.str || "").replace(/,/g, "").trim();
-        if (/^\d+\.\d{2}$/.test(cleanedStr)) {
-          const val = parseFloat(cleanedStr);
-          if (!isNaN(val) && val > 0) {
+        if (/^[-+]?\s*\d+(?:\.\d{2})?(?:\s*\((?:Dr|Cr)\)|\s*(?:Dr|Cr))?$/i.test(cleanedStr)) {
+          const val = parseAmount(cleanedStr);
+          if (val !== null && val !== 0) {
             numItems.push({
               str: cleanedStr,
-              value: val,
+              value: Math.abs(val),
+              signedValue: val,
+              isNegative: val < 0 || cleanedStr.startsWith("-") || /\((?:dr)\)|\bdr\b/i.test(cleanedStr),
+              isPositive: cleanedStr.startsWith("+") || /\((?:cr)\)|\bcr\b/i.test(cleanedStr),
               x: it.x,
               centerX: it.x + (it.width || 0) / 2,
             });
@@ -1079,19 +1136,29 @@ const extractTransactionsFromStructuredPDF = (pages) => {
         }
       }
 
+      // Sort numerical items left-to-right by X position
+      numItems.sort((a, b) => a.x - b.x);
+
       let txAmount = null;
       let txType = "Debit";
       let rowBalance = null;
+      let isTypeExplicit = false;
 
-      // 1. Column coordinate-based extraction
-      if (withdrawalColX && depositColX && numItems.length > 0) {
-        if (numItems.length >= 2) {
-          // Last number in row is the running balance
-          const lastNum = numItems[numItems.length - 1];
-          const primaryNum = numItems[numItems.length - 2];
-          rowBalance = lastNum.value;
-          txAmount = primaryNum.value;
+      // 1. Column coordinate-based / positional extraction
+      if (numItems.length >= 2) {
+        // Last number in row is the running balance
+        const lastNum = numItems[numItems.length - 1];
+        const primaryNum = numItems[numItems.length - 2];
+        rowBalance = lastNum.value;
+        txAmount = primaryNum.value;
 
+        if (primaryNum.isNegative) {
+          txType = "Debit";
+          isTypeExplicit = true;
+        } else if (primaryNum.isPositive) {
+          txType = "Credit";
+          isTypeExplicit = true;
+        } else if (withdrawalColX && depositColX) {
           const distWithdrawal = Math.abs(primaryNum.centerX - withdrawalColX);
           const distDeposit = Math.abs(primaryNum.centerX - depositColX);
           if (distDeposit < distWithdrawal) {
@@ -1099,19 +1166,37 @@ const extractTransactionsFromStructuredPDF = (pages) => {
           } else {
             txType = "Debit";
           }
-        } else if (numItems.length === 1) {
-          txAmount = numItems[0].value;
-          const distWithdrawal = Math.abs(numItems[0].centerX - withdrawalColX);
-          const distDeposit = Math.abs(numItems[0].centerX - depositColX);
+          isTypeExplicit = true;
+        } else {
+          const detected = detectCategoryAndType(allText, primaryNum.signedValue);
+          txType = detected.type;
+        }
+      } else if (numItems.length === 1) {
+        const primaryNum = numItems[0];
+        txAmount = primaryNum.value;
+
+        if (primaryNum.isNegative) {
+          txType = "Debit";
+          isTypeExplicit = true;
+        } else if (primaryNum.isPositive) {
+          txType = "Credit";
+          isTypeExplicit = true;
+        } else if (withdrawalColX && depositColX) {
+          const distWithdrawal = Math.abs(primaryNum.centerX - withdrawalColX);
+          const distDeposit = Math.abs(primaryNum.centerX - depositColX);
           if (distDeposit < distWithdrawal) {
             txType = "Credit";
           } else {
             txType = "Debit";
           }
+          isTypeExplicit = true;
+        } else {
+          const detected = detectCategoryAndType(allText, primaryNum.signedValue);
+          txType = detected.type;
         }
       }
 
-      // Fallback if no coordinate match
+      // Fallback if no coordinate/item match
       if (!txAmount) {
         const textWithoutDates = allText.replace(DATE_MASK_RE, " __DATE__ ");
         const amountMatches = textWithoutDates.match(STRICT_AMOUNT_PATTERN) || [];
@@ -1119,14 +1204,15 @@ const extractTransactionsFromStructuredPDF = (pages) => {
 
         for (const m of amountMatches) {
           const lowerM = m.toLowerCase();
-          const isExplicitDr = lowerM.includes("(dr)") || lowerM.endsWith("dr") || m.startsWith("-");
-          const isExplicitCr = lowerM.includes("(cr)") || lowerM.endsWith("cr") || m.startsWith("+");
-          const num = cleanAmount(m);
-          if (num !== null && num > 0) {
+          const isExplicitDr = lowerM.includes("(dr)") || lowerM.endsWith("dr") || m.trim().startsWith("-");
+          const isExplicitCr = lowerM.includes("(cr)") || lowerM.endsWith("cr") || m.trim().startsWith("+");
+          const num = parseAmount(m);
+          if (num !== null && num !== 0) {
             amounts.push({
-              value: num,
-              isExplicitDr,
-              isExplicitCr,
+              value: Math.abs(num),
+              signedValue: num,
+              isExplicitDr: isExplicitDr || num < 0,
+              isExplicitCr: isExplicitCr || (num > 0 && m.trim().startsWith("+")),
               rawStr: m,
             });
           }
@@ -1140,10 +1226,12 @@ const extractTransactionsFromStructuredPDF = (pages) => {
           }
           if (primaryAmt.isExplicitCr) {
             txType = "Credit";
+            isTypeExplicit = true;
           } else if (primaryAmt.isExplicitDr) {
             txType = "Debit";
+            isTypeExplicit = true;
           } else {
-            const detected = detectCategoryAndType(allText);
+            const detected = detectCategoryAndType(allText, primaryAmt.signedValue);
             txType = detected.type;
           }
         }
@@ -1151,14 +1239,12 @@ const extractTransactionsFromStructuredPDF = (pages) => {
 
       if (!txAmount || isNaN(txAmount) || txAmount <= 0) continue;
 
-      // 2. Mathematical Balance Continuity Verification (Mathematical Invariant)
-      if (runningPrevBalance !== null && rowBalance !== null) {
+      // 2. Mathematical Balance Continuity Verification (Only when type is ambiguous and not explicitly signed)
+      if (!isTypeExplicit && runningPrevBalance !== null && rowBalance !== null) {
         const diff = rowBalance - runningPrevBalance;
         if (Math.abs(diff - txAmount) < 0.15 || diff > 0.05) {
-          // Balance increased -> 100% Credit (Income)
           txType = "Credit";
         } else if (Math.abs(diff + txAmount) < 0.15 || diff < -0.05) {
-          // Balance decreased -> 100% Debit (Expense)
           txType = "Debit";
         }
       }
@@ -1253,26 +1339,66 @@ const extractTransactionsFromText = (text) => {
     const amounts = [];
     let m;
     while ((m = STRICT_AMOUNT_PATTERN.exec(narrationWithoutDates)) !== null) {
+      const lowerM = m[0].toLowerCase();
+      const isExplicitDr = lowerM.includes("(dr)") || lowerM.endsWith("dr") || m[0].trim().startsWith("-");
+      const isExplicitCr = lowerM.includes("(cr)") || lowerM.endsWith("cr") || m[0].trim().startsWith("+");
       const n = cleanAmount(m[0]);
-      if (n !== null && n > 0) amounts.push(n);
+      if (n !== null && n !== 0) {
+        amounts.push({
+          value: Math.abs(n),
+          signedValue: n,
+          isExplicitDr: isExplicitDr || n < 0,
+          isExplicitCr: isExplicitCr || (n > 0 && m[0].trim().startsWith("+")),
+          rawStr: m[0],
+        });
+      }
     }
 
     if (amounts.length === 0) continue;
 
-    const txAmount = amounts[0];
-    const detected = detectCategoryAndType(fullNarration);
+    let txAmount = null;
+    let txType = "Debit";
+
+    if (amounts.length >= 2) {
+      // First is the transaction debit/credit amount, last is the balance
+      const primaryAmt = amounts[0];
+      txAmount = primaryAmt.value;
+      if (primaryAmt.isExplicitCr) {
+        txType = "Credit";
+      } else if (primaryAmt.isExplicitDr) {
+        txType = "Debit";
+      } else {
+        const detected = detectCategoryAndType(fullNarration, primaryAmt.signedValue);
+        txType = detected.type;
+      }
+    } else {
+      const primaryAmt = amounts[0];
+      txAmount = primaryAmt.value;
+      if (primaryAmt.isExplicitCr) {
+        txType = "Credit";
+      } else if (primaryAmt.isExplicitDr) {
+        txType = "Debit";
+      } else {
+        const detected = detectCategoryAndType(fullNarration, primaryAmt.signedValue);
+        txType = detected.type;
+      }
+    }
+
+    if (!txAmount || isNaN(txAmount) || txAmount <= 0) continue;
+
+    const detected = detectCategoryAndType(fullNarration, txType === "Credit" ? txAmount : -txAmount);
     const merchant = extractCleanMerchant(fullNarration);
 
     transactions.push({
       date,
       amount: txAmount,
-      type: detected.type,
+      type: txType,
       category: detected.category,
       merchant,
       description: fullNarration.substring(0, 255),
       originalDate: date,
       originalAmount: txAmount,
-      originalType: detected.type,
+      originalType: txType,
       originalMerchant: merchant,
       originalDescription: fullNarration.substring(0, 255),
     });
@@ -1376,7 +1502,7 @@ const parseDate = (dateStr) => {
 };
 
 /**
- * Parses amount string into a number.
+ * Parses amount string into a number (negative for debits with '-' or '(Dr)', positive otherwise).
  * Strips thousand-separator commas before parsing.
  * Commas are REMOVED (not replaced with dots) — "1,24,550.00" → 124550.00.
  *
@@ -1384,17 +1510,30 @@ const parseDate = (dateStr) => {
  * @returns {number|null} Parsed amount or null if invalid
  */
 const parseAmount = (amountStr) => {
-  if (!amountStr) return null;
-  if (typeof amountStr === "number") return amountStr;
+  if (amountStr === null || amountStr === undefined) return null;
+  if (typeof amountStr === "number") return isNaN(amountStr) ? null : amountStr;
 
-  // Strip everything except digits, a single dot, and a leading minus
-  const cleaned = String(amountStr)
-    .replace(/,/g, "") // remove thousand separators (1,24,550 → 124550)
-    .replace(/[^0-9.-]/g, "") // strip any other non-numeric characters
+  let str = String(amountStr).trim();
+  if (!str) return null;
+
+  // Check negative indicators (e.g. "-500.00", "500.00 (Dr)", "500.00 Dr", "(500.00)")
+  const isExplicitDr =
+    str.startsWith("-") ||
+    str.endsWith("-") ||
+    /^\(.*\)$/.test(str) ||
+    /\((?:dr|debit)\)/i.test(str) ||
+    /\b(?:dr|debit)\b/i.test(str);
+
+  // Strip commas and any non-numeric/non-dot characters
+  const cleaned = str
+    .replace(/,/g, "")
+    .replace(/[^0-9.-]/g, "")
     .trim();
 
   const amount = parseFloat(cleaned);
-  return isNaN(amount) ? null : amount;
+  if (isNaN(amount)) return null;
+
+  return isExplicitDr ? -Math.abs(amount) : Math.abs(amount);
 };
 
 /**
@@ -1549,5 +1688,7 @@ export const parserService = {
   parseDate,
   parseAmount,
   normalizeRow,
+  extractTransactionsFromText,
+  extractTransactionsFromStructuredPDF,
 };
 

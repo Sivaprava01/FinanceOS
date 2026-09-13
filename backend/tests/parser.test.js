@@ -119,4 +119,84 @@ describe('Parser Service Tests', () => {
     );
     assert.equal(outgoingPayment.type, 'Debit');
   });
+
+  it('should parse negative and signed amounts correctly in parseAmount', () => {
+    assert.equal(parserService.parseAmount('-500.00'), -500.0);
+    assert.equal(parserService.parseAmount('-15,000.00'), -15000.0);
+    assert.equal(parserService.parseAmount('5,05,931.31'), 505931.31);
+    assert.equal(parserService.parseAmount('500.00 (Dr)'), -500.0);
+    assert.equal(parserService.parseAmount('500.00 Dr'), -500.0);
+    assert.equal(parserService.parseAmount('1,500.00 (Cr)'), 1500.0);
+    assert.equal(parserService.parseAmount('(250.00)'), -250.0);
+  });
+
+  it('should normalize CSV/Excel row with combined Debit/Credit column and negative amount', () => {
+    const row = {
+      'Transaction Date': '07 Aug 2026',
+      'Transaction Details': 'UPI/VENNAPU AMBEDK/UBIN/263317151259/Car wash',
+      'Debit/Credit(₹)': '-500.00',
+      'Balance(₹)': '5,05,931.31',
+    };
+
+    const normalized = parserService.normalizeRow(row, 'CSV');
+    assert.ok(normalized);
+    assert.equal(normalized.amount, 500.0);
+    assert.equal(normalized.type, 'Debit');
+    assert.equal(normalized.merchant, 'VENNAPU AMBEDK');
+  });
+
+  it('should accurately extract Debit/Credit amounts instead of running balance from Kotak bank statements', () => {
+    const rawText = [
+      '1 07 Aug 2026 07 Aug 2026 UPI/VENNAPU AMBEDK/UBIN/263317151259/Car wash UPI-621948632980 -500.00 5,05,931.31',
+      '2 07 Aug 2026 07 Aug 2026 MB:SENT TO JAIDEEP CHERAKU/ADVANCE GODOWN KMBT0708260956263543 -15,000.00 5,06,431.31',
+      '3 06 Aug 2026 06 Aug 2026 UPI/VENNAPU AMBEDK/UBIN/182435350850/Camera UPI-621801246388 -12,000.00 5,21,431.31',
+    ].join('\n');
+
+    const txs = parserService.extractTransactionsFromText(rawText);
+    assert.equal(txs.length, 3);
+
+    assert.equal(txs[0].amount, 500.0);
+    assert.equal(txs[0].type, 'Debit');
+
+    assert.equal(txs[1].amount, 15000.0);
+    assert.equal(txs[1].type, 'Debit');
+
+    assert.equal(txs[2].amount, 12000.0);
+    assert.equal(txs[2].type, 'Debit');
+  });
+
+  it('should accurately extract amounts from structured PDF pages with Debit/Credit and Balance columns', () => {
+    const mockPages = [
+      {
+        pageNumber: 1,
+        rawItems: [
+          { str: 'TRANSACTION DATE', x: 50, y: 700, width: 80, height: 10 },
+          { str: 'VALUE DATE', x: 140, y: 700, width: 60, height: 10 },
+          { str: 'TRANSACTION DETAILS', x: 210, y: 700, width: 120, height: 10 },
+          { str: 'DEBIT/CREDIT(₹)', x: 400, y: 700, width: 80, height: 10 },
+          { str: 'BALANCE(₹)', x: 500, y: 700, width: 60, height: 10 },
+        ],
+        lines: [
+          {
+            y: 650,
+            text: '1 07 Aug 2026 07 Aug 2026 UPI/VENNAPU AMBEDK/UBIN/263317151259/Car wash -500.00 5,05,931.31',
+            items: [
+              { str: '1', x: 30, y: 650, width: 10, height: 10 },
+              { str: '07 Aug 2026', x: 50, y: 650, width: 60, height: 10 },
+              { str: '07 Aug 2026', x: 140, y: 650, width: 60, height: 10 },
+              { str: 'UPI/VENNAPU AMBEDK/UBIN/263317151259/Car wash', x: 210, y: 650, width: 150, height: 10 },
+              { str: '-500.00', x: 420, y: 650, width: 40, height: 10 },
+              { str: '5,05,931.31', x: 510, y: 650, width: 50, height: 10 },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const txs = parserService.extractTransactionsFromStructuredPDF(mockPages);
+    assert.equal(txs.length, 1);
+    assert.equal(txs[0].amount, 500.0);
+    assert.equal(txs[0].type, 'Debit');
+    assert.equal(txs[0].merchant, 'VENNAPU AMBEDK');
+  });
 });
