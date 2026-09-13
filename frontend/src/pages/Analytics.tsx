@@ -428,8 +428,14 @@ const Analytics: React.FC = () => {
                       <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
                         Net Savings
                       </span>
-                      <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-semibold">
-                        Savings
+                      <span
+                        className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold ${
+                          netSavings >= 0
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-destructive/10 text-destructive'
+                        }`}
+                      >
+                        {netSavings >= 0 ? 'Surplus' : 'Deficit'}
                       </span>
                     </div>
                     <div className="mt-2.5">
@@ -442,14 +448,14 @@ const Analytics: React.FC = () => {
                         {format(netSavings)}
                       </div>
                       <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
-                        <PiggyBank className="h-3.5 w-3.5 text-primary" />
-                        <span>Net retained surplus</span>
+                        <PiggyBank className={`h-3.5 w-3.5 ${netSavings >= 0 ? 'text-primary' : 'text-destructive'}`} />
+                        <span>{netSavings >= 0 ? 'Net retained surplus' : 'Net cashflow deficit'}</span>
                       </div>
                     </div>
                     <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
                       <div
-                        className="bg-primary h-full rounded-full"
-                        style={{ width: `${Math.max(0, Math.min(100, savingsRate))}%` }}
+                        className={`h-full rounded-full ${netSavings >= 0 ? 'bg-primary' : 'bg-destructive'}`}
+                        style={{ width: `${Math.min(100, Math.max(10, Math.abs(savingsRate)))}%` }}
                       />
                     </div>
                   </CardContent>
@@ -463,22 +469,30 @@ const Analytics: React.FC = () => {
                         Savings Rate
                       </span>
                       <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px] font-semibold">
-                        Target: ≥40%
+                        {savingsRate >= 0 ? 'Target: ≥40%' : 'Deficit'}
                       </span>
                     </div>
                     <div className="mt-2.5">
-                      <div className="font-sans text-xl font-bold tracking-tight text-foreground tabular-nums">
+                      <div
+                        className={`font-sans text-xl font-bold tracking-tight tabular-nums ${
+                          savingsRate >= 0 ? 'text-foreground' : 'text-destructive'
+                        }`}
+                      >
                         {savingsRate}%
                       </div>
                       <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                         <Percent className="h-3.5 w-3.5 text-primary" />
-                        <span>Of gross inflow retained</span>
+                        <span>
+                          {savingsRate >= 0
+                            ? 'Of gross inflow retained'
+                            : `Outflows exceeded inflows by ${Math.abs(savingsRate)}%`}
+                        </span>
                       </div>
                     </div>
                     <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
                       <div
-                        className="bg-primary h-full rounded-full"
-                        style={{ width: `${Math.max(0, Math.min(100, savingsRate))}%` }}
+                        className={`h-full rounded-full ${savingsRate >= 0 ? 'bg-primary' : 'bg-destructive'}`}
+                        style={{ width: `${Math.max(0, Math.min(100, savingsRate >= 0 ? savingsRate : 100))}%` }}
                       />
                     </div>
                   </CardContent>
