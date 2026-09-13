@@ -55,9 +55,11 @@ const Login: React.FC = () => {
   }
 
   const handleGoogleSignIn = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+    const raw = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+    const apiUrl = raw.endsWith('/api/v1') ? raw : `${raw.replace(/\/+$/, '')}/api/v1`
     window.location.href = `${apiUrl}/auth/google?returnTo=${encodeURIComponent(window.location.origin)}`
   }
+
 
   return (
     <Card className="border border-border shadow-xs">
