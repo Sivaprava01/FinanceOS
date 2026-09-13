@@ -26,7 +26,7 @@ export const getOverview = asyncHandler(async (req, res) => {
 // ─── GET /dashboard/spending-analysis ────────────────────────────────────────
 
 export const getSpendingAnalysis = asyncHandler(async (req, res) => {
-  const analysis = await dashboardService.getSpendingAnalysis(req.user._id);
+  const analysis = await dashboardService.getSpendingAnalysis(req.user._id, req.query);
 
   return res
     .status(HTTP_STATUS.OK)
@@ -38,7 +38,7 @@ export const getSpendingAnalysis = asyncHandler(async (req, res) => {
 // ─── GET /dashboard/monthly-comparison ───────────────────────────────────────
 
 export const getMonthlyComparison = asyncHandler(async (req, res) => {
-  const comparison = await dashboardService.getMonthlyComparison(req.user._id);
+  const comparison = await dashboardService.getMonthlyComparison(req.user._id, req.query);
 
   return res
     .status(HTTP_STATUS.OK)

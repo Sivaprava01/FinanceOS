@@ -145,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     FinanceOS
                   </span>
                   <span className="text-[10px] text-muted-foreground font-sans leading-none tracking-normal">
-                    Calm Intelligence
+                    Personal Finance
                   </span>
                 </div>
               )}

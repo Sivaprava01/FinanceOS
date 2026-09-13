@@ -346,7 +346,7 @@ const Transactions: React.FC = () => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.setAttribute('href', url)
-    link.setAttribute('download', `FinanceOS_Ledger_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute('download', `FinanceOS_Transactions_${new Date().toISOString().split('T')[0]}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -489,10 +489,10 @@ const Transactions: React.FC = () => {
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                Total Inflow
+                Total Income
               </span>
               <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] font-semibold">
-                Credits
+                Income
               </span>
             </div>
             <div className="mt-2.5">
@@ -501,7 +501,7 @@ const Transactions: React.FC = () => {
               </div>
               <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Recorded receipts</span>
+                <span>Total income received</span>
               </div>
             </div>
             <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
@@ -515,10 +515,10 @@ const Transactions: React.FC = () => {
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                Total Outflow
+                Total Expenses
               </span>
               <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono text-[10px] font-semibold">
-                Debits
+                Expenses
               </span>
             </div>
             <div className="mt-2.5">
@@ -527,7 +527,7 @@ const Transactions: React.FC = () => {
               </div>
               <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                 <TrendingDown className="h-3.5 w-3.5 text-amber-500" />
-                <span>Total expenditure</span>
+                <span>Total spent</span>
               </div>
             </div>
             <div className="w-full bg-secondary h-1 rounded-full mt-3 overflow-hidden">
@@ -568,25 +568,25 @@ const Transactions: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Verification Status */}
+        {/* Total Transactions Count */}
         <Card className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-                Verification
+                Total Count
               </span>
               <span className="flex items-center gap-1 text-primary font-mono text-[10px] font-semibold">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Reconciled
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                All Records
               </span>
             </div>
             <div className="mt-2.5">
               <div className="font-sans text-xl font-bold tracking-tight text-primary tabular-nums">
-                100%
+                {count}
               </div>
               <div className="flex items-center gap-1 mt-1 text-muted-foreground text-xs font-medium">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                <span>{count} / {count} recorded entries</span>
+                <span>{count} recorded transactions</span>
               </div>
             </div>
             <div className="w-full bg-primary/20 h-1 rounded-full mt-3 overflow-hidden">
@@ -605,7 +605,7 @@ const Transactions: React.FC = () => {
           <p className="text-xs text-muted-foreground mt-0.5">
             {isLoading
               ? 'Loading transactions…'
-              : `${count} recorded transactions • ${hasActiveFilters ? 'Filtered view' : 'All accounts synced'}`}
+              : `${count} recorded transactions • ${hasActiveFilters ? 'Filtered view' : 'All accounts'}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -637,7 +637,7 @@ const Transactions: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold bg-primary text-primary-foreground uppercase tracking-wider">
-                  Statement Filter Active
+                  Statement Filter
                 </span>
                 {statement?._id && (
                   <span className="text-[11px] text-muted-foreground font-mono">
@@ -646,10 +646,10 @@ const Transactions: React.FC = () => {
                 )}
               </div>
               <h2 className="mt-1 text-sm font-serif font-bold text-foreground">
-                Filtered by Source: {statement?.originalFileName || 'Bank Statement Import'}
+                Showing transactions from: {statement?.originalFileName || 'Bank Statement'}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Showing {count} extracted ledger entries mapped to this document.
+                Showing {count} transactions from this statement.
               </p>
             </div>
             <Button
@@ -675,10 +675,10 @@ const Transactions: React.FC = () => {
             <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
               <div>
                 <h3 className="font-serif text-base font-bold text-foreground">
-                  {editingId ? 'Edit Ledger Record' : 'Record New Transaction'}
+                  {editingId ? 'Edit Transaction' : 'Record New Transaction'}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Select transaction classification, category, and counterparty details.
+                  Select transaction type, category, and payment details.
                 </p>
               </div>
               <Button variant="ghost" size="xs" onClick={handleCancel}>
@@ -701,15 +701,15 @@ const Transactions: React.FC = () => {
                     />
                   </div>
 
-                  {/* 2. Merchant / Counterparty */}
+                  {/* 2. Merchant */}
                   <div>
                     <label className="block text-xs font-mono font-medium text-muted-foreground mb-1">
-                      Merchant / Counterparty *
+                      Merchant / Description *
                     </label>
                     <Input
                       value={formData.merchant ?? ''}
                       onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                      placeholder="e.g. AWS, Vanguard Labs, Apple Store"
+                      placeholder="e.g. Netflix, Amazon, Grocery Store"
                       required
                     />
                   </div>
@@ -848,7 +848,7 @@ const Transactions: React.FC = () => {
                 ref={searchInputRef}
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                placeholder="Search counterparty, memo or category... (Press /)"
+                placeholder="Search merchant, memo or category... (Press /)"
                 className="w-full h-9 pl-9 pr-10 rounded-lg border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono text-muted-foreground">
@@ -999,7 +999,7 @@ const Transactions: React.FC = () => {
             <div className="p-8">
               <ErrorState
                 title="Failed to Load Transactions"
-                message="There was an error querying your ledger records. Please try refreshing."
+                message="There was an error loading your transactions. Please try refreshing."
                 onRetry={() => window.location.reload()}
               />
             </div>
@@ -1007,11 +1007,11 @@ const Transactions: React.FC = () => {
             <div className="p-10">
               <EmptyState
                 icon={Tag}
-                title={hasActiveFilters ? 'No Matching Ledger Entries' : 'No Transactions Recorded'}
+                title={hasActiveFilters ? 'No Matching Transactions' : 'No Transactions Recorded'}
                 description={
                   hasActiveFilters
-                    ? 'No records match your selected query and filter criteria.'
-                    : 'Add a manual transaction or import a statement to initialize your ledger.'
+                    ? 'No records match your selected search and filter criteria.'
+                    : 'Add a manual transaction or import a bank statement to get started.'
                 }
                 action={
                   hasActiveFilters
@@ -1051,7 +1051,7 @@ const Transactions: React.FC = () => {
                       />
                     </div>
                     <div>Date</div>
-                    <div>Merchant / Counterparty</div>
+                    <div>Merchant / Description</div>
                     <div>Category</div>
                     <div className="text-right">Amount</div>
                     <div className="text-right">Actions</div>
@@ -1176,7 +1176,7 @@ const Transactions: React.FC = () => {
                 </span>
                 <span className="font-mono text-[11px] flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  Ledger Synced
+                  Up to date
                 </span>
               </div>
             </div>

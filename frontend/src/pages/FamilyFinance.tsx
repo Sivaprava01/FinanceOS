@@ -68,19 +68,10 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
 
   return (
     <div className="space-y-6">
-      {/* ─── Hero Consolidated Ledger Position ──────────────────────────────── */}
+      {/* ─── Consolidated Family Position ─────────────────────────────────── */}
       <div className="bg-card border border-border/80 rounded-xl p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-5 border-b border-border/60">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                Household Financial Position
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-primary/10 text-primary font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                Household Sync
-              </span>
-            </div>
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="font-serif text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
                 {format(netWorth)}
@@ -91,7 +82,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              Aggregate net balance across {dashboard.membersSharing} contributing household members.
+              Combined net balance across {dashboard.membersSharing} contributing family members.
             </p>
           </div>
 
@@ -103,7 +94,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <span className="font-sans text-lg font-bold text-foreground tabular-nums">
                 {format(sharedExpenses)}
               </span>
-              <span className="text-[11px] text-muted-foreground">Aggregated household total</span>
+              <span className="text-[11px] text-muted-foreground">Total shared this month</span>
             </div>
           </div>
         </div>
@@ -133,7 +124,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <div className="font-sans text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                 {format(totalAssets)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Liquid & investments</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Bank balances and investments</p>
             </div>
           </div>
 
@@ -145,7 +136,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <div className="font-sans text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
                 {format(totalLiabilities)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Total household debt</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Total liabilities and loans</p>
             </div>
           </div>
 
@@ -157,7 +148,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               <div className={`font-sans text-xl font-bold tabular-nums ${netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>
                 {netWorth >= 0 ? '+' : ''}{format(netWorth)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Assets minus liabilities</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Total assets minus total liabilities</p>
             </div>
           </div>
         </div>
@@ -184,11 +175,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-mono text-[11px]">Status: Synced</span>
-              <span className="font-mono text-[11px] text-primary flex items-center gap-1 font-semibold">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Sharing Active
-              </span>
+              <span className="text-[11px]">Shared across participating members</span>
             </div>
           </CardContent>
         </Card>
@@ -219,7 +206,7 @@ const DashboardTab: React.FC<{ familyId: string }> = ({ familyId }) => {
                         Member #{member.user.slice(-4)}
                       </p>
                       <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                        Inflow: {format(member.income)} • Outflow: {format(member.expenses)}
+                        Income: {format(member.income)} • Expenses: {format(member.expenses)}
                       </p>
                     </div>
                     <div className="text-right font-sans">
@@ -784,24 +771,15 @@ const FamilyFinance: React.FC = () => {
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
-              Household Finance
-            </span>
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Shared Accounts
-            </span>
-          </div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
             Family Finance
           </h1>
           <p className="text-xs text-muted-foreground">
-            Household group:{' '}
+            Family group:{' '}
             <span className="font-semibold text-foreground">
               {activeFamily?.familyName || 'Family Group'}
             </span>{' '}
-            • Shared household finance
+            • Shared family budget and accounts
           </p>
         </div>
 
@@ -857,7 +835,7 @@ const FamilyFinance: React.FC = () => {
                       {activeFamily.familyName}
                     </CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                      Household collaboration and shared accounts
+                      Family group finances and shared budgets
                     </CardDescription>
                   </div>
 

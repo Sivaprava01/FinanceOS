@@ -145,7 +145,7 @@ export function formatDualCurrency(
     lastUpdated?: string
   }
 ): DualAmountResult {
-  const prefUpper = (preferredCurrency || 'USD').toUpperCase()
+  const prefUpper = (preferredCurrency || 'INR').toUpperCase()
   const primary = formatCurrency(amount, prefUpper)
 
   if (prefUpper === 'INR') {
@@ -191,7 +191,7 @@ export function formatDualSignedCurrency(
 
 export function useDualCurrencyConversion() {
   const { currency: preferredCurrency, format: formatPrimary } = useCurrency()
-  const prefUpper = (preferredCurrency || 'USD').toUpperCase()
+  const prefUpper = (preferredCurrency || 'INR').toUpperCase()
   const hasSecondaryINR = prefUpper !== 'INR'
 
   const { data: ratesData, isLoading, isError } = useQuery({

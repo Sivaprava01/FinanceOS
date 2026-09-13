@@ -157,7 +157,7 @@ const Settings: React.FC = () => {
       language: user?.preferences?.language ?? 'en',
       theme: user?.preferences?.theme ?? 'system',
       dateFormat: user?.preferences?.dateFormat ?? 'DD/MM/YYYY',
-      preferredCurrency: user?.preferredCurrency ?? 'USD',
+      preferredCurrency: user?.preferredCurrency ?? 'INR',
       notifications: {
         email: user?.preferences?.notifications?.email ?? true,
         push: user?.preferences?.notifications?.push ?? false,

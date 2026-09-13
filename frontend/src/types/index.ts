@@ -144,6 +144,7 @@ export interface DashboardOverview {
   totalIncome: number
   totalExpenses: number
   netBalance: number
+  activeMonthLabel?: string
   netWorth: {
     totalAssets: number
     totalLiabilities: number
@@ -166,6 +167,9 @@ export interface DashboardOverview {
 }
 
 export interface SpendingAnalysis {
+  currency?: string
+  period?: string
+  periodLabel?: string
   byCategory: { _id: string; total: number; count: number }[]
   categoryComparison: {
     category: string
@@ -174,9 +178,17 @@ export interface SpendingAnalysis {
     change: number
     changePercent: number
   }[]
-  monthlyTrend: { year: number; month: number; total: number }[]
+  monthlyTrend: {
+    year: number
+    month: number
+    total: number
+    income?: number
+    expenses?: number
+    savings?: number
+  }[]
   incomeVsExpense: { income: number; expenses: number; savings: number }
   topMerchants: { _id: string; count: number; total: number }[]
+  topIncomeSources?: { _id: string; count: number; total: number }[]
   highestExpenses: { date: string; amount: number; merchant: string; category: string }[]
   highestIncome: { date: string; amount: number; merchant: string; category: string }[]
 }

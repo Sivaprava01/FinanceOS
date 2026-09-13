@@ -168,10 +168,9 @@ const Dashboard: React.FC = () => {
     value: cat.total || 0,
   }))
 
-  const currentDateFormatted = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  })
+  const activeMonthText =
+    overview.activeMonthLabel ||
+    new Date().toLocaleDateString('default', { month: 'long', year: 'numeric' })
 
   // Debt-to-Asset ratio calculation
   const debtToAssetRatio =
@@ -188,7 +187,7 @@ const Dashboard: React.FC = () => {
             Financial Overview
           </h1>
           <p className="text-xs text-muted-foreground">
-            As of {currentDateFormatted}
+            Period: {activeMonthText}
           </p>
         </div>
 
@@ -220,7 +219,7 @@ const Dashboard: React.FC = () => {
           <span>
             {rateStatus === 'live' ? (
               <>
-                All ledger aggregates are converted to <strong>{preferredCurrency}</strong> using live market rates
+                All totals are converted to <strong>{preferredCurrency}</strong> using live market rates
                 {preferredCurrency !== 'INR' && liveInrRate ? ` (1 ${preferredCurrency} ≈ ₹${liveInrRate.toFixed(2)})` : ''}.
               </>
             ) : rateStatus === 'cached' ? (
@@ -237,19 +236,19 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ─── Monumental Net Worth Module (Stitch Architecture) ────────────────────────── */}
+      {/* ─── Net Worth Module ─────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12">
-          {/* Dominant Net Worth Hero (5 cols) */}
+          {/* Net Worth Hero (5 cols) */}
           <div className="lg:col-span-5 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-border bg-gradient-to-br from-card via-card to-secondary/30">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-                  Aggregate Net Worth
+                  Net Worth
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-bold">
                   <TrendingUp className="w-3 h-3" />
-                  Liquid &amp; Investments
+                  Assets &amp; Savings
                 </span>
               </div>
               <div className="pt-1">
@@ -263,7 +262,7 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Consolidated across all your recorded bank accounts and assets.
+                Calculated from your bank accounts, investments, and debts.
               </p>
             </div>
 
@@ -274,9 +273,9 @@ const Dashboard: React.FC = () => {
                     <Landmark className="w-4 h-4" />
                   </span>
                   <div>
-                    <span className="text-xs font-medium text-foreground block">Monthly Debt Commitments</span>
+                    <span className="text-xs font-medium text-foreground block">Monthly Loan &amp; EMI Payments</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {overview.activeLoans || 0} Active Fixed Loan/EMI Facilities
+                      {overview.activeLoans || 0} Active Loans / EMIs
                     </span>
                   </div>
                 </div>
@@ -304,15 +303,15 @@ const Dashboard: React.FC = () => {
               <div className="space-y-2.5 text-xs">
                 <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
                   <div>
-                    <span className="font-medium text-foreground block">Liquid Bank Balances</span>
+                    <span className="font-medium text-foreground block">Bank Balances</span>
                     <span className="text-[10px] text-muted-foreground">Checking &amp; Savings Accounts</span>
                   </div>
                   <span className="font-semibold text-foreground tabular-nums">{assetsDual.primary}</span>
                 </div>
                 <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
                   <div>
-                    <span className="font-medium text-foreground block">Bank Statements</span>
-                    <span className="text-[10px] text-muted-foreground">Imported Accounts</span>
+                    <span className="font-medium text-foreground block">Synced Accounts</span>
+                    <span className="text-[10px] text-muted-foreground">Imported Statements</span>
                   </div>
                   <span className="font-semibold text-primary tabular-nums">Active</span>
                 </div>
@@ -331,8 +330,8 @@ const Dashboard: React.FC = () => {
               <div className="space-y-2.5 text-xs">
                 <div className="p-3 rounded-lg bg-card border border-border/70 shadow-2xs flex items-center justify-between">
                   <div>
-                    <span className="font-medium text-foreground block">Active Credit &amp; Debt</span>
-                    <span className="text-[10px] text-muted-foreground">Principal Balance</span>
+                    <span className="font-medium text-foreground block">Outstanding Debts</span>
+                    <span className="text-[10px] text-muted-foreground">Credit Cards &amp; Loans</span>
                   </div>
                   <span className="font-semibold text-destructive tabular-nums">{liabilitiesDual.primary}</span>
                 </div>
@@ -346,12 +345,12 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Cashflow Velocity Strip ──────────────────────────────────────────── */}
+      {/* ─── Cashflow Overview Strip ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Income Velocity */}
+        {/* Income */}
         <div className="rounded-xl border border-border bg-card p-4 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monthly Inflow</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monthly Income</span>
             <span className="p-1 rounded bg-primary/10 text-primary">
               <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
@@ -367,10 +366,10 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Expenses Velocity */}
+        {/* Expenses */}
         <div className="rounded-xl border border-border bg-card p-4 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monthly Outflow</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monthly Expenses</span>
             <span className="p-1 rounded bg-destructive/10 text-destructive">
               <ArrowDownLeft className="w-3.5 h-3.5" />
             </span>
@@ -386,10 +385,10 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Net Retained */}
+        {/* Net Savings */}
         <div className="rounded-xl border border-border bg-card p-4 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Retained</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Savings</span>
             <span className="p-1 rounded bg-secondary text-foreground">
               <Wallet className="w-3.5 h-3.5" />
             </span>
@@ -410,13 +409,13 @@ const Dashboard: React.FC = () => {
 
       {/* ─── Visual Analytics Grid ────────────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Spending Trajectory Area Chart */}
+        {/* Spending Trends Area Chart */}
         <Card className="border border-border shadow-xs">
           <CardHeader className="pb-2 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-bold font-serif">Spending Trajectory</CardTitle>
-                <CardDescription className="text-xs">6-month cashflow velocity ({preferredCurrency})</CardDescription>
+                <CardTitle className="text-sm font-bold font-serif">Spending Trends</CardTitle>
+                <CardDescription className="text-xs">6-month expense overview ({preferredCurrency})</CardDescription>
               </div>
               <Button
                 variant="ghost"
@@ -474,13 +473,13 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Category Allocation Donut Chart */}
+        {/* Spending by Category Donut Chart */}
         <Card className="border border-border shadow-xs">
           <CardHeader className="pb-2 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-bold font-serif">Category Allocation</CardTitle>
-                <CardDescription className="text-xs">Expense concentration breakdown ({preferredCurrency})</CardDescription>
+                <CardTitle className="text-sm font-bold font-serif">Spending by Category</CardTitle>
+                <CardDescription className="text-xs">Monthly expense distribution ({preferredCurrency})</CardDescription>
               </div>
               <Button
                 variant="ghost"
@@ -560,8 +559,8 @@ const Dashboard: React.FC = () => {
         <CardHeader className="pb-3 border-b border-border">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-sm font-bold font-serif">Recent Ledger Activity</CardTitle>
-              <CardDescription className="text-xs">Latest verified transaction entries</CardDescription>
+              <CardTitle className="text-sm font-bold font-serif">Recent Transactions</CardTitle>
+              <CardDescription className="text-xs">Your latest recorded transactions</CardDescription>
             </div>
             <Button
               variant="outline"

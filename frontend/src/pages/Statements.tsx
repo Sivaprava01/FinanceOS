@@ -96,7 +96,7 @@ const DeleteStatementDialog: React.FC<{
             <p className="text-xs text-muted-foreground leading-relaxed">
               This will remove <strong className="text-foreground">{statement.originalFileName}</strong>
               {statement.transactionCount > 0 ? (
-                <> and its <strong className="text-foreground">{statement.transactionCount}</strong> imported transactions from the ledger.</>
+                <> and its <strong className="text-foreground">{statement.transactionCount}</strong> imported transactions.</>
               ) : (
                 <> record permanently.</>
               )}
@@ -241,7 +241,7 @@ const ImportPreviewDialog: React.FC<{
             </div>
             <div>
               <h3 className="font-serif text-lg font-bold text-foreground">
-                Review & Confirm Ledger Import
+                Review & Confirm Import
               </h3>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 {statement.originalFileName} • {statement.fileType} • {formatFileSize(statement.fileSize)} • {transactions.length} rows parsed
@@ -569,23 +569,14 @@ const Statements: React.FC = () => {
         />
       )}
 
-      {/* ─── Editorial Header ──────────────────────────────────────────────── */}
+      {/* ─── Header ────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-border">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[10px] uppercase tracking-wider font-semibold">
-              Statement Management
-            </span>
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-primary font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Import Center
-            </span>
-          </div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
             Statements
           </h1>
           <p className="text-xs text-muted-foreground">
-            Upload and manage your bank statement imports. Processed safely into structured transactions.
+            Upload and manage your bank statements. Transactions are imported automatically.
           </p>
         </div>
 
@@ -615,7 +606,7 @@ const Statements: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Institutional Upload Console ──────────────────────────────────── */}
+      {/* ─── Upload Card ────────────────────────────────────────────────────── */}
       <Card className="border border-border/80 shadow-sm bg-card overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -627,7 +618,7 @@ const Statements: React.FC = () => {
                 Upload Bank Statement
               </h2>
               <p className="text-xs text-muted-foreground">
-                Automatic table extraction for PDF, Excel (.xlsx, .xls), and CSV files
+                Upload bank statements in PDF, Excel (.xlsx, .xls), and CSV formats
               </p>
             </div>
           </div>
@@ -691,10 +682,10 @@ const Statements: React.FC = () => {
                 accept=".pdf,.xls,.xlsx,.csv"
               />
 
-              {/* Supported Presets Badge */}
+              {/* Supported Banks Badge */}
               <div className="pt-2">
                 <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider block mb-2 font-medium">
-                  Verified Format Presets:
+                  Supported Banks &amp; Formats:
                 </span>
                 <div className="flex flex-wrap items-center justify-center gap-1.5">
                   {['HDFC Bank', 'ICICI Bank', 'SBI Retail', 'Axis Bank', 'Amex', 'Chase', 'HSBC', 'Zerodha'].map(
@@ -713,14 +704,14 @@ const Statements: React.FC = () => {
               {/* Security Footnote */}
               <div className="flex items-center gap-1.5 text-muted-foreground pt-2 text-[11px]">
                 <Lock className="h-3 w-3 text-primary" />
-                <span>Secure document parsing. Your statement files are processed safely.</span>
+                <span>Your uploaded files are processed securely.</span>
               </div>
             </div>
 
             {uploadStatement.isPending && (
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs text-primary font-medium">
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                Parsing document structure...
+                Uploading statement...
               </div>
             )}
 
@@ -751,7 +742,7 @@ const Statements: React.FC = () => {
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
                 {activeTab === 'active'
-                  ? 'Imports currently parsing, pending verification, or requiring credentials'
+                  ? 'Statements currently processing or requiring passwords'
                   : 'Processed bank statements linked to your transactions'}
               </CardDescription>
             </div>
@@ -802,7 +793,7 @@ const Statements: React.FC = () => {
           ) : error ? (
             <div className="p-8 text-center">
               <p className="text-sm text-destructive font-medium">
-                Failed to load statement ledger records. Please refresh.
+                Failed to load statement records. Please refresh.
               </p>
             </div>
           ) : filteredStatements.length === 0 ? (
@@ -818,10 +809,10 @@ const Statements: React.FC = () => {
                 }
                 description={
                   activeTab === 'active'
-                    ? 'All uploaded bank statements have been successfully parsed and committed.'
+                    ? 'All uploaded bank statements have been processed.'
                     : searchQuery
                     ? 'No archive records match your search filter.'
-                    : 'Completed bank statements will appear here with audited row counts.'
+                    : 'Completed bank statements will appear here.'
                 }
                 action={
                   searchQuery
@@ -912,7 +903,7 @@ const Statements: React.FC = () => {
                             className="gap-1.5 text-xs shadow-xs"
                             onClick={() => handleViewTransactions(statement._id)}
                           >
-                            <Eye className="h-3.5 w-3.5" /> View Ledger
+                            <Eye className="h-3.5 w-3.5" /> View Transactions
                           </Button>
                         )}
 
@@ -971,7 +962,7 @@ const Statements: React.FC = () => {
                       <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 animate-in fade-in duration-150">
                         <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
                           <KeyRound className="h-4 w-4" />
-                          <span>Protected Document: Enter Unlock Password</span>
+                          <span>Password-protected statement: Enter password</span>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
                           <input

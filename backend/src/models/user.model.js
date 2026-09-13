@@ -132,7 +132,7 @@ const userSchema = new Schema(
       type: String,
       uppercase: true,
       trim: true,
-      default: "USD",
+      default: "INR",
     },
 
     timeZone: {

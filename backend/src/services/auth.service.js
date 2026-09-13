@@ -30,7 +30,7 @@ const buildUserPayload = (user) => ({
   provider: user.provider,
   isEmailVerified: user.isEmailVerified,
   createdAt: user.createdAt,
-  preferredCurrency: user.preferredCurrency || "USD",
+  preferredCurrency: user.preferredCurrency || "INR",
   preferences: user.preferences || {
     language: "en",
     theme: "system",

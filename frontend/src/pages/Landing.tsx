@@ -30,37 +30,37 @@ export default function Landing() {
       icon: FileSpreadsheet,
       title: 'Automated Statement Parsing',
       description:
-        'Line-item parsing for PDF, CSV, and XLSX statements with support for password-protected bank documents.',
+        'Import PDF, CSV, and Excel statements with support for password-protected bank documents.',
     },
     {
       icon: Shield,
-      title: 'Privacy-First Architecture',
+      title: 'Privacy-First Design',
       description:
-        'Deterministic transaction extraction and secure persistence with zero third-party credential scraping.',
+        'Private and secure. No third-party bank logins, credentials, or scraping required.',
     },
     {
       icon: Users,
-      title: 'Family Finance Collaboration',
+      title: 'Family Finance Sharing',
       description:
-        'Multi-member households with granular role-based permissions (Admin, Member, Viewer) and unified balance tracking.',
+        'Share budgets with household members with custom permissions (Admin, Member, Viewer) and unified balances.',
     },
     {
       icon: TrendingUp,
-      title: 'Cashflow Velocity & Metrics',
+      title: 'Income & Expense Analytics',
       description:
-        'Quarterly inflow/outflow ratios, debt-to-asset metrics, and real-time net worth tracking in your base currency.',
+        'Track monthly income vs. expenses, debt ratios, and net worth progress in your preferred currency.',
     },
     {
       icon: PieChart,
-      title: 'Smart Merchant Categorization',
+      title: 'Smart Categorization',
       description:
-        'Adaptive machine-learning categorizer that remembers your merchant overrides and applies them to future statements.',
+        'Automatically categorizes transactions and learns your preferred category rules for future statements.',
     },
     {
       icon: Layers,
       title: 'Multi-Currency Support',
       description:
-        'Real-time conversion across INR, USD, EUR, and 150+ world currencies with cached institutional exchange rates.',
+        'Convert transactions seamlessly across INR, USD, EUR, and 150+ world currencies using live exchange rates.',
     },
   ]
 
@@ -69,14 +69,13 @@ export default function Landing() {
       {/* Top Announcement Bar */}
       <div className="border-b border-border bg-card text-[11px] font-mono text-muted-foreground px-4 sm:px-6 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="font-semibold text-foreground uppercase tracking-wider">FinanceOS Active</span>
+          <span className="inline-block w-2 h-2 rounded-full bg-primary" />
+          <span className="font-semibold text-foreground">FinanceOS</span>
           <span className="hidden sm:inline text-border">•</span>
-          <span className="hidden sm:inline">Personal financial intelligence & automated statement tracking</span>
+          <span className="hidden sm:inline">Private personal finance & statement tracking</span>
         </div>
         <div className="flex items-center gap-4">
-          <span>BASE: <strong className="text-foreground">INR (₹)</strong> • USD ($) • EUR (€)</span>
-          <span className="hidden md:inline text-muted-foreground/80">v2.0</span>
+          <span>CURRENCIES: <strong className="text-foreground">INR (₹)</strong> • USD ($) • EUR (€)</span>
         </div>
       </div>
 
@@ -93,14 +92,14 @@ export default function Landing() {
                   FinanceOS
                 </span>
                 <span className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground block leading-none">
-                  Financial Intelligence
+                  Personal Finance
                 </span>
               </div>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground pl-4">
               <a href="#overview" className="hover:text-foreground transition-colors">Overview</a>
-              <a href="#capabilities" className="hover:text-foreground transition-colors">Capabilities</a>
+              <a href="#capabilities" className="hover:text-foreground transition-colors">Features</a>
               <a href="#security" className="hover:text-foreground transition-colors">Security & Privacy</a>
             </nav>
           </div>
@@ -121,7 +120,7 @@ export default function Landing() {
                   <Link to="/login">Sign In</Link>
                 </Button>
                 <Button asChild size="sm" className="text-xs font-semibold shadow-sm">
-                  <Link to="/register">Launch Workspace</Link>
+                  <Link to="/register">Get Started</Link>
                 </Button>
               </>
             )}
@@ -134,7 +133,7 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto text-center space-y-6">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-mono text-muted-foreground shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            <span>Comprehensive Financial Management • Zero Third-Party Aggregation</span>
+            <span>Personal Finance • Zero Bank Credentials Required</span>
           </motion.div>
 
           <motion.h1
@@ -143,8 +142,8 @@ export default function Landing() {
             transition={{ delay: 0.1 }}
             className="font-serif text-4xl sm:text-6xl text-foreground font-normal tracking-tight leading-[1.15]"
           >
-            See where your capital is deployed.<br />
-            <span className="italic text-primary font-serif">Understand where it should go next.</span>
+            Take control of your personal finances.<br />
+            <span className="italic text-primary font-serif">Clear, simple, and privacy-focused.</span>
           </motion.h1>
 
           <motion.p
@@ -153,7 +152,7 @@ export default function Landing() {
             transition={{ delay: 0.15 }}
             className="max-w-2xl mx-auto text-base sm:text-lg text-muted-foreground leading-relaxed font-normal"
           >
-            FinanceOS transforms raw bank statements into an intelligent, multi-account command center. Accurate transaction reconciliation, cash flow analytics, and family finance management.
+            FinanceOS turns your bank statements into organized transactions, clear spending insights, and shared family budgets—without connecting to third-party bank aggregators.
           </motion.p>
 
           <motion.div
@@ -165,7 +164,7 @@ export default function Landing() {
             {isAuthenticated ? (
               <Button asChild size="lg" className="w-full sm:w-auto text-xs font-semibold gap-2 shadow-sm">
                 <Link to="/dashboard">
-                  <span>Go to Command Center</span>
+                  <span>Go to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </Button>
@@ -173,12 +172,12 @@ export default function Landing() {
               <>
                 <Button asChild size="lg" className="w-full sm:w-auto text-xs font-semibold gap-2 shadow-sm">
                   <Link to="/register">
-                    <span>Get Started with FinanceOS</span>
+                    <span>Get Started Free</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="w-full sm:w-auto text-xs font-medium">
-                  <Link to="/login">Sign In to Workspace</Link>
+                  <Link to="/login">Sign In</Link>
                 </Button>
               </>
             )}
@@ -188,20 +187,20 @@ export default function Landing() {
           <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>Standard PDF & Encrypted PDF</span>
+              <span>PDF Bank Statements</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>CSV & Multi-Column XLSX</span>
+              <span>CSV & Excel Spreadsheets</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-              <span>Shared Household Workspaces</span>
+              <span>Family & Household Groups</span>
             </div>
           </div>
         </div>
 
-        {/* Monumental Interactive Preview Card */}
+        {/* Preview Card */}
         <div className="max-w-5xl mx-auto mt-14">
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden text-left">
             <div className="border-b border-border px-4 py-2.5 bg-secondary/50 flex items-center justify-between">
@@ -209,28 +208,28 @@ export default function Landing() {
                 <span className="w-2.5 h-2.5 rounded-full bg-border" />
                 <span className="w-2.5 h-2.5 rounded-full bg-border" />
                 <span className="w-2.5 h-2.5 rounded-full bg-border" />
-                <span className="ml-2 text-xs font-mono text-muted-foreground">workspace.financeos.local</span>
+                <span className="ml-2 text-xs font-mono text-muted-foreground">app.financeos.com</span>
               </div>
               <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                LIVE DEMO CONTEXT
+                SAMPLE OVERVIEW
               </span>
             </div>
 
             <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
               <div className="lg:col-span-5 space-y-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Combined Net Worth
+                  Net Worth
                 </span>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl sm:text-4xl font-bold font-serif text-foreground tracking-tight">
                     ₹42,85,600
                   </span>
                   <span className="text-xs font-semibold text-primary px-2 py-0.5 rounded-md bg-primary/10">
-                    +4.2% QoQ
+                    +4.2% This Quarter
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Tracked across your bank accounts and credit cards with full privacy.
+                  Tracked across your bank accounts, credit cards, and investments.
                 </p>
               </div>
 
@@ -241,7 +240,7 @@ export default function Landing() {
                     <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                   </div>
                   <span className="text-base font-bold text-foreground">₹58,12,400.00</span>
-                  <span className="block text-[10px] text-muted-foreground mt-0.5">Liquid + Equities + Gold</span>
+                  <span className="block text-[10px] text-muted-foreground mt-0.5">Bank Accounts + Investments</span>
                 </div>
 
                 <div className="p-3.5 rounded-lg border border-border bg-secondary/30">
@@ -250,7 +249,7 @@ export default function Landing() {
                     <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
                   </div>
                   <span className="text-base font-bold text-destructive">₹15,26,800.00</span>
-                  <span className="block text-[10px] text-muted-foreground mt-0.5">Mortgage + Cards</span>
+                  <span className="block text-[10px] text-muted-foreground mt-0.5">Loans + Credit Cards</span>
                 </div>
               </div>
             </div>
@@ -262,13 +261,13 @@ export default function Landing() {
       <section id="capabilities" className="py-20 px-4 sm:px-6 max-w-7xl mx-auto w-full border-b border-border">
         <div className="text-center max-w-2xl mx-auto mb-14 space-y-2">
           <span className="text-xs font-mono uppercase tracking-wider text-primary font-semibold">
-            Institutional Rigor
+            Features
           </span>
           <h2 className="font-serif text-3xl sm:text-4xl font-normal text-foreground tracking-tight">
             Built for Complete Financial Clarity
           </h2>
           <p className="text-sm text-muted-foreground">
-            Everything you need to master statement reconciliation, cashflow velocity, and household wealth.
+            Everything you need to organize statements, analyze spending, and manage household finances.
           </p>
         </div>
 
@@ -303,10 +302,10 @@ export default function Landing() {
               <span>Privacy-First Security</span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl font-normal text-foreground tracking-tight">
-              Your Financial Records Never Leave Your Control
+              Your Financial Data Stays Private
             </h2>
             <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
-              We never ask for banking credentials or third-party bank logins. Upload statements directly, process transactions securely, and maintain full control of your household financial records.
+              We never ask for your bank passwords or third-party bank logins. Upload statements directly, process transactions securely, and maintain full control of your records.
             </p>
           </div>
 

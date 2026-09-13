@@ -63,7 +63,7 @@ const Profile: React.FC = () => {
     defaultValues: {
       name: user?.name ?? '',
       avatar: user?.avatar ?? '',
-      preferredCurrency: user?.preferredCurrency ?? 'USD',
+      preferredCurrency: user?.preferredCurrency ?? 'INR',
       timeZone: user?.timeZone ?? 'UTC',
     },
   })
