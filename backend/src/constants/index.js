@@ -29,9 +29,13 @@ export const API_PREFIX = "/api/v1";
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 
-export const CORS_ORIGINS = process.env.CORS_ORIGINS?.split(",") || [
+export const CORS_ORIGINS = [
+  "https://financeosweb.netlify.app",
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:5173",
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim()) : []),
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.trim()] : []),
 ];
 
 // ─── Cookies ─────────────────────────────────────────────────────────────────
@@ -45,7 +49,7 @@ export const COOKIE_OPTIONS = {
   // Shared base options for all auth cookies
   httpOnly: true, // Never accessible via JS
   secure: process.env.NODE_ENV === "production", // HTTPS-only in production
-  sameSite: "strict", // CSRF protection
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Required for cross-domain Netlify <-> Render cookies
 };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

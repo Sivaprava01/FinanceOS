@@ -9,6 +9,35 @@ interface AuthProviderProps {
   children: React.ReactNode
 }
 
+const parseJwtPayload = (token: string): Partial<User> | null => {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const base64Url = parts[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    const payload = JSON.parse(jsonPayload)
+    if (payload && (payload.email || payload._id)) {
+      return {
+        _id: payload._id || '',
+        name: payload.name || (payload.email ? payload.email.split('@')[0] : 'User'),
+        email: payload.email || '',
+        isEmailVerified: true,
+        createdAt: new Date().toISOString(),
+        preferredCurrency: 'INR',
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -18,10 +47,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const token = localStorage.getItem('accessToken')
         if (token) {
+          const preliminary = parseJwtPayload(token)
+          if (preliminary) {
+            setUser(preliminary as User)
+          }
           const currentUser = await authService.getCurrentUser()
           setUser(currentUser)
         }
-      } catch {
+      } catch (err) {
+        console.warn('Authentication check failed:', err)
         localStorage.removeItem('accessToken')
         setUser(null)
       } finally {
@@ -39,16 +73,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loginWithToken = async (token: string): Promise<void> => {
     localStorage.setItem('accessToken', token)
-    setIsLoading(true)
+    const preliminary = parseJwtPayload(token)
+    if (preliminary) {
+      setUser(preliminary as User)
+    }
+    setIsLoading(false)
+
     try {
       const currentUser = await authService.getCurrentUser()
       setUser(currentUser)
     } catch (err) {
-      localStorage.removeItem('accessToken')
-      setUser(null)
-      throw err
-    } finally {
-      setIsLoading(false)
+      console.warn('Could not fetch full user profile, continuing with token session:', err)
     }
   }
 

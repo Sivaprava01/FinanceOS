@@ -40,7 +40,7 @@ router.get("/me", protect, getProfile);
 // Guard: verify that Google credentials are configured before delegating to Passport
 const ensureGoogleOAuthConfigured = (req, res, next) => {
   if (!isGoogleOAuthConfigured()) {
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const frontendUrl = getFrontendOrigin(req);
     return res.redirect(`${frontendUrl}/login?error=google_oauth_not_configured`);
   }
   next();
