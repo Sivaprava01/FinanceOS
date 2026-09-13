@@ -267,29 +267,37 @@ const SharedTransactionsTab: React.FC<{ familyId: string }> = ({ familyId }) => 
         <EmptyState title="No Members" description="No family members found." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {members.map((member) => (
-            <Card key={member._id} className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors overflow-hidden">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
-                    {member.user.name.charAt(0).toUpperCase()}
+          {members.map((member) => {
+            const memberName = member.user?.name || member.user?.email || 'Member'
+            const memberEmail = member.user?.email || ''
+            const initial = memberName.charAt(0).toUpperCase() || 'M'
+
+            return (
+              <Card key={member._id} className="border border-border/80 shadow-sm bg-card hover:border-primary/40 transition-colors overflow-hidden">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                      {initial}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-foreground truncate">{memberName}</p>
+                      {memberEmail && (
+                        <p className="text-[11px] text-muted-foreground font-mono truncate">{memberEmail}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-foreground truncate">{member.user.name}</p>
-                    <p className="text-[11px] text-muted-foreground font-mono truncate">{member.user.email}</p>
+                  <div className="flex items-center justify-between text-[11px] pt-2.5 border-t border-border/60">
+                    <Badge variant={ROLE_BADGE_VARIANTS[member.role] || 'secondary'} size="sm">
+                      {(member.role || 'MEMBER').toUpperCase()}
+                    </Badge>
+                    <span className="text-muted-foreground font-mono text-[10px]">
+                      Joined {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'Recently'}
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between text-[11px] pt-2.5 border-t border-border/60">
-                  <Badge variant={ROLE_BADGE_VARIANTS[member.role] || 'secondary'} size="sm">
-                    {member.role.toUpperCase()}
-                  </Badge>
-                  <span className="text-muted-foreground font-mono text-[10px]">
-                    Joined {new Date(member.joinedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>
@@ -444,20 +452,26 @@ const PermissionsTab: React.FC<{ familyId: string; ownerId: string }> = ({ famil
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/60">
-              {members.map((member) => (
-                <div
-                  key={member._id}
-                  className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
-                >
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">{member.user.name}</p>
-                    <p className="text-[11px] text-muted-foreground font-mono">{member.user.email}</p>
+              {members.map((member) => {
+                const memberName = member.user?.name || member.user?.email || 'Member'
+                const memberEmail = member.user?.email || ''
+                return (
+                  <div
+                    key={member._id}
+                    className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
+                  >
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{memberName}</p>
+                      {memberEmail && (
+                        <p className="text-[11px] text-muted-foreground font-mono">{memberEmail}</p>
+                      )}
+                    </div>
+                    <Badge variant={ROLE_BADGE_VARIANTS[member.role] || 'secondary'} size="sm">
+                      {(member.role || 'MEMBER').toUpperCase()}
+                    </Badge>
                   </div>
-                  <Badge variant={ROLE_BADGE_VARIANTS[member.role] || 'secondary'} size="sm">
-                    {member.role.toUpperCase()}
-                  </Badge>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>
@@ -493,49 +507,58 @@ const MembersTab: React.FC<{ familyId: string; ownerId: string }> = ({ familyId,
   return (
     <div className="space-y-4">
       <div className="divide-y divide-border/60 rounded-xl border border-border/80 overflow-hidden bg-card shadow-sm">
-        {members.map((m) => (
-          <div
-            key={m._id}
-            className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
-                {m.user.name.charAt(0).toUpperCase()}
+        {members.map((m) => {
+          const memberUserId = m.user?._id || (typeof m.user === 'string' ? m.user : '')
+          const memberName = m.user?.name || m.user?.email || 'Member'
+          const memberEmail = m.user?.email || ''
+          const initial = memberName.charAt(0).toUpperCase() || 'M'
+
+          return (
+            <div
+              key={m._id}
+              className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                  {initial}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground truncate">{memberName}</p>
+                  {memberEmail && (
+                    <p className="text-[11px] text-muted-foreground font-mono truncate">{memberEmail}</p>
+                  )}
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-foreground truncate">{m.user.name}</p>
-                <p className="text-[11px] text-muted-foreground font-mono truncate">{m.user.email}</p>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Badge variant={ROLE_BADGE_VARIANTS[m.role] || 'secondary'} size="sm">
+                  {(m.role || 'MEMBER').toUpperCase()}
+                </Badge>
+                {isOwner && memberUserId && memberUserId !== ownerId && (
+                  <button
+                    onClick={() => removeMember.mutate(memberUserId)}
+                    disabled={removeMember.isPending}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                    aria-label="Remove member"
+                    title="Remove member"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+                {!isOwner && memberUserId && memberUserId === user?._id && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => leaveFamily.mutate(familyId)}
+                    isLoading={leaveFamily.isPending}
+                    className="gap-1 text-xs"
+                  >
+                    <LogOut className="h-3 w-3" /> Leave Group
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2.5 shrink-0">
-              <Badge variant={ROLE_BADGE_VARIANTS[m.role] || 'secondary'} size="sm">
-                {m.role.toUpperCase()}
-              </Badge>
-              {isOwner && m.user._id !== ownerId && (
-                <button
-                  onClick={() => removeMember.mutate(m.user._id)}
-                  disabled={removeMember.isPending}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                  aria-label="Remove member"
-                  title="Remove member"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-              {!isOwner && m.user._id === user?._id && (
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={() => leaveFamily.mutate(familyId)}
-                  isLoading={leaveFamily.isPending}
-                  className="gap-1 text-xs"
-                >
-                  <LogOut className="h-3 w-3" /> Leave Group
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
+          )
+        })}
         {members.length === 0 && (
           <p className="p-8 text-center text-xs text-muted-foreground">No members found.</p>
         )}
@@ -621,7 +644,7 @@ const PendingInvitations: React.FC = () => {
   const accept = useAcceptInvitation()
   const reject = useRejectInvitation()
 
-  if (isLoading || invitations.length === 0) return null
+  if (isLoading || !Array.isArray(invitations) || invitations.length === 0) return null
 
   return (
     <Card className="border border-primary/40 bg-primary/5 shadow-xs">
@@ -637,38 +660,48 @@ const PendingInvitations: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-2">
-        {invitations.map((inv) => (
-          <div
-            key={inv._id}
-            className="flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-xs"
-          >
-            <div>
-              <p className="text-xs font-bold text-foreground">{inv.familyId.name}</p>
-              <p className="text-[11px] text-muted-foreground font-mono">
-                Invited by {inv.invitedBy.name}
-              </p>
+        {invitations.map((inv) => {
+          const familyName =
+            (typeof inv.family === 'object' && inv.family?.familyName) ||
+            (typeof inv.familyId === 'object' && (inv.familyId?.familyName || inv.familyId?.name)) ||
+            'Family Group'
+          const inviterName =
+            (typeof inv.invitedBy === 'object' && (inv.invitedBy?.name || inv.invitedBy?.email)) ||
+            'A household member'
+
+          return (
+            <div
+              key={inv._id}
+              className="flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-xs"
+            >
+              <div>
+                <p className="text-xs font-bold text-foreground">{familyName}</p>
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  Invited by {inviterName}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="xs"
+                  onClick={() => accept.mutate(inv._id)}
+                  isLoading={accept.isPending}
+                  className="text-xs"
+                >
+                  Accept
+                </Button>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => reject.mutate(inv._id)}
+                  isLoading={reject.isPending}
+                  className="text-xs"
+                >
+                  Decline
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                size="xs"
-                onClick={() => accept.mutate(inv._id)}
-                isLoading={accept.isPending}
-                className="text-xs"
-              >
-                Accept
-              </Button>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => reject.mutate(inv._id)}
-                isLoading={reject.isPending}
-                className="text-xs"
-              >
-                Decline
-              </Button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </CardContent>
     </Card>
   )

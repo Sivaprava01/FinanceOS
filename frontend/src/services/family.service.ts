@@ -29,11 +29,13 @@ export interface FamilyMember {
 
 export interface FamilyInvitation {
   _id: string
-  familyId: { _id: string; name: string }
-  invitedBy: { _id: string; name: string; email: string }
+  family?: { _id: string; familyName?: string; name?: string; description?: string }
+  familyId?: { _id: string; familyName?: string; name?: string; description?: string }
+  invitedBy?: { _id: string; name?: string; email?: string }
   invitedEmail: string
   status: 'pending' | 'accepted' | 'rejected'
   createdAt: string
+  expiresAt?: string
 }
 
 export interface FamilyDashboard {

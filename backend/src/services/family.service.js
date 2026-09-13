@@ -279,7 +279,11 @@ const listInvitations = async (userId, userEmail) => {
     .populate("invitedBy", "name email")
     .sort({ createdAt: -1 });
 
-  return invitations.map((i) => i.toObject());
+  return invitations.map((i) => {
+    const obj = i.toObject();
+    obj.familyId = obj.family;
+    return obj;
+  });
 };
 
 /**
