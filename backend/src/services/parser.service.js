@@ -742,13 +742,13 @@ const detectCategoryAndType = (text, explicitAmount = null) => {
     /\((?:cr)\)|\bcr\b|\bcr\./i.test(text) ||
     (explicitAmount !== null && explicitAmount > 0 && /\bcr\b/i.test(text));
 
-  // 2. Comprehensive Credit / Inflow keywords (including Indian payroll 'sal', 'neft-cr', etc.)
+  // 2. Comprehensive Credit / Inflow keywords (including Indian payroll 'sal', 'payment fr', cashback, etc.)
   const creditKeywords =
-    /\b(?:sal|salary|payroll|deposit|deposited|credit|credited|received|refund|refunded|interest|int\.pd|int pd|dividend|cashback|inward|neft-cr|imps-cr|rtgs-cr|ach-cr|upi-cr|reversal|bonus|gift|reimbursement|settlement|inflow)\b/i;
+    /(?:\b(?:sal|salary|payroll|deposit|deposited|credit|credited|received|refund|refunded|interest|int\.pd|int pd|dividend|inward|neft-cr|imps-cr|rtgs-cr|ach-cr|upi-cr|reversal|bonus|gift|reimbursement|settlement|inflow|payment\s+fr(?:om)?|transferred\s+fr(?:om)?|transfer\s+fr(?:om)?|received\s+fr(?:om)?|credit\s+fr(?:om)?|cr\s+trxn|towards\s+tr)\b|(?:bhim)?cashba(?:ck)?|cash\s*back|rewards?)/i;
 
   // 3. Comprehensive Debit / Outflow keywords
   const debitKeywords =
-    /\b(?:debit|debited|withdrawal|withdrawn|wdl|pos|ecom|charge|charges|fee|fees|tax|gst|paid|payment|bill|purchase|outward|transfer to|to transfer|outflow)\b/i;
+    /\b(?:debit|debited|withdrawal|withdrawn|wdl|pos|ecom|charge|charges|fee|fees|tax|gst|paid|bill|purchase|outward|transfer to|to transfer|outflow|payment\s+to|pay\s+to|sent\s+using)\b/i;
 
   let type = "Debit";
   if (isExplicitCr) {
@@ -758,6 +758,8 @@ const detectCategoryAndType = (text, explicitAmount = null) => {
   } else if (creditKeywords.test(lower)) {
     type = "Credit";
   } else if (debitKeywords.test(lower)) {
+    type = "Debit";
+  } else if (/\bpayment\b/i.test(lower) && !/\bpayment\s+fr(?:om)?\b/i.test(lower)) {
     type = "Debit";
   }
 
@@ -918,9 +920,10 @@ const extractCleanMerchant = (rawNarration) => {
  * Coordinate-aware 2D PDF Table Extractor.
  * Handles:
  * - Kotak Bank 6-7 column format with multi-dates (Txn Date + Value Date on same line).
- * - ICICI Bank format with separate Withdrawal (Dr) and Deposit (Cr) columns.
+ * - ICICI Bank format with separate Withdrawal (Dr), Deposit (Cr), and Balance columns.
  * - Multi-line transaction narration without breaking blocks.
- * - Contextual row preservation (never drops legitimate repeated transactions).
+ * - Robust column X-coordinate alignment across single-line & multi-line headers.
+ * - Mathematical Balance continuity verification (rowBalance - prevBalance).
  *
  * @param {Array} pages - Pages array from loadPDFStructuredDataWithPDFJS
  * @returns {Array} Extracted transaction objects
@@ -932,62 +935,57 @@ const extractTransactionsFromStructuredPDF = (pages) => {
   // Match date at line start or after serial number (e.g. "1  02/09/2026" or "02/09/2026" or "102.09.2026")
   const ROW_START_DATE_RE = /(?:^|\s|\d{1,4})(?:(\d{4}[/\-.]\d{2}[/\-.]\d{2})|(\d{1,2}[/\-.](?:0[1-9]|1[0-2])[/\-.]\d{2,4})|(\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4}))/i;
 
+  // Scan all pages to locate global column centers for Withdrawal, Deposit, and Balance
+  let withdrawalColX = null;
+  let depositColX = null;
+  let balanceColX = null;
+  let isKotakLayout = false;
+
+  for (const page of pages) {
+    for (const it of page.rawItems || []) {
+      const str = (it.str || "").toLowerCase().trim();
+      if (
+        str === "withdrawal" ||
+        str === "withdrawals" ||
+        str === "withdrawal amount" ||
+        str === "withdrawal amount (inr)" ||
+        str === "amt debited" ||
+        (str.includes("withdrawal") && !withdrawalColX)
+      ) {
+        withdrawalColX = it.x + (it.width || 0) / 2;
+      }
+      if (
+        str === "deposit" ||
+        str === "deposits" ||
+        str === "deposit amount" ||
+        str === "deposit amount (inr)" ||
+        str === "amt credited" ||
+        (str.includes("deposit") && !depositColX)
+      ) {
+        depositColX = it.x + (it.width || 0) / 2;
+      }
+      if (str === "balance" || str === "balance (inr)" || (str.includes("balance") && !balanceColX)) {
+        balanceColX = it.x + (it.width || 0) / 2;
+      }
+      if (str.includes("value date") || (str.includes("debit/credit") && str.includes("chq"))) {
+        isKotakLayout = true;
+      }
+    }
+    if (withdrawalColX && depositColX) break;
+  }
+
   const transactions = [];
+  let runningPrevBalance = null;
 
   for (const page of pages) {
     const lines = page.lines || [];
     if (lines.length === 0) continue;
-
-    // Detect if page contains table column headers
-    let headerY = null;
-    let isKotakLayout = false;
-    let isICICILayout = false;
-    let withdrawalColX = null;
-    let depositColX = null;
-
-    for (const line of lines) {
-      const lower = line.text.toLowerCase();
-      if (
-        (lower.includes("transaction date") || lower.includes("txn date") || lower.includes("date")) &&
-        (lower.includes("balance") ||
-          lower.includes("debit") ||
-          lower.includes("withdrawal") ||
-          lower.includes("deposit") ||
-          lower.includes("amount"))
-      ) {
-        headerY = line.y;
-
-        if (lower.includes("value date") && (lower.includes("debit/credit") || lower.includes("chq / ref"))) {
-          isKotakLayout = true;
-        }
-
-        if (lower.includes("withdrawal") && lower.includes("deposit")) {
-          isICICILayout = true;
-          // Identify X coordinates of Withdrawal vs Deposit header items
-          for (const it of line.items) {
-            const str = it.str.toLowerCase();
-            if (str.includes("withdrawal") || str.includes("dr")) {
-              withdrawalColX = it.x;
-            }
-            if (str.includes("deposit") || str.includes("cr")) {
-              depositColX = it.x;
-            }
-          }
-        }
-        break;
-      }
-    }
 
     // Process table lines on this page
     const pageRows = [];
     let currentRow = null;
 
     for (const line of lines) {
-      // Skip lines at or above the table header
-      if (headerY !== null && line.y >= headerY - 2.0) {
-        continue;
-      }
-
       const text = line.text.trim();
       if (!text) continue;
 
@@ -996,10 +994,13 @@ const extractTransactionsFromStructuredPDF = (pages) => {
       if (
         lower.startsWith("page ") ||
         lower.includes("statement of account") ||
+        lower.includes("statement of transactions") ||
         lower.includes("generated on") ||
         lower.includes("opening balance") ||
         lower.includes("closing balance:") ||
         lower.includes("end of statement") ||
+        lower.includes("cheque number") ||
+        (lower.includes("withdrawal") && lower.includes("deposit")) ||
         lower.startsWith("total ")
       ) {
         continue;
@@ -1022,11 +1023,15 @@ const extractTransactionsFromStructuredPDF = (pages) => {
         currentRow = {
           startLine: line,
           lines: [line],
+          items: [...(line.items || [])],
           dateRaw: hasDateMatch[1] || hasDateMatch[2] || hasDateMatch[3],
         };
       } else if (currentRow) {
         // Multi-line continuation for active transaction row
         currentRow.lines.push(line);
+        if (line.items) {
+          currentRow.items.push(...line.items);
+        }
       }
     }
 
@@ -1040,92 +1045,120 @@ const extractTransactionsFromStructuredPDF = (pages) => {
       const date = parseDate(rowUnit.dateRaw);
       if (!date) continue;
 
-      // Mask dates before extracting amounts to avoid matching "31.07" from "31.07.2026"
-      const textWithoutDates = allText.replace(DATE_MASK_RE, " __DATE__ ");
-      const amountMatches = textWithoutDates.match(STRICT_AMOUNT_PATTERN) || [];
-      const amounts = [];
-
-      for (const m of amountMatches) {
-        const lowerM = m.toLowerCase();
-        const isExplicitDr = lowerM.includes("(dr)") || lowerM.endsWith("dr") || m.startsWith("-");
-        const isExplicitCr = lowerM.includes("(cr)") || lowerM.endsWith("cr") || m.startsWith("+");
-        const num = cleanAmount(m);
-        if (num !== null && num > 0) {
-          amounts.push({
-            value: num,
-            isExplicitDr,
-            isExplicitCr,
-            rawStr: m,
-          });
+      // Identify numerical items in rowUnit.items with exact amount format
+      const numItems = [];
+      for (const it of rowUnit.items || []) {
+        const cleanedStr = (it.str || "").replace(/,/g, "").trim();
+        if (/^\d+\.\d{2}$/.test(cleanedStr)) {
+          const val = parseFloat(cleanedStr);
+          if (!isNaN(val) && val > 0) {
+            numItems.push({
+              str: cleanedStr,
+              value: val,
+              x: it.x,
+              centerX: it.x + (it.width || 0) / 2,
+            });
+          }
         }
       }
-
-      if (amounts.length === 0) continue;
 
       let txAmount = null;
       let txType = "Debit";
+      let rowBalance = null;
 
-      // 1. Kotak Layout handling
-      if (isKotakLayout) {
-        const primaryAmt = amounts[0];
-        txAmount = primaryAmt.value;
-        if (primaryAmt.isExplicitCr) {
-          txType = "Credit";
-        } else if (primaryAmt.isExplicitDr) {
-          txType = "Debit";
-        } else {
-          const detected = detectCategoryAndType(allText);
-          txType = detected.type;
-        }
-      }
-      // 2. ICICI Layout handling with separate Withdrawal vs Deposit columns
-      else if (isICICILayout && withdrawalColX !== null && depositColX !== null) {
-        let foundInWithdrawal = false;
-        let foundInDeposit = false;
+      // 1. Column coordinate-based extraction
+      if (withdrawalColX && depositColX && numItems.length > 0) {
+        if (numItems.length >= 2) {
+          // Last number in row is the running balance
+          const lastNum = numItems[numItems.length - 1];
+          const primaryNum = numItems[numItems.length - 2];
+          rowBalance = lastNum.value;
+          txAmount = primaryNum.value;
 
-        for (const l of rowUnit.lines) {
-          for (const it of l.items) {
-            const num = cleanAmount(it.str);
-            if (num !== null && num > 0) {
-              const diffWithdrawal = Math.abs(it.x - withdrawalColX);
-              const diffDeposit = Math.abs(it.x - depositColX);
-
-              if (diffWithdrawal < diffDeposit && diffWithdrawal < 80) {
-                foundInWithdrawal = true;
-                txAmount = num;
-                txType = "Debit";
-                break;
-              } else if (diffDeposit <= diffWithdrawal && diffDeposit < 80) {
-                foundInDeposit = true;
-                txAmount = num;
-                txType = "Credit";
-                break;
-              }
-            }
+          const distWithdrawal = Math.abs(primaryNum.centerX - withdrawalColX);
+          const distDeposit = Math.abs(primaryNum.centerX - depositColX);
+          if (distDeposit < distWithdrawal) {
+            txType = "Credit";
+          } else {
+            txType = "Debit";
           }
-          if (foundInWithdrawal || foundInDeposit) break;
-        }
-
-        if (!txAmount) {
-          txAmount = amounts[0].value;
-          txType = amounts[0].isExplicitCr ? "Credit" : "Debit";
+        } else if (numItems.length === 1) {
+          txAmount = numItems[0].value;
+          const distWithdrawal = Math.abs(numItems[0].centerX - withdrawalColX);
+          const distDeposit = Math.abs(numItems[0].centerX - depositColX);
+          if (distDeposit < distWithdrawal) {
+            txType = "Credit";
+          } else {
+            txType = "Debit";
+          }
         }
       }
-      // 3. Standard / Generic Table handling
-      else {
-        const primaryAmt = amounts[0];
-        txAmount = primaryAmt.value;
-        if (primaryAmt.isExplicitCr) {
-          txType = "Credit";
-        } else if (primaryAmt.isExplicitDr) {
-          txType = "Debit";
-        } else {
-          const detected = detectCategoryAndType(allText);
-          txType = detected.type;
+
+      // Fallback if no coordinate match
+      if (!txAmount) {
+        const textWithoutDates = allText.replace(DATE_MASK_RE, " __DATE__ ");
+        const amountMatches = textWithoutDates.match(STRICT_AMOUNT_PATTERN) || [];
+        const amounts = [];
+
+        for (const m of amountMatches) {
+          const lowerM = m.toLowerCase();
+          const isExplicitDr = lowerM.includes("(dr)") || lowerM.endsWith("dr") || m.startsWith("-");
+          const isExplicitCr = lowerM.includes("(cr)") || lowerM.endsWith("cr") || m.startsWith("+");
+          const num = cleanAmount(m);
+          if (num !== null && num > 0) {
+            amounts.push({
+              value: num,
+              isExplicitDr,
+              isExplicitCr,
+              rawStr: m,
+            });
+          }
+        }
+
+        if (amounts.length > 0) {
+          const primaryAmt = amounts[0];
+          txAmount = primaryAmt.value;
+          if (amounts.length >= 2) {
+            rowBalance = amounts[amounts.length - 1].value;
+          }
+          if (primaryAmt.isExplicitCr) {
+            txType = "Credit";
+          } else if (primaryAmt.isExplicitDr) {
+            txType = "Debit";
+          } else {
+            const detected = detectCategoryAndType(allText);
+            txType = detected.type;
+          }
         }
       }
 
       if (!txAmount || isNaN(txAmount) || txAmount <= 0) continue;
+
+      // 2. Mathematical Balance Continuity Verification (Mathematical Invariant)
+      if (runningPrevBalance !== null && rowBalance !== null) {
+        const diff = rowBalance - runningPrevBalance;
+        if (Math.abs(diff - txAmount) < 0.1) {
+          // Balance increased by txAmount -> 100% Credit (Income)
+          txType = "Credit";
+        } else if (Math.abs(diff + txAmount) < 0.1) {
+          // Balance decreased by txAmount -> 100% Debit (Expense)
+          txType = "Debit";
+        }
+      }
+
+      // 3. Keyword overrides for unmistakable credit/debit indicators
+      if (
+        /\bpayment\s+fr(?:om)?\b/i.test(allText) ||
+        /\b(?:sal|salary|payroll)\b/i.test(allText) ||
+        /\bcashback\b/i.test(allText) ||
+        /\bint\.pd\b/i.test(allText)
+      ) {
+        txType = "Credit";
+      }
+
+      if (rowBalance !== null) {
+        runningPrevBalance = rowBalance;
+      }
 
       const detected = detectCategoryAndType(allText, txType === "Credit" ? txAmount : -txAmount);
       const merchant = extractCleanMerchant(allText);

@@ -101,4 +101,22 @@ describe('Parser Service Tests', () => {
     assert.equal(periodFromTxs.statementMonth, 7);
     assert.equal(periodFromTxs.statementYear, 2026);
   });
+
+  it('should correctly classify peer-to-peer incoming UPI payments and cashbacks as Credit', () => {
+    const p2pCredit = parserService.detectCategoryAndType(
+      '1 01.08.2026 SURESH KUM UPI/SURESH KUM/8407018949@axl/Payment fr/AXIS BANK/483552260724/AXL26a660e256304e0fb9d0 516e07ef7eeb 50.00 28162.80'
+    );
+    assert.equal(p2pCredit.type, 'Credit');
+    assert.equal(p2pCredit.category, 'Other Income');
+
+    const cashback = parserService.detectCategoryAndType(
+      '10 03.07.2026 7.00 13510.98 UPI/NPCI BHIM/bhimcashback@h/BHIMCASHBA/HDFC BANK/103600854026/HDF991B3598BC9A4B08B3'
+    );
+    assert.equal(cashback.type, 'Credit');
+
+    const outgoingPayment = parserService.detectCategoryAndType(
+      'UPI/ZOMATO/payzomato@hdfc/Payment to merchant 350.00'
+    );
+    assert.equal(outgoingPayment.type, 'Debit');
+  });
 });
