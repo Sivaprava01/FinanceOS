@@ -151,6 +151,7 @@ const getOverview = async (userId) => {
     assets,
     assetTxs,
     liabilityTxs,
+    availableMonths,
   ] = await Promise.all([
     // Income and expenses for active month
     sumIncomeExpenses(userId, start, end),
@@ -188,6 +189,9 @@ const getOverview = async (userId) => {
       isDeleted: false,
       type: { $in: DB_LIABILITY_TYPES },
     }).select("amount currency").lean(),
+
+    // Available active transaction months
+    getAvailableMonths(userId),
   ]);
 
   // Aggregate top spending categories with currency conversion
@@ -244,7 +248,55 @@ const getOverview = async (userId) => {
       source: t.source,
     })),
     topSpendingCategories,
+    availableMonths,
   };
+};
+
+// ─── Available Statement Months Helper ────────────────────────────────────────
+
+/**
+ * Returns distinct calendar months where the user has active transactions.
+ * Sorted descending (most recent first).
+ *
+ * @param {string} userId
+ * @returns {Promise<Array<{ year: number, month: number, label: string, count: number }>>}
+ */
+const getAvailableMonths = async (userId) => {
+  const mongoose = (await import("mongoose")).default;
+  const rawMonths = await Transaction.aggregate([
+    {
+      $match: {
+        user: new mongoose.Types.ObjectId(userId),
+        isDeleted: false,
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$date" },
+          month: { $month: "$date" },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { "_id.year": -1, "_id.month": -1 } },
+  ]);
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  return rawMonths.map((m) => {
+    const y = m._id.year;
+    const mon = m._id.month; // 1-indexed
+    return {
+      year: y,
+      month: mon,
+      label: `${monthNames[mon - 1] || "Month " + mon} ${y}`,
+      count: m.count,
+    };
+  });
 };
 
 // ─── Period & Date Range Resolver ─────────────────────────────────────────────
@@ -253,15 +305,25 @@ const getOverview = async (userId) => {
  * Resolves date bounds based on period string or custom date params.
  * Options:
  *   period: 'all' | 'current_month' | 'last_month' | '3_months' | '6_months' | '1_year' | 'custom'
- *   fromDate, toDate, month, year
+ *   fromDate, toDate, month, year, statementId
  *
  * @param {string} userId
  * @param {object} options
- * @returns {Promise<{ start: Date|null, end: Date|null, isAllTime: boolean, label: string, autoFallback?: boolean }>}
+ * @returns {Promise<{ start: Date|null, end: Date|null, isAllTime: boolean, label: string, statementId?: string }>}
  */
 const resolveDateRange = async (userId, options = {}) => {
-  const { period = "current_month", fromDate, toDate, month, year } = options;
+  const { period = "current_month", fromDate, toDate, month, year, statementId } = options;
   const now = new Date();
+
+  if (statementId) {
+    return {
+      start: null,
+      end: null,
+      isAllTime: false,
+      statementId,
+      label: "Statement Transactions",
+    };
+  }
 
   if (period === "all") {
     return { start: null, end: null, isAllTime: true, label: "All Time" };
@@ -280,12 +342,12 @@ const resolveDateRange = async (userId, options = {}) => {
     const y = parseInt(year);
     const m = parseInt(month) - 1; // 1-indexed to 0-indexed
     const { start, end } = monthBounds(y, m);
-    const dateObj = new Date(y, m, 1);
+    const dateObj = new Date(Date.UTC(y, m, 1));
     return {
       start,
       end,
       isAllTime: false,
-      label: `${dateObj.toLocaleString("default", { month: "long" })} ${y}`,
+      label: `${dateObj.toLocaleString("default", { month: "long", timeZone: "UTC" })} ${y}`,
     };
   }
 
@@ -318,38 +380,8 @@ const resolveDateRange = async (userId, options = {}) => {
     return { start, end, isAllTime: false, label: `Year ${now.getFullYear()}` };
   }
 
-  // Default: current_month
+  // Strict current calendar month (e.g. September 2026)
   const { start: curStart, end: curEnd } = monthBounds(now.getFullYear(), now.getMonth());
-
-  // Smart check: If user has 0 transactions in current calendar month,
-  // check if user has transactions in previous months or all-time
-  const curCount = await Transaction.countDocuments({
-    user: userId,
-    isDeleted: false,
-    date: { $gte: curStart, $lte: curEnd },
-  });
-
-  if (curCount === 0) {
-    const latestTx = await Transaction.findOne({ user: userId, isDeleted: false })
-      .sort({ date: -1 })
-      .select("date")
-      .lean();
-
-    if (latestTx && latestTx.date) {
-      const latestDate = new Date(latestTx.date);
-      const { start: lStart, end: lEnd } = monthBounds(
-        latestDate.getFullYear(),
-        latestDate.getMonth()
-      );
-      return {
-        start: lStart,
-        end: lEnd,
-        isAllTime: false,
-        label: `${latestDate.toLocaleString("default", { month: "long" })} ${latestDate.getFullYear()}`,
-        autoFallback: true,
-      };
-    }
-  }
 
   return {
     start: curStart,
@@ -402,6 +434,7 @@ const getSpendingAnalysis = async (userId, options = {}) => {
     allTrendTx,
     highestExpenses,
     highestIncome,
+    availableMonths,
   ] = await Promise.all([
     // Active period transactions (all types)
     Transaction.find(txQuery)
@@ -444,6 +477,9 @@ const getSpendingAnalysis = async (userId, options = {}) => {
       .limit(5)
       .select("date amount currency merchant category")
       .lean(),
+
+    // Available distinct transaction months
+    getAvailableMonths(userId),
   ]);
 
   // Convert and aggregate by category and merchant (active period)
@@ -567,6 +603,7 @@ const getSpendingAnalysis = async (userId, options = {}) => {
     topIncomeSources,
     highestExpenses,
     highestIncome,
+    availableMonths,
   };
 };
 

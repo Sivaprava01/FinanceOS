@@ -83,4 +83,22 @@ describe('Parser Service Tests', () => {
     const d4 = parserService.parseDate('31 Jul 2026');
     assert.equal(d4.toISOString().split('T')[0], '2026-07-31');
   });
+
+  it('should accurately extract statement period and month from transactions or header text', () => {
+    const headerText = 'Statement of Account for the period 01/07/2026 to 31/07/2026';
+    const periodFromHeader = parserService.extractStatementPeriod(headerText, []);
+    assert.equal(periodFromHeader.statementPeriod, 'July 2026');
+    assert.equal(periodFromHeader.statementMonth, 7);
+    assert.equal(periodFromHeader.statementYear, 2026);
+
+    const txs = [
+      { date: new Date(Date.UTC(2026, 6, 5)) },
+      { date: new Date(Date.UTC(2026, 6, 20)) },
+      { date: new Date(Date.UTC(2026, 6, 31)) },
+    ];
+    const periodFromTxs = parserService.extractStatementPeriod('', txs);
+    assert.equal(periodFromTxs.statementPeriod, 'July 2026');
+    assert.equal(periodFromTxs.statementMonth, 7);
+    assert.equal(periodFromTxs.statementYear, 2026);
+  });
 });

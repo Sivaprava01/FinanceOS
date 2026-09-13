@@ -546,6 +546,24 @@ const importTransactions = async (statementId, userId, transactions, filePath, c
       createdTransactionIds.push(txDocs[0]._id);
     }
 
+    // Extract and persist statement period if not already present
+    if (transactions.statementPeriod) {
+      statement.statementPeriod = transactions.statementPeriod;
+      statement.statementMonth = transactions.statementMonth;
+      statement.statementYear = transactions.statementYear;
+      statement.startDate = transactions.startDate;
+      statement.endDate = transactions.endDate;
+    } else {
+      const period = parserService.extractStatementPeriod("", transactions);
+      if (period.statementPeriod) {
+        statement.statementPeriod = period.statementPeriod;
+        statement.statementMonth = period.statementMonth;
+        statement.statementYear = period.statementYear;
+        statement.startDate = period.startDate;
+        statement.endDate = period.endDate;
+      }
+    }
+
     // Update statement status and persist currency
     statement.status = "Completed";
     statement.currency = resolvedCurrency;

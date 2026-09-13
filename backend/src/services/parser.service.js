@@ -190,6 +190,13 @@ const parsePDF = async (filePath, password = "") => {
     transactions.confidence = detected.confidence;
     transactions.detectedSources = detected.detectedSources;
 
+    const period = extractStatementPeriod(fullText, transactions);
+    transactions.statementPeriod = period.statementPeriod;
+    transactions.statementMonth = period.statementMonth;
+    transactions.statementYear = period.statementYear;
+    transactions.startDate = period.startDate;
+    transactions.endDate = period.endDate;
+
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -350,7 +357,14 @@ const parseCSV = async (filePath) => {
     transactions.confidence = detected.confidence;
     transactions.detectedSources = detected.detectedSources;
 
-    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
+    const period = extractStatementPeriod(fileContent, transactions);
+    transactions.statementPeriod = period.statementPeriod;
+    transactions.statementMonth = period.statementMonth;
+    transactions.statementYear = period.statementYear;
+    transactions.startDate = period.startDate;
+    transactions.endDate = period.endDate;
+
+    console.log(`[CSV Parser] Successfully extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}, period: ${period.statementPeriod || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -509,7 +523,14 @@ const parseExcel = async (filePath) => {
     transactions.confidence = detected.confidence;
     transactions.detectedSources = detected.detectedSources;
 
-    console.log(`[Excel Parser] Extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}`);
+    const period = extractStatementPeriod(sampleText, transactions);
+    transactions.statementPeriod = period.statementPeriod;
+    transactions.statementMonth = period.statementMonth;
+    transactions.statementYear = period.statementYear;
+    transactions.startDate = period.startDate;
+    transactions.endDate = period.endDate;
+
+    console.log(`[Excel Parser] Extracted ${transactions.length} transactions, detected currency: ${detected.currency || "none"}, period: ${period.statementPeriod || "none"}`);
     return transactions;
   } catch (err) {
     if (err instanceof ApiError) throw err;
@@ -1368,6 +1389,114 @@ const parseType = (typeStr, amount) => {
   return amount < 0 ? "Debit" : "Credit";
 };
 
+// ─── Statement Period Extractor ───────────────────────────────────────────
+
+const MONTH_NAMES_FULL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+const MONTH_NAMES_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+/**
+ * Extracts statement period (date range, primary month & year, period label)
+ * from statement text headers and extracted transactions.
+ *
+ * @param {string} fullText - Extracted text / sample text
+ * @param {Array} transactions - Extracted transaction array
+ * @returns {{ startDate: Date|null, endDate: Date|null, statementMonth: number|null, statementYear: number|null, statementPeriod: string|null }}
+ */
+const extractStatementPeriod = (fullText = "", transactions = []) => {
+  let startDate = null;
+  let endDate = null;
+
+  // 1. Try detecting from explicit statement header patterns
+  if (fullText && typeof fullText === "string") {
+    // Matches "Statement Period: 01/07/2026 to 31/07/2026" or "Period: 01-Jul-2026 - 31-Jul-2026" or "From 01.07.2026 To 31.07.2026"
+    const periodRangeMatch = fullText.match(
+      /(?:statement\s+(?:of\s+account\s+)?(?:for\s+the\s+period|for\s+period|period)?|for\s+the\s+period\s+of|period\s*:|from\s*:?)\s*(\d{1,2}[/\-.][A-Za-z0-9]+[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})\s*(?:to|-|till|through)\s*(\d{1,2}[/\-.][A-Za-z0-9]+[/\-.]\d{2,4}|\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4})/i
+    );
+
+    if (periodRangeMatch) {
+      const d1 = parseDate(periodRangeMatch[1]);
+      const d2 = parseDate(periodRangeMatch[2]);
+      if (d1 && d2) {
+        startDate = d1 <= d2 ? d1 : d2;
+        endDate = d1 <= d2 ? d2 : d1;
+      }
+    }
+
+    // Matches "Statement for Month: July 2026" or "Account Statement - July 2026"
+    if (!startDate) {
+      const monthYearMatch = fullText.match(
+        /(?:statement\s+(?:for\s+month|for|of)?|account\s+statement\s+for)\s+([A-Za-z]{3,9})\s+(\d{4})/i
+      );
+      if (monthYearMatch) {
+        const mIdx = MONTH_NAMES_FULL.findIndex(
+          (m) => m.toLowerCase().startsWith(monthYearMatch[1].toLowerCase().slice(0, 3))
+        );
+        const y = parseInt(monthYearMatch[2]);
+        if (mIdx !== -1 && y >= 1990 && y <= 2100) {
+          startDate = new Date(Date.UTC(y, mIdx, 1));
+          endDate = new Date(Date.UTC(y, mIdx + 1, 0, 23, 59, 59, 999));
+        }
+      }
+    }
+  }
+
+  // 2. If not found from header, compute from transaction dates
+  if ((!startDate || !endDate) && Array.isArray(transactions) && transactions.length > 0) {
+    const validTimestamps = transactions
+      .map((t) => (t.date instanceof Date ? t.date.getTime() : new Date(t.date).getTime()))
+      .filter((ts) => !isNaN(ts));
+
+    if (validTimestamps.length > 0) {
+      startDate = new Date(Math.min(...validTimestamps));
+      endDate = new Date(Math.max(...validTimestamps));
+    }
+  }
+
+  if (!startDate || !endDate) {
+    return {
+      startDate: null,
+      endDate: null,
+      statementMonth: null,
+      statementYear: null,
+      statementPeriod: null,
+    };
+  }
+
+  const sMonth = startDate.getUTCMonth();
+  const sYear = startDate.getUTCFullYear();
+  const eMonth = endDate.getUTCMonth();
+  const eYear = endDate.getUTCFullYear();
+
+  let statementMonth = eMonth + 1; // 1-indexed
+  let statementYear = eYear;
+  let statementPeriod = "";
+
+  if (sMonth === eMonth && sYear === eYear) {
+    // Same calendar month (e.g. July 2026)
+    statementPeriod = `${MONTH_NAMES_FULL[sMonth]} ${sYear}`;
+  } else if (sYear === eYear) {
+    // Within same year across months (e.g. Jun - Jul 2026)
+    statementPeriod = `${MONTH_NAMES_SHORT[sMonth]} - ${MONTH_NAMES_SHORT[eMonth]} ${sYear}`;
+  } else {
+    // Across different years
+    statementPeriod = `${MONTH_NAMES_SHORT[sMonth]} ${sYear} - ${MONTH_NAMES_SHORT[eMonth]} ${eYear}`;
+  }
+
+  return {
+    startDate,
+    endDate,
+    statementMonth,
+    statementYear,
+    statementPeriod,
+  };
+};
+
 // ─── Export Service ───────────────────────────────────────────────────────────
 
 export const parserService = {
@@ -1376,6 +1505,7 @@ export const parserService = {
   parseExcel,
   detectCategoryAndType,
   extractCleanMerchant,
+  extractStatementPeriod,
   parseDate,
   parseAmount,
   normalizeRow,

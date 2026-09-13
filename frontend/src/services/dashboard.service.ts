@@ -7,6 +7,7 @@ export interface SpendingAnalysisParams {
   toDate?: string
   month?: number
   year?: number
+  statementId?: string
 }
 
 export interface MonthlyComparisonParams {

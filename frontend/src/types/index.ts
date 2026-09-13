@@ -107,6 +107,13 @@ export interface ExtractedTransaction {
   originalDescription?: string
 }
 
+export interface AvailableMonth {
+  year: number
+  month: number
+  label: string
+  count: number
+}
+
 export interface StatementPreviewData {
   statementId?: string
   originalFileName?: string
@@ -116,6 +123,11 @@ export interface StatementPreviewData {
   isAmbiguous: boolean
   confidence: 'high' | 'low' | 'none'
   detectedSources?: string[]
+  statementPeriod?: string | null
+  statementMonth?: number | null
+  statementYear?: number | null
+  startDate?: string | null
+  endDate?: string | null
 }
 
 export interface Statement {
@@ -127,6 +139,11 @@ export interface Statement {
   status: 'Uploaded' | 'Processing' | 'Completed' | 'Failed' | 'Password Required'
   transactionCount: number
   currency: string | null
+  statementPeriod?: string | null
+  statementMonth?: number | null
+  statementYear?: number | null
+  startDate?: string | null
+  endDate?: string | null
   uploadedAt: string
   processedAt?: string | null
   failureReason?: string | null
@@ -164,12 +181,14 @@ export interface DashboardOverview {
     source?: string
   }[]
   topSpendingCategories: { _id: string; total: number }[]
+  availableMonths?: AvailableMonth[]
 }
 
 export interface SpendingAnalysis {
   currency?: string
   period?: string
   periodLabel?: string
+  availableMonths?: AvailableMonth[]
   byCategory: { _id: string; total: number; count: number }[]
   categoryComparison: {
     category: string

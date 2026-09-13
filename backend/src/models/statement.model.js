@@ -116,6 +116,29 @@ const statementSchema = new Schema(
       default: null,
       index: true,
     },
+
+    // Extracted statement period metadata
+    statementPeriod: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    statementMonth: {
+      type: Number,
+      default: null,
+    },
+    statementYear: {
+      type: Number,
+      default: null,
+    },
+    startDate: {
+      type: Date,
+      default: null,
+    },
+    endDate: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

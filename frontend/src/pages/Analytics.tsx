@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   BarChart,
   Bar,
@@ -31,7 +31,7 @@ import { SkeletonLoader, ErrorState, EmptyState } from '@components/ui'
 import { useSpendingAnalysis, useMonthlyComparison } from '@hooks/useDashboard'
 import { useCurrency } from '@hooks/useCurrency'
 import { useDualCurrencyConversion } from '@hooks/useCurrencyConversion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 const CHART_COLORS = ['#176B52', '#2A9D8F', '#E76F51', '#F4A261', '#E9C46A', '#6B7280', '#8B5CF6', '#EC4899']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -72,22 +72,59 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, f
 
 const Analytics: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const urlMonth = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null
+  const urlYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : null
+  const urlPeriod = (searchParams.get('period') as Period) || null
+
   const [activeTab, setActiveTab] = useState<Tab>('overview')
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>('all')
+  const [selectedPeriod, setSelectedPeriod] = useState<Period | 'custom_month'>(
+    urlMonth && urlYear ? 'custom_month' : urlPeriod || 'all'
+  )
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(urlMonth)
+  const [selectedYear, setSelectedYear] = useState<number | null>(urlYear)
+
+  // Sync state if URL params change
+  useEffect(() => {
+    const qm = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null
+    const qy = searchParams.get('year') ? parseInt(searchParams.get('year')!) : null
+    const qp = (searchParams.get('period') as Period) || null
+
+    if (qm && qy) {
+      setSelectedPeriod('custom_month')
+      setSelectedMonth(qm)
+      setSelectedYear(qy)
+    } else if (qp) {
+      setSelectedPeriod(qp)
+      setSelectedMonth(null)
+      setSelectedYear(null)
+    }
+  }, [searchParams])
+
+  const analysisQueryParam =
+    selectedPeriod === 'custom_month' && selectedMonth && selectedYear
+      ? { month: selectedMonth, year: selectedYear }
+      : { period: selectedPeriod as Period }
 
   const {
     data: analysis,
     isLoading: aLoading,
     error: aError,
     refetch: refetchA,
-  } = useSpendingAnalysis({ period: selectedPeriod })
+  } = useSpendingAnalysis(analysisQueryParam)
+
+  const comparisonQueryParam =
+    selectedPeriod === 'custom_month' && selectedMonth && selectedYear
+      ? { month: selectedMonth, year: selectedYear }
+      : undefined
 
   const {
     data: comparison,
     isLoading: cLoading,
     error: cError,
     refetch: refetchC,
-  } = useMonthlyComparison()
+  } = useMonthlyComparison(comparisonQueryParam)
 
   const { currency, format, formatCompact } = useCurrency()
   const { preferredCurrency, liveInrRate } = useDualCurrencyConversion()
@@ -199,16 +236,22 @@ const Analytics: React.FC = () => {
           </p>
         </div>
 
-        {/* Period Filter Selector */}
+        {/* Period & Statement Month Filter Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Quick Presets */}
           <div className="flex items-center bg-muted/60 p-1 rounded-lg border border-border/60 overflow-x-auto">
             <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground px-2 py-0.5 font-semibold">
-              <Filter className="w-3 h-3" /> Period:
+              <Filter className="w-3 h-3" /> Preset:
             </span>
             {periodOptions.map((opt) => (
               <button
                 key={opt.id}
-                onClick={() => setSelectedPeriod(opt.id)}
+                onClick={() => {
+                  setSelectedPeriod(opt.id)
+                  setSelectedMonth(null)
+                  setSelectedYear(null)
+                  setSearchParams({ period: opt.id })
+                }}
                 className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all whitespace-nowrap ${
                   selectedPeriod === opt.id
                     ? 'bg-card text-foreground shadow-xs font-semibold'
@@ -219,6 +262,38 @@ const Analytics: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Statement Month Dropdown Picker */}
+          {analysis?.availableMonths && analysis.availableMonths.length > 0 && (
+            <div className="flex items-center bg-muted/60 p-1 rounded-lg border border-border/60">
+              <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground px-2 py-0.5 font-semibold">
+                <Calendar className="w-3 h-3" /> Month:
+              </span>
+              <select
+                value={
+                  selectedPeriod === 'custom_month' && selectedMonth && selectedYear
+                    ? `${selectedYear}-${selectedMonth}`
+                    : ''
+                }
+                onChange={(e) => {
+                  if (!e.target.value) return
+                  const [y, m] = e.target.value.split('-').map(Number)
+                  setSelectedPeriod('custom_month')
+                  setSelectedMonth(m)
+                  setSelectedYear(y)
+                  setSearchParams({ year: String(y), month: String(m) })
+                }}
+                className="bg-card text-xs font-semibold text-foreground rounded-md px-2.5 py-1 border border-border/60 focus:outline-none cursor-pointer"
+              >
+                <option value="" disabled>Select statement month...</option>
+                {analysis.availableMonths.map((m) => (
+                  <option key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`}>
+                    {m.label} ({m.count} txns)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -259,10 +334,19 @@ const Analytics: React.FC = () => {
         <EmptyState
           icon={Calendar}
           title={`No Transactions in ${analysis.periodLabel || 'Selected Period'}`}
-          description="We couldn't find any financial activity in this specific timeframe. Switch to All Time or upload a bank statement to populate analytics."
+          description={
+            analysis.availableMonths && analysis.availableMonths.length > 0
+              ? `We couldn't find any financial activity in ${analysis.periodLabel || 'this period'}. You have statements recorded in ${analysis.availableMonths.map((m) => m.label).join(', ')}.`
+              : `We couldn't find any financial activity in ${analysis.periodLabel || 'this period'}. Switch to All Time or upload a bank statement to populate analytics.`
+          }
           action={{
             label: 'View All Time Analytics',
-            onClick: () => setSelectedPeriod('all'),
+            onClick: () => {
+              setSelectedPeriod('all')
+              setSelectedMonth(null)
+              setSelectedYear(null)
+              setSearchParams({ period: 'all' })
+            },
           }}
         />
       ) : !hasAnyData && selectedPeriod === 'all' ? (
