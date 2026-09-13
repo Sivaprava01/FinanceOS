@@ -870,17 +870,29 @@ const extractCleanMerchant = (rawNarration) => {
   s = s.replace(STRICT_AMOUNT_PATTERN, "").trim();
   s = s.replace(/\s+\d+(?:,\d{2,3})*\.\d{2}.*$/, "").trim();
 
-  // UPI pattern: UPI/REF/MERCHANT or UPI-REF-MERCHANT or UPI/MERCHANT/VPA
-  const upiMatch = s.match(/UPI(?:\/|-)[^/\-\s]+(?:\/|-)([A-Za-z0-9\s._&-]+)(?:\/.*)?/i);
-  if (upiMatch && upiMatch[1]) {
-    let cand = upiMatch[1].replace(/@[a-zA-Z0-9]+$/, "").trim();
-    cand = cand.replace(/\s+\d+.*$/, "").trim();
+  // 1. UPI: UPI/<Merchant or Ref>/<VPA or Merchant>/...
+  const upiParts = s.match(/UPI(?:\/|-)([^/\-]+)(?:(?:\/|-)([^/\-]+))?(?:(?:\/|-)([^/\-]+))?/i);
+  if (upiParts) {
+    let part1 = (upiParts[1] || "").trim();
+    let part2 = (upiParts[2] || "").trim();
+    let part3 = (upiParts[3] || "").trim();
+
+    let cand = part1;
+    if (/^\d+$/.test(part1) || part1.length <= 2) {
+      cand = part2;
+    }
+    if (cand.includes("@") && part1 && !/^\d+$/.test(part1) && !part1.includes("@")) {
+      cand = part1;
+    } else if (cand.includes("@") && part3 && !/^\d+$/.test(part3) && !part3.includes("@")) {
+      cand = part3;
+    }
+    cand = cand.replace(/@[a-zA-Z0-9._-]+$/, "").trim();
     if (cand.length > 1 && !/^\d+$/.test(cand)) {
       return cand.substring(0, 100);
     }
   }
 
-  // POS / Card Swipe pattern
+  // 2. POS / Card Swipe pattern
   const posMatch = s.match(/(?:POS|ECOM|SWIPE|CARD)\s+(?:\d+X+\d+\s+)?([A-Za-z0-9\s._&-]+)/i);
   if (posMatch && posMatch[1]) {
     let cand = posMatch[1]
@@ -892,7 +904,7 @@ const extractCleanMerchant = (rawNarration) => {
     }
   }
 
-  // NEFT / RTGS / IMPS pattern
+  // 3. NEFT / RTGS / IMPS pattern
   const transferMatch = s.match(/(?:NEFT|RTGS|IMPS)(?:-|\/)[A-Za-z0-9]+(?:-|\/)([A-Za-z0-9\s._&-]+)/i);
   if (transferMatch && transferMatch[1]) {
     let cand = transferMatch[1].trim();
@@ -904,7 +916,12 @@ const extractCleanMerchant = (rawNarration) => {
     return cand.substring(0, 100);
   }
 
-  // ACH pattern
+  // 4. CC BillPay
+  if (/CC\s*BillPay/i.test(s) || /BIL\/INFT/i.test(s)) {
+    return "Credit Card BillPay";
+  }
+
+  // 5. ACH pattern
   const achMatch = s.match(/ACH\s+[A-Z]-\s*([A-Za-z0-9\s._&-]+)/i);
   if (achMatch && achMatch[1]) {
     let cand = achMatch[1].replace(/\s+\d+.*$/, "").trim();
@@ -1137,23 +1154,13 @@ const extractTransactionsFromStructuredPDF = (pages) => {
       // 2. Mathematical Balance Continuity Verification (Mathematical Invariant)
       if (runningPrevBalance !== null && rowBalance !== null) {
         const diff = rowBalance - runningPrevBalance;
-        if (Math.abs(diff - txAmount) < 0.1) {
-          // Balance increased by txAmount -> 100% Credit (Income)
+        if (Math.abs(diff - txAmount) < 0.15 || diff > 0.05) {
+          // Balance increased -> 100% Credit (Income)
           txType = "Credit";
-        } else if (Math.abs(diff + txAmount) < 0.1) {
-          // Balance decreased by txAmount -> 100% Debit (Expense)
+        } else if (Math.abs(diff + txAmount) < 0.15 || diff < -0.05) {
+          // Balance decreased -> 100% Debit (Expense)
           txType = "Debit";
         }
-      }
-
-      // 3. Keyword overrides for unmistakable credit/debit indicators
-      if (
-        /\bpayment\s+fr(?:om)?\b/i.test(allText) ||
-        /\b(?:sal|salary|payroll)\b/i.test(allText) ||
-        /\bcashback\b/i.test(allText) ||
-        /\bint\.pd\b/i.test(allText)
-      ) {
-        txType = "Credit";
       }
 
       if (rowBalance !== null) {
