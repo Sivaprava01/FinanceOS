@@ -99,7 +99,7 @@ export const transactionService = {
       success: boolean
       message: string
       data: { statementId: string; transactionCount: number; currency: string; message: string }
-    }>('/transactions/import', input)
+    }>('/transactions/import', input, { timeout: 60000 })
     return response.data.data
   },
 }

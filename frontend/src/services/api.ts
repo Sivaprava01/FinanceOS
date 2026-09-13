@@ -6,7 +6,7 @@ const API_BASE_URL = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase.replace(
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

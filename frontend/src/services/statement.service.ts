@@ -16,6 +16,7 @@ export const statementService = {
     }
     const response = await api.post<{ success: boolean; message: string; data: Statement }>('/statements/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
     })
     return response.data.data
   },

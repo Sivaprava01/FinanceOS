@@ -520,12 +520,12 @@ const importTransactions = async (statementId, userId, transactions, filePath, c
       );
     }
 
-    // Create all transactions with statementId and resolved currency
-    for (const txData of transactions) {
+    // Prepare all transaction documents with statementId and resolved currency
+    const docsToCreate = transactions.map((txData) => {
       const normType = normalizeTransactionType(txData.type);
       const { paymentMethod: rawPm, currency: _ignoredCurrency, ...restTx } = txData;
 
-      const docToCreate = {
+      const doc = {
         user: userId,
         statementId,
         source: "statement",
@@ -537,13 +537,20 @@ const importTransactions = async (statementId, userId, transactions, filePath, c
       // Handle paymentMethod: required for expense, omitted for non-expense
       if (normType === "expense") {
         const pm = rawPm ? String(rawPm).toLowerCase().trim() : "other";
-        docToCreate.paymentMethod = VALID_PAYMENT_METHODS.includes(pm) ? pm : "other";
+        doc.paymentMethod = VALID_PAYMENT_METHODS.includes(pm) ? pm : "other";
       } else {
-        delete docToCreate.paymentMethod;
+        delete doc.paymentMethod;
       }
 
-      const txDocs = await Transaction.create([docToCreate], queryOpts);
-      createdTransactionIds.push(txDocs[0]._id);
+      return doc;
+    });
+
+    const createdTransactions = await Transaction.insertMany(docsToCreate, {
+      ...queryOpts,
+      ordered: true,
+    });
+    for (const tx of createdTransactions) {
+      createdTransactionIds.push(tx._id);
     }
 
     // Extract and persist statement period if not already present
